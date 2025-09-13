@@ -233,7 +233,7 @@ export function Auth() {
           <p className="flex items-center justify-center space-x-1">
             <span>Made with</span>
             <Heart className="h-4 w-4 text-red-500" />
-            <span>by StarMar Team</span>
+            <span>by StarMar</span>
           </p>
         </div>
       </div>

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 export interface Profile {
+  avatar_url: string;
   id: string;
   user_id: string;
   username: string;
@@ -73,7 +74,11 @@ export function useUserPosts(userId?: string) {
 
       const { data, error } = await supabase
         .from("posts")
-        .select("*, user:profiles!inner(user_id, username, display_name, avatar)")
+        .select(`
+          id, content, created_at, likes_count, comments_count,
+          user:profiles!user_id (user_id, username, display_name, avatar_url),
+          post_media (media_url, media_type)
+        `)
         .eq("user_id", targetUserId)
         .order("created_at", { ascending: false });
 
@@ -81,22 +86,15 @@ export function useUserPosts(userId?: string) {
 
       // Map the data to match the expected Post interface
       return data.map((post: any) => ({
-        id: post.post_id || post.id,
-        user_id: post.user_id,
-        content: post.content,
-        image_url: post.image_url,
-        created_at: post.created_at,
-        likes_count: post.likes_count || 0,
-        comments_count: post.comments_count || 0,
-        is_liked: post.is_liked || false,
-        is_bookmarked: post.is_bookmarked || false,
+        ...post,
+        image_url: post.post_media?.[0]?.media_url, // Use the first media item as the primary image
         user: {
-          id: post.user.user_id,
-          username: post.user.username,
+          id: post.user?.user_id,
+          username: post.user?.username,
           displayName: post.user.display_name || post.user.username,
-          avatar: post.user.avatar,
+          avatar: post.user.avatar_url,
         },
-      })) as Post[];
+      })) as unknown as Post[];
     },
     enabled: !!targetUserId,
   });
