@@ -1,188 +1,231 @@
 import { useState } from "react";
+import { useParams } from "react-router-dom";
+import {
+  MoreHorizontal,
+  Grid3X3,
+  Bookmark,
+  Heart,
+  MessageCircle,
+  MapPin,
+  Link as LinkIcon,
+  Calendar,
+} from "lucide-react";
+import { useProfile, useUserPosts, Post } from "@/hooks/useProfile";
+import { useAuth } from "@/contexts/AuthContext";
 import { Navigation } from "@/components/layout/Navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Settings, 
-  MoreHorizontal, 
-  Grid3X3, 
-  Bookmark, 
-  Heart,
-  MessageCircle,
-  MapPin,
-  Link as LinkIcon,
-  Calendar
-} from "lucide-react";
-import { PostCard } from "@/components/posts/PostCard";
+import { format } from "date-fns";
 
-// Mock user data
-const userData = {
-  id: "1",
-  username: "yourname",
-  displayName: "Your Name",
-  bio: "Capturing life's beautiful moments ✨\nPhotographer & Content Creator 📸\nLiving life one adventure at a time 🌍",
-  avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300&h=300&fit=crop&crop=face",
-  coverImage: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=400&fit=crop",
-  location: "San Francisco, CA",
-  website: "yourname.com",
-  joinDate: "March 2022",
-  verified: true,
-  stats: {
-    posts: 127,
-    followers: 2453,
-    following: 892
-  }
+const PostCard = ({ post }) => {
+  const [isLiked, setIsLiked] = useState(post.isLiked);
+  const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
+
+  return (
+    <Card className="p-4 md:p-6 space-y-4 animate-fade-in">
+      <div className="flex items-center space-x-4">
+        <Avatar className="w-12 h-12">
+          <AvatarImage src={post.user.avatar} alt={post.user.displayName} />
+          <AvatarFallback className="text-2xl">{post.user.displayName?.charAt(0)}</AvatarFallback>
+        </Avatar>
+        <div className="flex-1">
+          <h4 className="font-semibold">{post.user.displayName}</h4>
+          <p className="text-sm text-muted-foreground">@{post.user.username} · {post.timestamp}</p>
+        </div>
+        <Button variant="ghost" size="icon" onClick={() => { }}>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div>
+        {post.content && (
+          <p className="text-foreground leading-relaxed whitespace-pre-line mb-4">
+            {post.content}
+          </p>
+        )}
+        {post.image_url && (
+          <img
+            src={post.image_url}
+            alt="Post"
+            className="w-full h-auto object-cover rounded-lg"
+          />
+        )}
+      </div>
+
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => setIsLiked(!isLiked)}
+            className="flex items-center space-x-1"
+          >
+            <Heart fill={isLiked ? "currentColor" : "none"} className={`h-4 w-4 transition-colors ${isLiked ? "text-red-500" : ""}`} />
+            <span>{post.likes_count}</span>
+          </button>
+          <div className="flex items-center space-x-1">
+            <MessageCircle className="h-4 w-4" />
+            <span>{post.comments_count}</span>
+          </div>
+        </div>
+        <button onClick={() => setIsBookmarked(!isBookmarked)}>
+          <Bookmark fill={isBookmarked ? "currentColor" : "none"} className="h-4 w-4" />
+        </button>
+      </div>
+    </Card>
+  );
 };
 
-// Mock posts
-const userPosts = [
-  {
-    id: "1",
-    user: {
-      id: "1",
-      username: "yourname",
-      displayName: "Your Name",
-      avatar: userData.avatar
-    },
-    content: "Sunset vibes from today's photoshoot! Sometimes the best moments happen when you least expect them. ✨📸",
-    image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=800&fit=crop",
-    timestamp: "2 hours ago",
-    likes: 234,
-    comments: 12,
-    isLiked: true,
-    isBookmarked: false
-  },
-  {
-    id: "2",
-    user: {
-      id: "1",
-      username: "yourname", 
-      displayName: "Your Name",
-      avatar: userData.avatar
-    },
-    content: "Coffee and creativity fuel my mornings ☕️✨ What inspires you to start your day?",
-    image: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&h=800&fit=crop",
-    timestamp: "1 day ago",
-    likes: 189,
-    comments: 8,
-    isLiked: false,
-    isBookmarked: true
-  }
-];
-
 const Profile = () => {
+  const { userId } = useParams<{ userId?: string }>();
+  const { user: authUser } = useAuth();
+  const { data: profile, isLoading: profileLoading, error: profileError } = useProfile(userId);
+  const { data: posts, isLoading: postsLoading, error: postsError } = useUserPosts(userId);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [activeTab, setActiveTab] = useState("posts");
+
+  const loading = profileLoading || postsLoading;
+  const error = profileError || postsError;
+
+  const userPosts: (Post & { timestamp: string })[] = posts
+    ? posts.map((post) => ({
+      ...post,
+      timestamp: format(new Date(post.created_at), "PP"),
+    }))
+    : [];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading profile...</p>
+      </div>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center text-center p-4">
+        <p className="text-xl font-semibold text-red-500">Error</p>
+        <p className="text-muted-foreground">{error?.message || "Profile not found."}</p>
+      </div>
+    );
+  }
+
+  const isOwnProfile = !userId || authUser?.id === profile.user_id;
 
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      
+
       <main className="max-w-4xl mx-auto px-4 py-6">
         {/* Profile Header */}
         <Card className="mb-6 overflow-hidden animate-fade-in">
           {/* Cover Image */}
           <div className="h-48 md:h-64 relative overflow-hidden">
-            <img 
-              src={userData.coverImage} 
+            <img
+              src={profile.cover_image || '/placeholder-cover.jpg'}
               alt="Cover"
               className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
           </div>
-          
+
           {/* Profile Info */}
           <div className="p-6">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between -mt-20 md:-mt-16">
               {/* Avatar & Basic Info */}
               <div className="flex flex-col md:flex-row md:items-end md:space-x-6">
                 <Avatar className="h-32 w-32 border-4 border-background shadow-xl">
-                  <AvatarImage src={userData.avatar} alt={userData.displayName} />
-                  <AvatarFallback className="text-2xl">{userData.displayName.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={profile.avatar} alt={profile.display_name} />
+                  <AvatarFallback className="text-2xl">{profile.display_name?.charAt(0) || profile.username.charAt(0)}</AvatarFallback>
                 </Avatar>
-                
+
                 <div className="mt-4 md:mt-0 md:mb-2">
                   <div className="flex items-center space-x-2 mb-2">
-                    <h1 className="text-2xl md:text-3xl font-bold">{userData.displayName}</h1>
-                    {userData.verified && (
+                    <h1 className="text-2xl md:text-3xl font-bold">{profile.display_name || profile.username}</h1>
+                    {profile.is_verified && (
                       <Badge className="starmar-gradient text-white border-0">
                         ✓ Verified
                       </Badge>
                     )}
                   </div>
-                  <p className="text-muted-foreground text-lg">@{userData.username}</p>
+                  <p className="text-muted-foreground text-lg">@{profile.username}</p>
                 </div>
               </div>
-              
+
               {/* Action Buttons */}
               <div className="flex items-center space-x-3 mt-4 md:mt-0">
-                <Button
-                  variant={isFollowing ? "outline" : "default"}
-                  className={!isFollowing ? "gradient-button" : ""}
-                  onClick={() => setIsFollowing(!isFollowing)}
-                >
-                  {isFollowing ? "Following" : "Follow"}
-                </Button>
-                <Button variant="outline" size="icon">
-                  <MessageCircle className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
+                {isOwnProfile ? (
+                  <Button variant="outline" onClick={() => { /* Navigate to edit profile */ }}>
+                    Edit Profile
+                  </Button>
+                ) : (
+                  <><Button
+                    variant={isFollowing ? "outline" : "default"}
+                    className={!isFollowing ? "gradient-button" : ""}
+
+                    onClick={() => setIsFollowing(!isFollowing)}
+                  >
+                    {isFollowing ? "Following" : "Follow"}
+                  </Button>
+                    <Button variant="outline" size="icon" onClick={() => { }}>
+
+                      <MessageCircle className="h-4 w-4" />
+                    </Button><Button variant="outline" size="icon" onClick={() => { }}>
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button></>
+                )}
               </div>
             </div>
-            
+
             {/* Bio & Details */}
             <div className="mt-6 space-y-4">
               <p className="text-foreground whitespace-pre-line leading-relaxed">
-                {userData.bio}
+                {profile.bio}
               </p>
-              
+
               <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                {userData.location && (
+                {profile.location && (
                   <div className="flex items-center space-x-1">
                     <MapPin className="h-4 w-4" />
-                    <span>{userData.location}</span>
+                    <span>{profile.location}</span>
                   </div>
                 )}
-                {userData.website && (
+                {profile.website && (
                   <div className="flex items-center space-x-1">
                     <LinkIcon className="h-4 w-4" />
-                    <a href={`https://${userData.website}`} className="text-primary hover:underline">
-                      {userData.website}
+                    <a href={`https://${profile.website}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                      {profile.website}
                     </a>
                   </div>
                 )}
                 <div className="flex items-center space-x-1">
                   <Calendar className="h-4 w-4" />
-                  <span>Joined {userData.joinDate}</span>
+                  <span>Joined {format(new Date(profile.join_date || profile.created_at), "MMMM yyyy")}</span>
                 </div>
               </div>
-              
+
               {/* Stats */}
               <div className="flex items-center space-x-6 pt-2">
                 <div className="text-center">
-                  <p className="font-bold text-lg">{userData.stats.posts}</p>
+                  <p className="font-bold text-lg">{profile.posts_count}</p>
                   <p className="text-sm text-muted-foreground">Posts</p>
                 </div>
                 <div className="text-center cursor-pointer hover:text-primary transition-colors">
-                  <p className="font-bold text-lg">{userData.stats.followers.toLocaleString()}</p>
+                  <p className="font-bold text-lg">{profile.followers_count.toLocaleString()}</p>
                   <p className="text-sm text-muted-foreground">Followers</p>
                 </div>
                 <div className="text-center cursor-pointer hover:text-primary transition-colors">
-                  <p className="font-bold text-lg">{userData.stats.following.toLocaleString()}</p>
+                  <p className="font-bold text-lg">{profile.following_count.toLocaleString()}</p>
                   <p className="text-sm text-muted-foreground">Following</p>
                 </div>
               </div>
             </div>
           </div>
         </Card>
-        
+
         {/* Content Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs defaultValue="posts" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3 lg:w-96 mx-auto">
             <TabsTrigger value="posts" className="flex items-center space-x-2">
               <Grid3X3 className="h-4 w-4" />
@@ -197,13 +240,23 @@ const Profile = () => {
               <span>Liked</span>
             </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="posts" className="space-y-6">
-            {userPosts.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
+            {userPosts.length > 0 ? (
+              userPosts.map((post: Post) => (
+                <PostCard key={post.id} post={post} />
+              ))
+            ) : (
+              <div className="text-center py-12">
+                <Grid3X3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Belum ada post</h3>
+                <p className="text-muted-foreground">
+                  Pengguna ini belum membuat postingan apa pun.
+                </p>
+              </div>
+            )}
           </TabsContent>
-          
+
           <TabsContent value="saved" className="space-y-6">
             <div className="text-center py-12">
               <Bookmark className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -213,7 +266,7 @@ const Profile = () => {
               </p>
             </div>
           </TabsContent>
-          
+
           <TabsContent value="liked" className="space-y-6">
             <div className="text-center py-12">
               <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />

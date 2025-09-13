@@ -1,13 +1,17 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Eye, EyeOff, Mail, Lock, User, Heart } from "lucide-react";
+import { Separator } from "@/components/ui/separator"; 
+import { Heart, Github, Chrome } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from "../contexts/AuthContext";
+import { DisplayNameField, EmailField, PasswordField, UsernameField } from "../contexts/AuthFormFields";
 
-export const Auth = () => {
+export function Auth() {
+  const { signIn, signUp, resetPassword, signInWithOAuth } = useAuth();
+  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -22,57 +26,44 @@ export const Auth = () => {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-
-    if (!formData.email) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email is invalid";
-    }
-
-    if (!formData.password) {
-      newErrors.password = "Password is required";
-    } else if (formData.password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters";
-    }
-
+    if (!formData.email) newErrors.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Email is invalid";
+    if (!formData.password) newErrors.password = "Password is required";
+    else if (formData.password.length < 6) newErrors.password = "Password must be at least 6 characters";
     if (!isLogin) {
-      if (!formData.username) {
-        newErrors.username = "Username is required";
-      } else if (formData.username.length < 3) {
-        newErrors.username = "Username must be at least 3 characters";
-      }
-
-      if (!formData.displayName) {
-        newErrors.displayName = "Display name is required";
-      }
-
-      if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = "Passwords don't match";
-      }
+      if (!formData.username) newErrors.username = "Username is required";
+      else if (formData.username.length < 3) newErrors.username = "Username must be at least 3 characters";
+      if (!formData.displayName) newErrors.displayName = "Display name is required";
+      if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = "Passwords don't match";
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
-
     setIsLoading(true);
-    
+
     try {
-      // Here you would implement actual authentication logic
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
-      
-      console.log(isLogin ? 'Login attempt' : 'Signup attempt', formData);
-      
-      // Redirect to main app after successful auth
-      window.location.href = '/';
-      
-    } catch (error) {
-      setErrors({ general: 'Authentication failed. Please try again.' });
+      let error;
+      if (isLogin) {
+        ({ error } = await signIn(formData.email, formData.password));
+      } else {
+        ({ error } = await signUp(
+          formData.email,
+          formData.password,
+          formData.username,
+          formData.displayName
+        ));
+      }
+      if (error) {
+        setErrors({ general: error.message });
+      } else {
+        navigate("/");
+      }
+    } catch {
+      setErrors({ general: "Authentication failed. Please try again." });
     } finally {
       setIsLoading(false);
     }
@@ -80,8 +71,25 @@ export const Auth = () => {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: "" }));
+  };
+
+  const handleForgotPassword = async () => {
+    if (!formData.email) {
+      setErrors({ email: "Please enter your email to reset password" });
+      return;
+    }
+    const { error } = await resetPassword(formData.email);
+    if (error) setErrors({ general: error.message });
+    else alert("Password reset email sent. Check your inbox!");
+  };
+
+  const handleOAuthSignIn = async (provider: 'google' | 'github') => {
+    setIsLoading(true);
+    const { error } = await signInWithOAuth(provider);
+    if (error) {
+      setErrors({ general: error.message });
+      setIsLoading(false);
     }
   };
 
@@ -104,16 +112,15 @@ export const Auth = () => {
         <Card className="glass-card">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">
-              {isLogin ? 'Welcome Back' : 'Join StarMar'}
+              {isLogin ? "Welcome Back" : "Join StarMar"}
             </CardTitle>
             <p className="text-muted-foreground">
-              {isLogin 
-                ? 'Sign in to your account to continue' 
-                : 'Create your account and start sharing'
-              }
+              {isLogin
+                ? "Sign in to your account to continue"
+                : "Create your account and start sharing"}
             </p>
           </CardHeader>
-          
+
           <CardContent className="space-y-6">
             {errors.general && (
               <Alert variant="destructive">
@@ -124,118 +131,50 @@ export const Auth = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && (
                 <>
-                  <div className="space-y-2">
-                    <Label htmlFor="displayName" className="flex items-center space-x-2">
-                      <User className="h-4 w-4" />
-                      <span>Display Name</span>
-                    </Label>
-                    <Input
-                      id="displayName"
-                      placeholder="Your display name"
-                      value={formData.displayName}
-                      onChange={(e) => handleInputChange('displayName', e.target.value)}
-                      className={errors.displayName ? 'border-destructive' : ''}
-                    />
-                    {errors.displayName && (
-                      <p className="text-sm text-destructive">{errors.displayName}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="username" className="flex items-center space-x-2">
-                      <User className="h-4 w-4" />
-                      <span>Username</span>
-                    </Label>
-                    <Input
-                      id="username"
-                      placeholder="@username"
-                      value={formData.username}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
-                        handleInputChange('username', value);
-                      }}
-                      className={errors.username ? 'border-destructive' : ''}
-                    />
-                    {errors.username && (
-                      <p className="text-sm text-destructive">{errors.username}</p>
-                    )}
-                  </div>
+                  <DisplayNameField
+                    value={formData.displayName}
+                    onChange={(e) => handleInputChange("displayName", e.target.value)}
+                    error={errors.displayName}
+                  />
+                  <UsernameField
+                    value={formData.username}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
+                      handleInputChange("username", value);
+                    } }
+                    error={errors.username} />
                 </>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="email" className="flex items-center space-x-2">
-                  <Mail className="h-4 w-4" />
-                  <span>Email</span>
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="your@email.com"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  className={errors.email ? 'border-destructive' : ''}
-                />
-                {errors.email && (
-                  <p className="text-sm text-destructive">{errors.email}</p>
-                )}
-              </div>
+              <EmailField
+                value={formData.email}
+                onChange={(e) => handleInputChange("email", e.target.value)}
+                error={errors.email} />
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="flex items-center space-x-2">
-                  <Lock className="h-4 w-4" />
-                  <span>Password</span>
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
-                    className={errors.password ? 'border-destructive' : ''}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-                {errors.password && (
-                  <p className="text-sm text-destructive">{errors.password}</p>
-                )}
-              </div>
+              <PasswordField
+                id="password"
+                label="Password"
+                value={formData.password}
+                onChange={(e) => handleInputChange("password", e.target.value)}
+                error={errors.password}
+                showPassword={showPassword}
+                toggleShowPassword={() => setShowPassword(!showPassword)} />
 
               {!isLogin && (
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="flex items-center space-x-2">
-                    <Lock className="h-4 w-4" />
-                    <span>Confirm Password</span>
-                  </Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="••••••••"
-                    value={formData.confirmPassword}
-                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                    className={errors.confirmPassword ? 'border-destructive' : ''}
-                  />
-                  {errors.confirmPassword && (
-                    <p className="text-sm text-destructive">{errors.confirmPassword}</p>
-                  )}
-                </div>
+                <PasswordField
+                  id="confirmPassword"
+                  label="Confirm Password"
+                  value={formData.confirmPassword}
+                  onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                  error={errors.confirmPassword} />
               )}
 
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full gradient-button"
                 disabled={isLoading}
               >
-                {isLoading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
+                {isLoading ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
               </Button>
             </form>
 
@@ -246,6 +185,21 @@ export const Auth = () => {
                   or
                 </span>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Button variant="outline" onClick={() => handleOAuthSignIn('google')} disabled={isLoading}>
+                  <Chrome className="mr-2 h-4 w-4" />
+                  Google
+                </Button>
+                <Button variant="outline" onClick={() => handleOAuthSignIn('github')} disabled={isLoading}>
+                  <Github className="mr-2 h-4 w-4" />
+                  GitHub
+                </Button>
+              </div>
+
+              <p className="text-center text-xs text-muted-foreground">
+                {isLogin ? "Or sign in with your email" : "Or sign up with your email"}
+              </p>
 
               <Button
                 type="button"
@@ -261,13 +215,13 @@ export const Auth = () => {
                     confirmPassword: "",
                     displayName: ""
                   });
-                }}
+                } }
               >
                 {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
               </Button>
 
               {isLogin && (
-                <Button variant="ghost" className="text-sm">
+                <Button variant="ghost" className="text-sm" onClick={handleForgotPassword}>
                   Forgot your password?
                 </Button>
               )}
@@ -285,6 +239,4 @@ export const Auth = () => {
       </div>
     </div>
   );
-};
-
-export default Auth;
+}

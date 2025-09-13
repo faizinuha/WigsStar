@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+// Kita akan menyesuaikan interface agar sesuai dengan data yang diformat dari index.jsx
 interface PostUser {
   id: string;
   username: string;
@@ -26,7 +27,6 @@ interface PostUser {
 
 interface Post {
   id: string;
-  user: PostUser;
   content: string;
   image?: string;
   timestamp: string;
@@ -35,6 +35,12 @@ interface Post {
   isLiked: boolean;
   isBookmarked: boolean;
   location?: string;
+  // Menambahkan properti user yang sudah diratakan
+  user: {
+    username: string;
+    displayName: string;
+    avatar: string;
+  };
 }
 
 interface PostCardProps {
@@ -42,24 +48,38 @@ interface PostCardProps {
 }
 
 export const PostCard = ({ post }: PostCardProps) => {
-  const [isLiked, setIsLiked] = useState(post.isLiked);
-  const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
-  const [likesCount, setLikesCount] = useState(post.likes);
+  // Gunakan optional chaining untuk memastikan properti ada
+  const initialLikes = post?.likes ?? 0;
+  const initialIsLiked = post?.isLiked ?? false;
+  const initialIsBookmarked = post?.isBookmarked ?? false;
+  const initialContent = post?.content ?? "";
+
+  const [isLiked, setIsLiked] = useState(initialIsLiked);
+  const [isBookmarked, setIsBookmarked] = useState(initialIsBookmarked);
+  const [likesCount, setLikesCount] = useState(initialLikes);
   const [showFullCaption, setShowFullCaption] = useState(false);
 
+  // Fungsi interaksi tetap sama
   const handleLike = () => {
     setIsLiked(!isLiked);
     setLikesCount(isLiked ? likesCount - 1 : likesCount + 1);
+    // TODO: Tambahkan logika untuk mengirim update ke Supabase
   };
 
   const handleBookmark = () => {
     setIsBookmarked(!isBookmarked);
+    // TODO: Tambahkan logika untuk mengirim update ke Supabase
   };
 
-  const isLongCaption = post.content.length > 150;
+  const isLongCaption = initialContent.length > 150;
   const displayContent = showFullCaption || !isLongCaption 
-    ? post.content 
-    : post.content.substring(0, 150) + "...";
+    ? initialContent
+    : initialContent.substring(0, 150) + "...";
+
+  // Pastikan properti user dan image ada sebelum dirender
+  if (!post || !post.user) {
+    return null;
+  }
 
   return (
     <Card className="post-card bg-card animate-fade-in">
@@ -75,6 +95,8 @@ export const PostCard = ({ post }: PostCardProps) => {
             <div className="flex items-center space-x-1 text-xs text-muted-foreground">
               <span>@{post.user.username}</span>
               <span>•</span>
+              {/* Menggunakan `post.timestamp` yang datang dari data mock.
+              Jika dari Supabase, gunakan `created_at` dan format dengan `date-fns` */}
               <span>{post.timestamp}</span>
               {post.location && (
                 <>

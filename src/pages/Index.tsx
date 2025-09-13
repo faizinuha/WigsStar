@@ -26,7 +26,7 @@ const mockPosts = [
     isBookmarked: false
   },
   {
-    id: "2", 
+    id: "2",
     user: {
       id: "2",
       username: "maria_travels",
@@ -44,7 +44,7 @@ const mockPosts = [
   {
     id: "3",
     user: {
-      id: "3", 
+      id: "3",
       username: "david_chef",
       displayName: "David Culinary",
       avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face"
@@ -65,11 +65,11 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      
+
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         {/* Create Post Section */}
         <CreatePost />
-        
+
         {/* Stories Section */}
         <Card className="p-4">
           <div className="flex space-x-4 overflow-x-auto pb-2">
@@ -77,12 +77,12 @@ const Index = () => {
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent p-[2px]">
                 <Avatar className="w-full h-full border-2 border-background">
                   <AvatarImage src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face" />
-                  <AvatarFallback>You</AvatarFallback>
+                  <AvatarFallback></AvatarFallback>
                 </Avatar>
               </div>
               <span className="text-xs text-muted-foreground">Your Story</span>
             </div>
-            
+
             {mockPosts.map((post) => (
               <div key={post.id} className="flex flex-col items-center space-y-2 min-w-[70px]">
                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent p-[2px]">
