@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -13,26 +13,47 @@ import {
   Menu,
   X,
   Settings,
-  LogOut
+  LogOut,
+  Laugh
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/hooks/useProfile";
+import { CreatePostModal } from "@/components/posts/CreatePostModal";
 
 export const Navigation = () => {
+  const { user, signOut } = useAuth();
+  const { data: profile } = useProfile();
   const [notifications] = useState(3);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Redirect to auth if not authenticated
+  useEffect(() => {
+    if (!user && location.pathname !== "/auth") {
+      navigate("/auth");
+    }
+  }, [user, navigate, location.pathname]);
 
   const navItems = [
     { icon: Home, label: "Home", path: "/", active: location.pathname === "/" },
     { icon: Search, label: "Explore", path: "/explore", active: location.pathname === "/explore" },
-    { icon: PlusSquare, label: "Create", path: "#", active: false },
-    { icon: Heart, label: "Activity", path: "#", badge: notifications, active: false },
-    { icon: MessageCircle, label: "Messages", path: "#", badge: 2, active: false },
+    { icon: PlusSquare, label: "Create", path: "#", active: false, onClick: () => setShowCreateModal(true) },
+    { icon: Laugh, label: "Memes", path: "/memes", active: location.pathname === "/memes" },
+    { icon: Heart, label: "Notifications", path: "/notifications", badge: notifications, active: location.pathname === "/notifications" },
   ];
 
-  const handleNavigation = (path: string) => {
-    if (path !== "#") {
+  // Don't render navigation if user is not authenticated
+  if (!user) {
+    return null;
+  }
+
+  const handleNavigation = (path: string, onClick?: () => void) => {
+    if (onClick) {
+      onClick();
+    } else if (path !== "#") {
       navigate(path);
     }
     setIsMenuOpen(false);
@@ -43,8 +64,14 @@ export const Navigation = () => {
     setIsMenuOpen(false);
   };
 
-  const handleAuthClick = () => {
+  const handleLogout = async () => {
+    await signOut();
     navigate("/auth");
+    setIsMenuOpen(false);
+  };
+
+  const handleSettingsClick = () => {
+    navigate("/settings");
     setIsMenuOpen(false);
   };
 
@@ -72,7 +99,7 @@ export const Navigation = () => {
                   key={index}
                   variant={item.active ? "secondary" : "ghost"}
                   className="w-full justify-start space-x-3 h-12 text-base"
-                  onClick={() => handleNavigation(item.path)}
+                  onClick={() => handleNavigation(item.path, item.onClick)}
                 >
                   <div className="relative">
                     <Icon className="h-6 w-6" />
@@ -91,19 +118,19 @@ export const Navigation = () => {
 
         {/* User Profile */}
         <div className="space-y-4">
-          <Button variant="ghost" className="w-full justify-start space-x-3 h-12">
+          <Button variant="ghost" className="w-full justify-start space-x-3 h-12" onClick={handleSettingsClick}>
             <Settings className="h-6 w-6" />
             <span>Settings</span>
           </Button>
           
           <div className="flex items-center space-x-3 p-3 rounded-2xl bg-secondary cursor-pointer hover:bg-secondary/80 transition-colors" onClick={handleProfileClick}>
             <Avatar className="h-10 w-10">
-              <AvatarImage src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face" />
-              <AvatarFallback>You</AvatarFallback>
+              <AvatarImage src={profile?.avatar_url} />
+              <AvatarFallback>{profile?.display_name?.[0] || profile?.username?.[0] || "U"}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="font-medium truncate">Your Name</p>
-              <p className="text-sm text-muted-foreground truncate">@yourname</p>
+              <p className="font-medium truncate">{profile?.display_name || profile?.username}</p>
+              <p className="text-sm text-muted-foreground truncate">@{profile?.username}</p>
             </div>
           </div>
         </div>
@@ -155,7 +182,7 @@ export const Navigation = () => {
                         key={index}
                         variant={item.active ? "secondary" : "ghost"}
                         className="w-full justify-start space-x-3 h-12"
-                        onClick={() => handleNavigation(item.path)}
+                        onClick={() => handleNavigation(item.path, item.onClick)}
                       >
                         <div className="relative">
                           <Icon className="h-6 w-6" />
@@ -175,13 +202,13 @@ export const Navigation = () => {
 
                 {/* Settings & Logout */}
                 <div className="space-y-2">
-                  <Button variant="ghost" className="w-full justify-start space-x-3 h-12">
+                  <Button variant="ghost" className="w-full justify-start space-x-3 h-12" onClick={handleSettingsClick}>
                     <Settings className="h-6 w-6" />
                     <span>Settings</span>
                   </Button>
-                  <Button variant="ghost" className="w-full justify-start space-x-3 h-12 text-destructive" onClick={handleAuthClick}>
+                  <Button variant="ghost" className="w-full justify-start space-x-3 h-12 text-destructive" onClick={handleLogout}>
                     <LogOut className="h-6 w-6" />
-                    <span>Login / Signup</span>
+                    <span>Logout</span>
                   </Button>
                 </div>
               </div>
@@ -199,7 +226,7 @@ export const Navigation = () => {
                 variant="ghost"
                 size="icon"
                 className="h-12 w-12 relative"
-                onClick={() => handleNavigation(item.path)}
+                onClick={() => handleNavigation(item.path, item.onClick)}
               >
                 <Icon className={`h-6 w-6 ${item.active ? 'text-primary' : ''}`} />
                 {item.badge && (
@@ -217,6 +244,12 @@ export const Navigation = () => {
       <div className="hidden md:block w-72" />
       <div className="md:hidden h-16" />
       <div className="md:hidden h-16" />
+      
+      {/* Create Post Modal */}
+      <CreatePostModal 
+        isOpen={showCreateModal} 
+        onClose={() => setShowCreateModal(false)} 
+      />
     </>
   );
 };
