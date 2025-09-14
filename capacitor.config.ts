@@ -1,9 +1,9 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.StarMar',
+    appId: 'com.StarMar',
   appName: 'StarMar',
-  webDir: 'www'
+  webDir: 'dist'
 };
 
 export default config;
