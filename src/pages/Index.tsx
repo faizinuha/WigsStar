@@ -1,60 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-import { formatDistanceToNow, parseISO } from "date-fns";
 import { Navigation } from "@/components/layout/Navigation";
 import { PostCard } from "@/components/posts/PostCard";
 import { CreatePost } from "@/components/posts/CreatePost";
 import { StoriesSection } from "@/components/posts/StoriesSection";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { Post } from "@/hooks/useProfile";
+import { useAllPosts } from "@/hooks/useProfile";
 
 const Index = () => {
-  const { data: posts, isLoading } = useQuery({
-    queryKey: ["posts"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("posts")
-        .select(`
-          id,
-          caption,
-          created_at,
-          likes_count,
-          comments_count,
-          location,
-          user:profiles!user_id(username, display_name, avatar_url),
-          post_media(media_url)
-        `)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      return data.map((post: any) => ({
-        id: post.id,
-        user_id: post.user_id,
-        content: post.caption || '',
-        image: post.post_media[0]?.media_url || '',
-        image_url: post.post_media[0]?.media_url || '',
-        created_at: post.created_at,
-        timestamp: formatDistanceToNow(parseISO(post.created_at), { addSuffix: true }),
-        likes: post.likes_count,
-        likes_count: post.likes_count,
-        comments: post.comments_count,
-        comments_count: post.comments_count,
-        location: post.location,
-        user: { 
-          id: post.user.user_id,
-          username: post.user.username,
-          displayName: post.user.display_name || post.user.username,
-          avatar: post.user.avatar_url,
-        },
-        isLiked: false,
-        isBookmarked: false,
-        is_liked: false,
-        is_bookmarked: false,
-      })) as Post[];
-    },
-  });
+  const { data: posts, isLoading } = useAllPosts();
 
   return (
     <div className="min-h-screen bg-background">
@@ -85,6 +38,13 @@ const Index = () => {
             <Button variant="outline" className="rounded-full px-8">
               Load More Posts
             </Button>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && posts && posts.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No posts yet. Create the first one!</p>
           </div>
         )}
       </main>
