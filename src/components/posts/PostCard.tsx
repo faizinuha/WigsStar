@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -8,39 +8,41 @@ import {
   Share, 
   Bookmark, 
   MoreHorizontal,
-  MapPin 
+  MapPin,
+  Maximize,
+  Repeat
 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
+import { useDeletePost } from "@/hooks/useProfile";
+import { useToast } from "@/components/ui/use-toast";
 
-// Kita akan menyesuaikan interface agar sesuai dengan data yang diformat dari index.jsx
-interface PostUser {
-  id: string;
-  username: string;
-  displayName: string;
-  avatar: string;
-}
-
+// Interface disesuaikan dengan data dari Supabase
 interface Post {
   id: string;
   user_id: string;
   content: string;
-  image?: string;
-  timestamp: string;
+  image_url?: string;
+  created_at: string; // Menggunakan created_at dari Supabase
   likes: number;
   comments: number;
   isLiked: boolean;
   isBookmarked: boolean;
   location?: string;
-  // Menambahkan properti user yang sudah diratakan
   user: {
     username: string;
     displayName: string;
     avatar: string;
+  };
+  repost_by?: {
+    username: string;
+    displayName: string;
   };
 }
 
@@ -48,8 +50,21 @@ interface PostCardProps {
   post: Post;
 }
 
+const RepostCard = ({ repost_by, children }) => (
+  <div className="bg-muted/20 rounded-lg p-4 mt-2">
+    <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-2">
+      <Repeat className="h-4 w-4" />
+      <span>Reposted by {repost_by.displayName}</span>
+    </div>
+    {children}
+  </div>
+);
+
 export const PostCard = ({ post }: PostCardProps) => {
-  // Gunakan optional chaining untuk memastikan properti ada
+  const { user: currentUser } = useAuth();
+  const { toast } = useToast();
+  const deletePostMutation = useDeletePost();
+
   const initialLikes = post?.likes ?? 0;
   const initialIsLiked = post?.isLiked ?? false;
   const initialIsBookmarked = post?.isBookmarked ?? false;
@@ -59,46 +74,76 @@ export const PostCard = ({ post }: PostCardProps) => {
   const [isBookmarked, setIsBookmarked] = useState(initialIsBookmarked);
   const [likesCount, setLikesCount] = useState(initialLikes);
   const [showFullCaption, setShowFullCaption] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isLongImage, setIsLongImage] = useState(false);
 
-  // Fungsi interaksi tetap sama
+  const checkImageRatio = (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const { naturalWidth, naturalHeight } = event.currentTarget;
+    if (naturalHeight > naturalWidth * 1.5) {
+      setIsLongImage(true);
+    }
+  };
+
   const handleLike = () => {
     setIsLiked(!isLiked);
     setLikesCount(isLiked ? likesCount - 1 : likesCount + 1);
-    // TODO: Tambahkan logika untuk mengirim update ke Supabase
+    // TODO: Logic to update Supabase
   };
 
   const handleBookmark = () => {
     setIsBookmarked(!isBookmarked);
-    // TODO: Tambahkan logika untuk mengirim update ke Supabase
+    // TODO: Logic to update Supabase
+  };
+
+  const handleDelete = async () => {
+    await deletePostMutation.mutateAsync(post.id);
+    toast({ title: "Post deleted successfully" });
+  };
+
+  const handleCopyLink = () => {
+    const postUrl = `${window.location.origin}/post/${post.id}`;
+    navigator.clipboard.writeText(postUrl);
+    toast({ title: "Link copied to clipboard" });
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: `Post by ${post.user.displayName}`,
+        text: post.content,
+        url: `${window.location.origin}/post/${post.id}`,
+      });
+    } else {
+      toast({ title: "Share not supported on this browser" });
+    }
   };
 
   const isLongCaption = initialContent.length > 150;
   const displayContent = showFullCaption || !isLongCaption 
     ? initialContent
-    : initialContent.substring(0, 150) + "...";
+    : `${initialContent.substring(0, 150)}...`;
 
-  // Pastikan properti user dan image ada sebelum dirender
   if (!post || !post.user) {
     return null;
   }
 
-  return (
+  const isOwnPost = currentUser?.id === post.user_id;
+
+  const PostContent = () => (
     <Card className="post-card bg-card animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center space-x-3">
           <Avatar className="h-10 w-10 ring-2 ring-primary/20">
             <AvatarImage src={post.user.avatar} alt={post.user.displayName} />
-            <AvatarFallback>{post.user.displayName.charAt(0)}</AvatarFallback>
+            <AvatarFallback>{post.user.displayName?.charAt(0)}</AvatarFallback>
           </Avatar>
           <div>
             <p className="font-semibold text-sm">{post.user.displayName}</p>
             <div className="flex items-center space-x-1 text-xs text-muted-foreground">
               <span>@{post.user.username}</span>
               <span>•</span>
-              {/* Menggunakan `post.timestamp` yang datang dari data mock.
-              Jika dari Supabase, gunakan `created_at` dan format dengan `date-fns` */}
-              <span>{post.timestamp}</span>
+              <span>{new Date(post.created_at).toLocaleDateString()}</span>
               {post.location && (
                 <>
                   <span>•</span>
@@ -119,22 +164,42 @@ export const PostCard = ({ post }: PostCardProps) => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>Follow @{post.user.username}</DropdownMenuItem>
-            <DropdownMenuItem>Copy link</DropdownMenuItem>
-            <DropdownMenuItem>Share to...</DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive">Report</DropdownMenuItem>
+            {isOwnPost ? (
+              <DropdownMenuItem onClick={handleDelete} className="text-destructive">Delete Post</DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem>Follow @{post.user.username}</DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleCopyLink}>Copy link</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleShare}>Share to...</DropdownMenuItem>
+            <DropdownMenuItem>Repost</DropdownMenuItem>
+            {!isOwnPost && <DropdownMenuItem className="text-destructive">Report</DropdownMenuItem>}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
       {/* Image */}
-      {post.image && (
-        <div className="aspect-square overflow-hidden">
-          <img 
-            src={post.image} 
+      {post.image_url && (
+        <div className={`relative group ${isExpanded ? '' : 'aspect-square'} overflow-hidden`}>
+          <img
+            src={post.image_url}
             alt="Post content"
-            className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+            className={`w-full h-full object-cover transition-all duration-500 ${isExpanded ? '' : 'group-hover:scale-105'}`}
+            onLoad={checkImageRatio}
           />
+          {isLongImage && !isExpanded && (
+            <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="rounded-full bg-black/50 text-white hover:bg-black/75 h-8 px-3"
+                onClick={() => setIsExpanded(true)}
+              >
+                <Maximize className="h-4 w-4 mr-1.5" />
+                Show More
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -210,4 +275,14 @@ export const PostCard = ({ post }: PostCardProps) => {
       </div>
     </Card>
   );
+
+  if (post.repost_by) {
+    return (
+      <RepostCard repost_by={post.repost_by}>
+        <PostContent />
+      </RepostCard>
+    );
+  }
+
+  return <PostContent />;
 };

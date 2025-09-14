@@ -123,7 +123,7 @@ const Profile = () => {
           {/* Cover Image */}
           <div className="h-48 md:h-64 relative overflow-hidden">
             <img
-              src={profile.cover_image || '/placeholder-cover.jpg'}
+              src={profile.avatar_url || '/placeholder-cover.jpg'}
               alt="Cover"
               className="w-full h-full object-cover"
             />
@@ -136,7 +136,7 @@ const Profile = () => {
               {/* Avatar & Basic Info */}
               <div className="flex flex-col md:flex-row md:items-end md:space-x-6">
                 <Avatar className="h-32 w-32 border-4 border-background shadow-xl">
-                  <AvatarImage src={profile.avatar} alt={profile.display_name} />
+                  <AvatarImage src={profile.avatar_url || '/placeholder-avatar.jpg'} alt={profile.display_name} />
                   <AvatarFallback className="text-2xl">{profile.display_name?.charAt(0) || profile.username.charAt(0)}</AvatarFallback>
                 </Avatar>
 

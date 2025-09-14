@@ -9,8 +9,6 @@ export interface Profile {
   username: string;
   display_name?: string;
   bio?: string;
-  avatar?: string;
-  cover_image?: string;
   location?: string;
   website?: string;
   join_date?: string;
@@ -27,21 +25,14 @@ export interface Post {
   id: string;
   user_id: string;
   content: string;
-  image?: string;
   image_url?: string;
   created_at: string;
-  timestamp: string;
   likes: number;
-  likes_count: number;
   comments: number;
-  comments_count: number;
   isLiked: boolean;
   isBookmarked: boolean;
-  is_liked?: boolean;
-  is_bookmarked?: boolean;
   location?: string;
   user: {
-    id: string;
     username: string;
     displayName: string;
     avatar: string;
@@ -79,29 +70,7 @@ export function useUserPosts(userId?: string) {
     queryFn: async () => {
       if (!targetUserId) throw new Error("No user ID provided");
 
-      const { data, error } = await supabase
-        .from("posts")
-        .select(`
-          id, 
-          caption,
-          location,
-          created_at, 
-          likes_count, 
-          comments_count,
-          profiles!posts_user_id_fkey (
-            user_id, 
-            username, 
-            display_name, 
-            avatar_url
-          ),
-          post_media (
-            media_url, 
-            media_type,
-            order_index
-          )
-        `)
-        .eq("user_id", targetUserId)
-        .order("created_at", { ascending: false });
+      const { data, error } = await supabase.rpc('get_user_posts', { p_user_id: targetUserId });
 
       if (error) throw error;
 
@@ -110,21 +79,17 @@ export function useUserPosts(userId?: string) {
         content: post.caption || '',
         location: post.location,
         created_at: post.created_at,
-        timestamp: post.created_at,
         likes: post.likes_count || 0,
-        likes_count: post.likes_count || 0,
         comments: post.comments_count || 0,
-        comments_count: post.comments_count || 0,
         isLiked: false,
         isBookmarked: false,
-        image_url: post.post_media?.[0]?.media_url,
+        image_url: post.media?.[0]?.media_url,
         user: {
-          id: post.profiles?.user_id,
-          username: post.profiles?.username || '',
-          displayName: post.profiles?.display_name || post.profiles?.username || '',
-          avatar: post.profiles?.avatar_url || '',
+          username: post.username || '',
+          displayName: post.display_name || post.username || '',
+          avatar: post.avatar_url || '',
         },
-        user_id: post.profiles?.user_id,
+        user_id: post.user_id,
       })) as Post[];
     },
     enabled: !!targetUserId,
@@ -135,28 +100,7 @@ export function useAllPosts() {
   return useQuery({
     queryKey: ["allPosts"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("posts")
-        .select(`
-          id, 
-          caption,
-          location,
-          created_at, 
-          likes_count, 
-          comments_count,
-          profiles!posts_user_id_fkey (
-            user_id, 
-            username, 
-            display_name, 
-            avatar_url
-          ),
-          post_media (
-            media_url, 
-            media_type,
-            order_index
-          )
-        `)
-        .order("created_at", { ascending: false });
+      const { data, error } = await supabase.rpc('get_all_posts');
 
       if (error) throw error;
 
@@ -165,21 +109,17 @@ export function useAllPosts() {
         content: post.caption || '',
         location: post.location,
         created_at: post.created_at,
-        timestamp: post.created_at,
         likes: post.likes_count || 0,
-        likes_count: post.likes_count || 0,
         comments: post.comments_count || 0,
-        comments_count: post.comments_count || 0,
         isLiked: false,
         isBookmarked: false,
-        image_url: post.post_media?.[0]?.media_url,
+        image_url: post.media?.[0]?.media_url,
         user: {
-          id: post.profiles?.user_id,
-          username: post.profiles?.username || '',
-          displayName: post.profiles?.display_name || post.profiles?.username || '',
-          avatar: post.profiles?.avatar_url || '',
+          username: post.username || '',
+          displayName: post.display_name || post.username || '',
+          avatar: post.avatar_url || '',
         },
-        user_id: post.profiles?.user_id,
+        user_id: post.user_id,
       })) as Post[];
     },
   });
@@ -205,6 +145,22 @@ export function useUpdateProfile() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
+    },
+  });
+}
+
+export function useDeletePost() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (postId: string) => {
+      const { error } = await supabase.rpc('delete_post', { p_post_id: postId });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allPosts"] });
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] });
     },
   });
 }
