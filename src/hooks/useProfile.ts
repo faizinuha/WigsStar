@@ -27,12 +27,19 @@ export interface Post {
   id: string;
   user_id: string;
   content?: string;
+  image?: string;
   image_url?: string;
   created_at: string;
+  timestamp: string;
+  likes: number;
   likes_count: number;
+  comments: number;
   comments_count: number;
+  isLiked?: boolean;
+  isBookmarked?: boolean;
   is_liked?: boolean;
   is_bookmarked?: boolean;
+  location?: string;
   user: {
     id: string;
     username: string;

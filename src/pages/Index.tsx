@@ -32,20 +32,28 @@ const Index = () => {
 
       return data.map((post: any) => ({
         id: post.id,
-        content: post.caption || '', // Ensure content is a string
-        image: post.post_media[0]?.media_url || '', // Ensure image is a string
-        timestamp: formatDistanceToNow(parseISO(post.created_at), { addSuffix: true }), // Corrected property name
-        likes: post.likes_count, // Corrected property name
-        comments: post.comments_count, // Corrected property name 
+        user_id: post.user_id,
+        content: post.caption || '',
+        image: post.post_media[0]?.media_url || '',
+        image_url: post.post_media[0]?.media_url || '',
+        created_at: post.created_at,
+        timestamp: formatDistanceToNow(parseISO(post.created_at), { addSuffix: true }),
+        likes: post.likes_count,
+        likes_count: post.likes_count,
+        comments: post.comments_count,
+        comments_count: post.comments_count,
         location: post.location,
         user: { 
+          id: post.user.user_id,
           username: post.user.username,
           displayName: post.user.display_name || post.user.username,
           avatar: post.user.avatar_url,
         },
-        isLiked: false, // Placeholder
-        isBookmarked: false, // Placeholder
-      })) as unknown as Post[];
+        isLiked: false,
+        isBookmarked: false,
+        is_liked: false,
+        is_bookmarked: false,
+      })) as Post[];
     },
   });
 
