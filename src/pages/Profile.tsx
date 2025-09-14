@@ -10,7 +10,7 @@ import {
   Link as LinkIcon,
   Calendar,
 } from "lucide-react";
-import { useProfile, useUserPosts, Post } from "@/hooks/useProfile";
+import { useProfile, useUserPosts, useDeletePost, Post } from "@/hooks/useProfile";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigation } from "@/components/layout/Navigation";
 import { Card } from "@/components/ui/card";
@@ -19,10 +19,30 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-const PostCard = ({ post }) => {
+const PostCard = ({ post, authUser }) => {
   const [isLiked, setIsLiked] = useState(post.isLiked);
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
+  const { mutate: deletePost } = useDeletePost();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  const isOwnPost = authUser?.id === post.user_id;
 
   return (
     <Card className="p-4 md:p-6 space-y-4 animate-fade-in">
@@ -35,9 +55,46 @@ const PostCard = ({ post }) => {
           <h4 className="font-semibold">{post.user.displayName}</h4>
           <p className="text-sm text-muted-foreground">@{post.user.username} · {post.timestamp}</p>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => { }}>
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
+        {isOwnPost ? (
+          <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  className="text-red-500 focus:text-red-500 focus:bg-red-50"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete your post.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-red-500 hover:bg-red-600"
+                  onClick={() => deletePost(post.id)}
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : (
+          <Button variant="ghost" size="icon">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       <div>
@@ -62,11 +119,11 @@ const PostCard = ({ post }) => {
             className="flex items-center space-x-1"
           >
             <Heart fill={isLiked ? "currentColor" : "none"} className={`h-4 w-4 transition-colors ${isLiked ? "text-red-500" : ""}`} />
-            <span>{post.likes_count}</span>
+            <span>{post.likes}</span>
           </button>
           <div className="flex items-center space-x-1">
             <MessageCircle className="h-4 w-4" />
-            <span>{post.comments_count}</span>
+            <span>{post.comments}</span>
           </div>
         </div>
         <button onClick={() => setIsBookmarked(!isBookmarked)}>
@@ -244,7 +301,7 @@ const Profile = () => {
           <TabsContent value="posts" className="space-y-6">
             {userPosts.length > 0 ? (
               userPosts.map((post: Post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} authUser={authUser} />
               ))
             ) : (
               <div className="text-center py-12">
