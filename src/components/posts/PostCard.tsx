@@ -27,6 +27,7 @@ interface PostUser {
 
 interface Post {
   id: string;
+  user_id: string;
   content: string;
   image?: string;
   timestamp: string;

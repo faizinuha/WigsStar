@@ -26,13 +26,20 @@ export interface Profile {
 export interface Post {
   id: string;
   user_id: string;
-  content?: string;
+  content: string;
+  image?: string;
   image_url?: string;
   created_at: string;
+  timestamp: string;
+  likes: number;
   likes_count: number;
+  comments: number;
   comments_count: number;
+  isLiked: boolean;
+  isBookmarked: boolean;
   is_liked?: boolean;
   is_bookmarked?: boolean;
+  location?: string;
   user: {
     id: string;
     username: string;
@@ -75,28 +82,106 @@ export function useUserPosts(userId?: string) {
       const { data, error } = await supabase
         .from("posts")
         .select(`
-          id, content, created_at, likes_count, comments_count,
-          user:profiles!user_id (user_id, username, display_name, avatar_url),
-          post_media (media_url, media_type)
+          id, 
+          caption,
+          location,
+          created_at, 
+          likes_count, 
+          comments_count,
+          profiles!posts_user_id_fkey (
+            user_id, 
+            username, 
+            display_name, 
+            avatar_url
+          ),
+          post_media (
+            media_url, 
+            media_type,
+            order_index
+          )
         `)
         .eq("user_id", targetUserId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      // Map the data to match the expected Post interface
       return data.map((post: any) => ({
-        ...post,
-        image_url: post.post_media?.[0]?.media_url, // Use the first media item as the primary image
+        id: post.id,
+        content: post.caption || '',
+        location: post.location,
+        created_at: post.created_at,
+        timestamp: post.created_at,
+        likes: post.likes_count || 0,
+        likes_count: post.likes_count || 0,
+        comments: post.comments_count || 0,
+        comments_count: post.comments_count || 0,
+        isLiked: false,
+        isBookmarked: false,
+        image_url: post.post_media?.[0]?.media_url,
         user: {
-          id: post.user?.user_id,
-          username: post.user?.username,
-          displayName: post.user.display_name || post.user.username,
-          avatar: post.user.avatar_url,
+          id: post.profiles?.user_id,
+          username: post.profiles?.username || '',
+          displayName: post.profiles?.display_name || post.profiles?.username || '',
+          avatar: post.profiles?.avatar_url || '',
         },
-      })) as unknown as Post[];
+        user_id: post.profiles?.user_id,
+      })) as Post[];
     },
     enabled: !!targetUserId,
+  });
+}
+
+export function useAllPosts() {
+  return useQuery({
+    queryKey: ["allPosts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("posts")
+        .select(`
+          id, 
+          caption,
+          location,
+          created_at, 
+          likes_count, 
+          comments_count,
+          profiles!posts_user_id_fkey (
+            user_id, 
+            username, 
+            display_name, 
+            avatar_url
+          ),
+          post_media (
+            media_url, 
+            media_type,
+            order_index
+          )
+        `)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      return data.map((post: any) => ({
+        id: post.id,
+        content: post.caption || '',
+        location: post.location,
+        created_at: post.created_at,
+        timestamp: post.created_at,
+        likes: post.likes_count || 0,
+        likes_count: post.likes_count || 0,
+        comments: post.comments_count || 0,
+        comments_count: post.comments_count || 0,
+        isLiked: false,
+        isBookmarked: false,
+        image_url: post.post_media?.[0]?.media_url,
+        user: {
+          id: post.profiles?.user_id,
+          username: post.profiles?.username || '',
+          displayName: post.profiles?.display_name || post.profiles?.username || '',
+          avatar: post.profiles?.avatar_url || '',
+        },
+        user_id: post.profiles?.user_id,
+      })) as Post[];
+    },
   });
 }
 

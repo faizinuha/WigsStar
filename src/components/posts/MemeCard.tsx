@@ -19,24 +19,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-
-interface MemeUser {
-  username: string;
-  display_name: string;
-  avatar_url: string;
-}
-
-interface Meme {
-  id: string;
-  user_id: string;
-  caption: string;
-  media_url: string;
-  media_type: string;
-  likes_count: number;
-  comments_count: number;
-  created_at: string;
-  profiles: MemeUser;
-}
+import { Meme } from "@/hooks/useMemes";
 
 interface MemeCardProps {
   meme: Meme;
@@ -92,7 +75,7 @@ export const MemeCard = ({ meme }: MemeCardProps) => {
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: `Meme by @${meme.profiles.username}`,
+        title: `Meme by @${meme.user.username}`,
         text: meme.caption,
         url: window.location.href,
       });
@@ -129,16 +112,16 @@ export const MemeCard = ({ meme }: MemeCardProps) => {
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center space-x-3">
           <Avatar className="h-10 w-10 ring-2 ring-primary/20">
-            <AvatarImage src={meme.profiles.avatar_url} alt={meme.profiles.display_name} />
-            <AvatarFallback>{meme.profiles.display_name?.charAt(0) || meme.profiles.username?.charAt(0) || "U"}</AvatarFallback>
+            <AvatarImage src={meme.user.avatar} alt={meme.user.displayName} />
+            <AvatarFallback>{meme.user.displayName?.charAt(0) || meme.user.username?.charAt(0) || "U"}</AvatarFallback>
           </Avatar>
           <div>
             <div className="flex items-center gap-2">
-              <p className="font-semibold text-sm">{meme.profiles.display_name || meme.profiles.username}</p>
+              <p className="font-semibold text-sm">{meme.user.displayName || meme.user.username}</p>
               <Laugh className="h-4 w-4 text-primary" />
             </div>
             <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-              <span>@{meme.profiles.username}</span>
+              <span>@{meme.user.username}</span>
               <span>•</span>
               <span>{formatTimeAgo(meme.created_at)}</span>
             </div>
@@ -152,7 +135,7 @@ export const MemeCard = ({ meme }: MemeCardProps) => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>Follow @{meme.profiles.username}</DropdownMenuItem>
+            <DropdownMenuItem>Follow @{meme.user.username}</DropdownMenuItem>
             <DropdownMenuItem onClick={handleShare}>Share meme</DropdownMenuItem>
             <DropdownMenuItem className="text-destructive">Report</DropdownMenuItem>
           </DropdownMenuContent>
@@ -228,7 +211,7 @@ export const MemeCard = ({ meme }: MemeCardProps) => {
         {/* Caption */}
         {meme.caption && (
           <div className="text-sm space-y-1">
-            <span className="font-semibold">@{meme.profiles.username}</span>{" "}
+            <span className="font-semibold">@{meme.user.username}</span>{" "}
             <span className="whitespace-pre-wrap">{displayContent}</span>
             {isLongCaption && !showFullCaption && (
               <button
