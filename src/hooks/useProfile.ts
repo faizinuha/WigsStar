@@ -26,7 +26,7 @@ export interface Profile {
 export interface Post {
   id: string;
   user_id: string;
-  content?: string;
+  content: string;
   image?: string;
   image_url?: string;
   created_at: string;
@@ -35,8 +35,8 @@ export interface Post {
   likes_count: number;
   comments: number;
   comments_count: number;
-  isLiked?: boolean;
-  isBookmarked?: boolean;
+  isLiked: boolean;
+  isBookmarked: boolean;
   is_liked?: boolean;
   is_bookmarked?: boolean;
   location?: string;

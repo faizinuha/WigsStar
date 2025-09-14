@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
+import { LocationInput } from "@/components/ui/location-input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,6 +24,7 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState("post");
+  const [previews, setPreviews] = useState<string[]>([]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -43,11 +44,21 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
       }
       
       setFiles(prev => [...prev, ...validFiles].slice(0, 10)); // Max 10 files
+      
+      // Generate previews
+      validFiles.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setPreviews(prev => [...prev, e.target?.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
     }
   };
 
   const removeFile = (index: number) => {
     setFiles(prev => prev.filter((_, i) => i !== index));
+    setPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const uploadFiles = async (bucket: string) => {
@@ -140,6 +151,7 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
       setCaption("");
       setLocation("");
       setFiles([]);
+      setPreviews([]);
       onClose();
       
     } catch (error: any) {
@@ -215,11 +227,10 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
               
               <div>
                 <Label htmlFor="location">Location (Optional)</Label>
-                <Input
-                  id="location"
-                  placeholder="Add location..."
+                <LocationInput
                   value={location}
-                  onChange={(e) => setLocation(e.target.value)}
+                  onChange={setLocation}
+                  placeholder="Add location..."
                   className="mt-2"
                 />
               </div>
@@ -280,23 +291,32 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto">
               {files.map((file, index) => (
                 <Card key={index} className="relative p-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {file.type.startsWith('image/') ? (
-                        <Image className="h-4 w-4" />
-                      ) : (
-                        <Video className="h-4 w-4" />
-                      )}
-                      <span className="text-xs truncate">{file.name}</span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeFile(index)}
-                      className="h-6 w-6 p-0"
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
+                  <div className="aspect-square overflow-hidden rounded">
+                    {file.type.startsWith('image/') ? (
+                      <img 
+                        src={previews[index]} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <video 
+                        src={previews[index]} 
+                        className="w-full h-full object-cover"
+                        controls={false}
+                        muted
+                      />
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeFile(index)}
+                    className="absolute top-1 right-1 h-6 w-6 p-0 bg-black/50 text-white hover:bg-black/70"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                  <div className="text-xs text-center mt-1 truncate">
+                    {file.name}
                   </div>
                 </Card>
               ))}

@@ -3,8 +3,7 @@ import { formatDistanceToNow, parseISO } from "date-fns";
 import { Navigation } from "@/components/layout/Navigation";
 import { PostCard } from "@/components/posts/PostCard";
 import { CreatePost } from "@/components/posts/CreatePost";
-import { Card } from "@/components/ui/card";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { StoriesSection } from "@/components/posts/StoriesSection";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,33 +65,7 @@ const Index = () => {
         <CreatePost />
         
         {/* Stories Section */}
-        <Card className="p-4">
-          <div className="flex space-x-4 overflow-x-auto pb-2">
-            <div className="flex flex-col items-center space-y-2 min-w-[70px]">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent p-[2px]">
-                <Avatar className="w-full h-full border-2 border-background">
-                  <AvatarImage src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face" />
-                  <AvatarFallback>You</AvatarFallback>
-                </Avatar>
-              </div>
-              <span className="text-xs text-muted-foreground">Your Story</span>
-            </div>
-            
-            {posts?.slice(0, 7).map((post) => (
-              <div key={post.id} className="flex flex-col items-center space-y-2 min-w-[70px]">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent p-[2px]">
-                  <Avatar className="w-full h-full border-2 border-background">
-                    <AvatarImage src={post.user.avatar || ''} />
-                    <AvatarFallback>{post.user.displayName.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                </div>
-                <span className="text-xs text-muted-foreground truncate w-16 text-center" title={post.user.username}>
-                  {post.user.username}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Card>
+        <StoriesSection />
 
         {/* Feed Posts */}
         <div className="space-y-6">
