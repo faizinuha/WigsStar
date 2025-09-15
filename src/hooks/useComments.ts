@@ -2,6 +2,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+export interface CommentUser {
+  username: string;
+  displayName: string;
+  avatar: string;
+}
+
 export interface Comment {
   id: string;
   content: string;
@@ -13,12 +19,7 @@ export interface Comment {
   created_at: string;
   updated_at: string;
   isLiked: boolean;
-  user: {
-    username: string;
-    displayName: string;
-    avatar: string;
-  };
-  replies?: any[]; // Using any[] to avoid infinite recursion
+  user: CommentUser;
 }
 
 export function usePostComments(postId: string) {
@@ -50,7 +51,7 @@ export function usePostComments(postId: string) {
 
       if (error) throw error;
 
-      const comments = data.map((comment: any) => ({
+      const comments: Comment[] = data.map((comment: any) => ({
         id: comment.id,
         content: comment.content,
         user_id: comment.user_id,
@@ -59,13 +60,13 @@ export function usePostComments(postId: string) {
         likes_count: comment.likes_count || 0,
         created_at: comment.created_at,
         updated_at: comment.updated_at,
-        isLiked: false, // Will be updated below
+        isLiked: false,
         user: {
           username: comment.profiles?.username || '',
           displayName: comment.profiles?.display_name || comment.profiles?.username || '',
           avatar: comment.profiles?.avatar_url || '',
         },
-      })) as Comment[];
+      }));
 
       return comments;
     },
@@ -102,7 +103,7 @@ export function useMemeComments(memeId: string) {
 
       if (error) throw error;
 
-      const comments = data.map((comment: any) => ({
+      const comments: Comment[] = data.map((comment: any) => ({
         id: comment.id,
         content: comment.content,
         user_id: comment.user_id,
@@ -117,7 +118,7 @@ export function useMemeComments(memeId: string) {
           displayName: comment.profiles?.display_name || comment.profiles?.username || '',
           avatar: comment.profiles?.avatar_url || '',
         },
-      })) as Comment[];
+      }));
 
       return comments;
     },
@@ -179,24 +180,26 @@ export function useToggleCommentLike() {
 
       if (isLiked) {
         // Remove like
-        const { error } = await supabase
+        const result = await (supabase as any)
           .from("likes")
           .delete()
           .eq("user_id", user.id)
           .eq("comment_id", commentId);
 
-        if (error) throw error;
+        if (result.error) throw result.error;
       } else {
         // Add like
-        const { error } = await supabase
+        const result = await (supabase as any)
           .from("likes")
           .insert({
             user_id: user.id,
             comment_id: commentId,
           });
 
-        if (error) throw error;
+        if (result.error) throw result.error;
       }
+
+      return true;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comments"] });

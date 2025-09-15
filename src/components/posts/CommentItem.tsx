@@ -136,21 +136,6 @@ export const CommentItem = ({ comment, postId, memeId, level = 0 }: CommentItemP
           )}
         </div>
       </div>
-
-      {/* Render replies */}
-      {comment.replies && comment.replies.length > 0 && (
-        <div className="space-y-3">
-          {comment.replies.map((reply) => (
-            <CommentItem
-              key={reply.id}
-              comment={reply}
-              postId={postId}
-              memeId={memeId}
-              level={level + 1}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 };
