@@ -2,24 +2,29 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+export interface CommentUser {
+  username: string;
+  displayName: string;
+  avatar: string;
+}
+
 export interface Comment {
   id: string;
+  content: string;
   user_id: string;
   post_id?: string;
   meme_id?: string;
   parent_comment_id?: string;
-  content: string;
-  created_at: string;
   likes_count: number;
-  user: {
-    id: string;
-    username: string;
-    displayName: string;
-    avatar: string;
-  };
+  created_at: string;
+  updated_at: string;
+  isLiked: boolean;
+  user: CommentUser;
 }
 
 export function usePostComments(postId: string) {
+  const { user } = useAuth();
+  
   return useQuery({
     queryKey: ["comments", "post", postId],
     queryFn: async () => {
@@ -28,42 +33,50 @@ export function usePostComments(postId: string) {
         .select(`
           id,
           content,
-          created_at,
-          likes_count,
+          user_id,
+          post_id,
           parent_comment_id,
+          likes_count,
+          created_at,
+          updated_at,
           profiles!comments_user_id_fkey (
-            user_id,
             username,
             display_name,
             avatar_url
           )
         `)
         .eq("post_id", postId)
-        .order("created_at", { ascending: false });
+        .is("parent_comment_id", null)
+        .order("created_at", { ascending: true });
 
       if (error) throw error;
 
-      return data.map((comment: any) => ({
+      const comments: Comment[] = data.map((comment: any) => ({
         id: comment.id,
-        user_id: comment.profiles?.user_id,
-        post_id: postId,
         content: comment.content,
-        created_at: comment.created_at,
-        likes_count: comment.likes_count || 0,
+        user_id: comment.user_id,
+        post_id: comment.post_id,
         parent_comment_id: comment.parent_comment_id,
+        likes_count: comment.likes_count || 0,
+        created_at: comment.created_at,
+        updated_at: comment.updated_at,
+        isLiked: false,
         user: {
-          id: comment.profiles?.user_id,
           username: comment.profiles?.username || '',
           displayName: comment.profiles?.display_name || comment.profiles?.username || '',
           avatar: comment.profiles?.avatar_url || '',
         },
-      })) as Comment[];
+      }));
+
+      return comments;
     },
     enabled: !!postId,
   });
 }
 
 export function useMemeComments(memeId: string) {
+  const { user } = useAuth();
+  
   return useQuery({
     queryKey: ["comments", "meme", memeId],
     queryFn: async () => {
@@ -72,36 +85,42 @@ export function useMemeComments(memeId: string) {
         .select(`
           id,
           content,
-          created_at,
-          likes_count,
+          user_id,
+          meme_id,
           parent_comment_id,
+          likes_count,
+          created_at,
+          updated_at,
           profiles!comments_user_id_fkey (
-            user_id,
             username,
             display_name,
             avatar_url
           )
         `)
         .eq("meme_id", memeId)
-        .order("created_at", { ascending: false });
+        .is("parent_comment_id", null)
+        .order("created_at", { ascending: true });
 
       if (error) throw error;
 
-      return data.map((comment: any) => ({
+      const comments: Comment[] = data.map((comment: any) => ({
         id: comment.id,
-        user_id: comment.profiles?.user_id,
-        meme_id: memeId,
         content: comment.content,
-        created_at: comment.created_at,
-        likes_count: comment.likes_count || 0,
+        user_id: comment.user_id,
+        meme_id: comment.meme_id,
         parent_comment_id: comment.parent_comment_id,
+        likes_count: comment.likes_count || 0,
+        created_at: comment.created_at,
+        updated_at: comment.updated_at,
+        isLiked: false,
         user: {
-          id: comment.profiles?.user_id,
           username: comment.profiles?.username || '',
           displayName: comment.profiles?.display_name || comment.profiles?.username || '',
           avatar: comment.profiles?.avatar_url || '',
         },
-      })) as Comment[];
+      }));
+
+      return comments;
     },
     enabled: !!memeId,
   });
@@ -118,12 +137,12 @@ export function useCreateComment() {
       memeId, 
       parentCommentId 
     }: { 
-      content: string;
-      postId?: string;
-      memeId?: string;
-      parentCommentId?: string;
+      content: string; 
+      postId?: string; 
+      memeId?: string; 
+      parentCommentId?: string; 
     }) => {
-      if (!user) throw new Error("User must be authenticated");
+      if (!user) throw new Error("User not authenticated");
 
       const { data, error } = await supabase
         .from("comments")
@@ -140,13 +159,50 @@ export function useCreateComment() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
-      if (data.post_id) {
-        queryClient.invalidateQueries({ queryKey: ["comments", "post", data.post_id] });
+    onSuccess: (_, variables) => {
+      if (variables.postId) {
+        queryClient.invalidateQueries({ queryKey: ["comments", "post", variables.postId] });
       }
-      if (data.meme_id) {
-        queryClient.invalidateQueries({ queryKey: ["comments", "meme", data.meme_id] });
+      if (variables.memeId) {
+        queryClient.invalidateQueries({ queryKey: ["comments", "meme", variables.memeId] });
       }
+    },
+  });
+}
+
+export function useToggleCommentLike() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ commentId, isLiked }: { commentId: string; isLiked: boolean }) => {
+      if (!user) throw new Error("User not authenticated");
+
+      if (isLiked) {
+        // Remove like
+        const result = await (supabase as any)
+          .from("likes")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("comment_id", commentId);
+
+        if (result.error) throw result.error;
+      } else {
+        // Add like
+        const result = await (supabase as any)
+          .from("likes")
+          .insert({
+            user_id: user.id,
+            comment_id: commentId,
+          });
+
+        if (result.error) throw result.error;
+      }
+
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["comments"] });
     },
   });
 }

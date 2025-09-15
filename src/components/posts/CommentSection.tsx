@@ -1,157 +1,125 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { formatDistanceToNow, parseISO } from "date-fns";
-import { Send } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Send, Loader2 } from "lucide-react";
+import { usePostComments, useMemeComments, useCreateComment } from "@/hooks/useComments";
+import { useAuth } from "@/contexts/AuthContext";
+import { CommentItem } from "./CommentItem";
 
 interface CommentSectionProps {
+  isOpen: boolean;
+  onClose: () => void;
   postId?: string;
   memeId?: string;
 }
 
-export const CommentSection = ({ postId, memeId }: CommentSectionProps) => {
+export const CommentSection = ({ isOpen, onClose, postId, memeId }: CommentSectionProps) => {
   const { user } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [newComment, setNewComment] = useState("");
+  
+  const { data: postComments = [], isLoading: isLoadingPostComments } = usePostComments(postId || "");
+  const { data: memeComments = [], isLoading: isLoadingMemeComments } = useMemeComments(memeId || "");
+  const { mutate: createComment, isPending: isCreatingComment } = useCreateComment();
 
-  const { data: comments, isLoading } = useQuery({
-    queryKey: ["comments", postId || memeId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("comments")
-        .select(`
-          id,
-          content,
-          created_at,
-          user_id
-        `)
-        .eq(postId ? "post_id" : "meme_id", postId || memeId)
-        .is("parent_comment_id", null)
-        .order("created_at", { ascending: false });
+  const comments = postId ? postComments : memeComments;
+  const isLoading = postId ? isLoadingPostComments : isLoadingMemeComments;
 
-      if (error) throw error;
-
-      // Get user profiles separately
-      if (data.length === 0) return [];
-
-      const userIds = [...new Set(data.map(comment => comment.user_id))];
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("user_id, username, display_name, avatar_url")
-        .in("user_id", userIds);
-
-      if (profilesError) throw profilesError;
-
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
-
-      return data.map(comment => ({
-        ...comment,
-        user: profileMap.get(comment.user_id) || {
-          username: 'Unknown',
-          display_name: 'Unknown User',
-          avatar_url: null
-        }
-      }));
-    },
-    enabled: !!(postId || memeId),
-  });
-
-  const createCommentMutation = useMutation({
-    mutationFn: async ({ content }: { content: string }) => {
-      if (!user) throw new Error("Not authenticated");
-
-      const { error } = await supabase
-        .from("comments")
-        .insert({
-          user_id: user.id,
-          post_id: postId || null,
-          meme_id: memeId || null,
-          content,
-        });
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["comments", postId || memeId] });
-      setNewComment("");
-      toast({
-        title: "Comment posted!",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error posting comment",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleSubmitComment = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim()) return;
-    createCommentMutation.mutate({ content: newComment });
+
+    createComment(
+      {
+        content: newComment,
+        postId,
+        memeId,
+      },
+      {
+        onSuccess: () => {
+          setNewComment("");
+        },
+      }
+    );
   };
 
-  if (isLoading) {
-    return <div className="text-center text-muted-foreground">Loading comments...</div>;
+  if (!user) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Comments</DialogTitle>
+          </DialogHeader>
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">Please log in to view and add comments.</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Add Comment Form */}
-      {user && (
-        <form onSubmit={handleSubmitComment} className="flex gap-3">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Comments</DialogTitle>
+        </DialogHeader>
+
+        <ScrollArea className="flex-1 max-h-96">
+          <div className="space-y-6 pr-4">
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : comments.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No comments yet. Be the first to comment!</p>
+              </div>
+            ) : (
+              comments.map((comment) => (
+                <CommentItem
+                  key={comment.id}
+                  comment={comment}
+                  postId={postId}
+                  memeId={memeId}
+                />
+              ))
+            )}
+          </div>
+        </ScrollArea>
+
+        {/* Add Comment Form */}
+        <form onSubmit={handleSubmit} className="flex gap-3 pt-4 border-t">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user.user_metadata?.avatar_url} />
-            <AvatarFallback>{user.user_metadata?.display_name?.charAt(0) || 'U'}</AvatarFallback>
+            <AvatarImage src={user?.user_metadata?.avatar_url} />
+            <AvatarFallback className="text-sm">
+              {user?.user_metadata?.display_name?.[0] || user?.email?.[0] || "U"}
+            </AvatarFallback>
           </Avatar>
           <div className="flex-1 flex gap-2">
-            <Textarea
-              placeholder="Add a comment..."
+            <Input
+              placeholder="Write a comment..."
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              className="min-h-[80px]"
+              className="flex-1"
+              disabled={isCreatingComment}
             />
-            <Button type="submit" disabled={!newComment.trim() || createCommentMutation.isPending}>
-              <Send className="h-4 w-4" />
+            <Button
+              type="submit"
+              size="sm"
+              disabled={!newComment.trim() || isCreatingComment}
+            >
+              {isCreatingComment ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
           </div>
         </form>
-      )}
-
-      {/* Comments List */}
-      <div className="space-y-4">
-        {comments?.map((comment) => (
-          <div key={comment.id} className="flex gap-3">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={comment.user?.avatar_url || undefined} />
-              <AvatarFallback>{comment.user?.display_name?.charAt(0) || 'U'}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1 space-y-1">
-              <div className="bg-muted rounded-lg p-3">
-                <div className="font-semibold text-sm">{comment.user?.display_name || comment.user?.username}</div>
-                <div className="text-sm">{comment.content}</div>
-              </div>
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <span>{formatDistanceToNow(parseISO(comment.created_at), { addSuffix: true })}</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {comments?.length === 0 && (
-        <div className="text-center text-muted-foreground py-8">
-          No comments yet. Be the first to comment!
-        </div>
-      )}
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

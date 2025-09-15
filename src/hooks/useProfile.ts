@@ -70,7 +70,27 @@ export function useUserPosts(userId?: string) {
     queryFn: async () => {
       if (!targetUserId) throw new Error("No user ID provided");
 
-      const { data, error } = await supabase.rpc('get_user_posts', { p_user_id: targetUserId });
+      const { data, error } = await supabase
+        .from("posts")
+        .select(`
+          id,
+          caption,
+          location,
+          created_at,
+          likes_count,
+          comments_count,
+          profiles!posts_user_id_fkey (
+            username,
+            display_name,
+            avatar_url
+          ),
+          post_media (
+            media_url,
+            media_type
+          )
+        `)
+        .eq("user_id", targetUserId)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 
@@ -83,13 +103,13 @@ export function useUserPosts(userId?: string) {
         comments: post.comments_count || 0,
         isLiked: false,
         isBookmarked: false,
-        image_url: post.media?.[0]?.media_url,
+        image_url: post.post_media?.[0]?.media_url,
         user: {
-          username: post.username || '',
-          displayName: post.display_name || post.username || '',
-          avatar: post.avatar_url || '',
+          username: post.profiles?.username || '',
+          displayName: post.profiles?.display_name || post.profiles?.username || '',
+          avatar: post.profiles?.avatar_url || '',
         },
-        user_id: post.user_id,
+        user_id: targetUserId,
       })) as Post[];
     },
     enabled: !!targetUserId,
@@ -100,7 +120,27 @@ export function useAllPosts() {
   return useQuery({
     queryKey: ["allPosts"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_all_posts');
+      const { data, error } = await supabase
+        .from("posts")
+        .select(`
+          id,
+          user_id,
+          caption,
+          location,
+          created_at,
+          likes_count,
+          comments_count,
+          profiles!posts_user_id_fkey (
+            username,
+            display_name,
+            avatar_url
+          ),
+          post_media (
+            media_url,
+            media_type
+          )
+        `)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 
@@ -113,11 +153,11 @@ export function useAllPosts() {
         comments: post.comments_count || 0,
         isLiked: false,
         isBookmarked: false,
-        image_url: post.media?.[0]?.media_url,
+        image_url: post.post_media?.[0]?.media_url,
         user: {
-          username: post.username || '',
-          displayName: post.display_name || post.username || '',
-          avatar: post.avatar_url || '',
+          username: post.profiles?.username || '',
+          displayName: post.profiles?.display_name || post.profiles?.username || '',
+          avatar: post.profiles?.avatar_url || '',
         },
         user_id: post.user_id,
       })) as Post[];
@@ -154,7 +194,10 @@ export function useDeletePost() {
 
   return useMutation({
     mutationFn: async (postId: string) => {
-      const { error } = await supabase.rpc('delete_post', { p_post_id: postId });
+      const { error } = await supabase
+        .from("posts")
+        .delete()
+        .eq("id", postId);
 
       if (error) throw error;
     },

@@ -82,9 +82,7 @@ export const Navigation = () => {
         <div className="space-y-8">
           {/* Logo */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl starmar-gradient flex items-center justify-center">
-              <span className="text-white font-bold text-lg">S</span>
-            </div>
+            <img src="/assets/Logo/StarMar.png" alt="StarMar" className="w-10 h-10 object-contain" />
             <span className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               StarMar
             </span>
@@ -141,9 +139,7 @@ export const Navigation = () => {
         {/* Top Bar */}
         <header className="fixed top-0 left-0 right-0 bg-card border-b border-border p-4 flex items-center justify-between z-50">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-lg starmar-gradient flex items-center justify-center">
-              <span className="text-white font-bold text-sm">S</span>
-            </div>
+            <img src="/assets/Logo/StarMar.png" alt="StarMar" className="w-8 h-8 object-contain" />
             <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               StarMar
             </span>
