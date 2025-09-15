@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -110,7 +111,7 @@ export const MemeCard = ({ meme }: MemeCardProps) => {
     <Card className="post-card bg-card animate-fade-in border-2 border-primary/20">
       {/* Header */}
       <div className="flex items-center justify-between p-4">
-        <div className="flex items-center space-x-3">
+        <Link to={`/profile/${meme.user.username}`} className="flex items-center space-x-3">
           <Avatar className="h-10 w-10 ring-2 ring-primary/20">
             <AvatarImage src={meme.user.avatar} alt={meme.user.displayName} />
             <AvatarFallback>{meme.user.displayName?.charAt(0) || meme.user.username?.charAt(0) || "U"}</AvatarFallback>
@@ -126,7 +127,7 @@ export const MemeCard = ({ meme }: MemeCardProps) => {
               <span>{formatTimeAgo(meme.created_at)}</span>
             </div>
           </div>
-        </div>
+        </Link>
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

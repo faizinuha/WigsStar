@@ -293,7 +293,7 @@ const HashtagsContent = () => {
                   />
                 )}
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2">
+                  <Link to={`/profile/${post.user.username}`} className="flex items-center gap-2">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={post.user.avatar} />
                       <AvatarFallback>
@@ -301,7 +301,7 @@ const HashtagsContent = () => {
                       </AvatarFallback>
                     </Avatar>
                     <span className="font-medium">{post.user.displayName || post.user.username}</span>
-                  </div>
+                  </Link>
                   <p className="text-sm">{post.content}</p>
                   <div className="flex items-center gap-4 text-muted-foreground text-sm">
                     <div className="flex items-center gap-1">

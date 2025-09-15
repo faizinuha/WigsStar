@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import supabase from "@/lib/supabase.ts";
 import { Navigation } from "@/components/layout/Navigation";
 import { Card } from "@/components/ui/card";
@@ -129,7 +130,7 @@ export const Notifications = () => {
                   !notification.is_read ? 'border-primary/20 bg-primary/5' : ''
                 }`}
               >
-                <div className="flex items-start gap-4">
+                <Link to={`/profile/${notification.from_user?.username}`} className="flex items-start gap-4">
                   <Avatar className="h-10 w-10">
                     <AvatarImage src={notification.from_user?.avatar_url || undefined} />
                     <AvatarFallback>
@@ -155,11 +156,11 @@ export const Notifications = () => {
                       </span>
                     </div>
                   </div>
-                  
-                  <Button variant="ghost" size="sm" className="text-xs">
-                    View
-                  </Button>
-                </div>
+                <Button variant="ghost" size="sm" className="text-xs">
+                      View
+                    </Button>
+                  </div>
+                </Link>
               </Card>
             ))}
           </div>
@@ -178,5 +179,5 @@ export const Notifications = () => {
         </div>
       </main>
     </div>
-  );
+  ); 
 };
