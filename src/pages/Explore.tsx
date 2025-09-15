@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Navigation } from "@/components/layout/Navigation";
 import { Card } from "@/components/ui/card";
@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TrendingTags } from "@/components/posts/TrendingTags";
+import { useTrendingTags, usePostsByTag } from "@/hooks/useTags";
 import {
   Search,
   TrendingUp,
@@ -50,6 +52,15 @@ const EmptyState = ({ icon, title, message, children }: { icon: React.ReactNode,
 const Explore = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("trending");
+  const [searchParams] = useSearchParams();
+  const tagFromUrl = searchParams.get('tag');
+
+  // Set active tab to hashtags if tag is provided
+  useEffect(() => {
+    if (tagFromUrl) {
+      setActiveTab("hashtags");
+    }
+  }, [tagFromUrl]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -242,40 +253,87 @@ const PeopleContent = () => {
 
 
 const HashtagsContent = () => {
-  // Data dummy untuk trending hashtags
-  const trendingHashtags = [
-    { hashtag: "ReactJS", posts: 125000, trending: true },
-    { hashtag: "WebDev", posts: 98000, trending: false },
-    { hashtag: "TailwindCSS", posts: 76000, trending: true },
-    { hashtag: "Supabase", posts: 45000, trending: false },
-  ];
+  const [searchParams] = useSearchParams();
+  const tagFromUrl = searchParams.get('tag');
+  const { data: trendingTags = [], isLoading: tagsLoading } = useTrendingTags(20);
+  const { data: postsForTag = [], isLoading: postsLoading } = usePostsByTag(tagFromUrl || '');
+
+  // Show posts for specific tag if coming from URL parameter
+  if (tagFromUrl) {
+    if (postsLoading) {
+      return (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3 p-4 bg-secondary/50 rounded-lg">
+          <Hash className="h-6 w-6 text-primary" />
+          <h2 className="text-xl font-semibold">Posts tagged with {tagFromUrl}</h2>
+        </div>
+        
+        {postsForTag.length === 0 ? (
+          <EmptyState 
+            icon={<Hash className="h-12 w-12" />} 
+            title="No posts found" 
+            message={`No posts found with the tag ${tagFromUrl}`} 
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {postsForTag.map((post: any) => (
+              <Card key={post.id} className="p-4 space-y-3">
+                {post.image_url && (
+                  <img 
+                    src={post.image_url} 
+                    alt="Post" 
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                )}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={post.user.avatar} />
+                      <AvatarFallback>
+                        {post.user.displayName?.[0] || post.user.username?.[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="font-medium">{post.user.displayName || post.user.username}</span>
+                  </div>
+                  <p className="text-sm">{post.content}</p>
+                  <div className="flex items-center gap-4 text-muted-foreground text-sm">
+                    <div className="flex items-center gap-1">
+                      <Heart className="h-4 w-4" />
+                      {post.likes}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <MessageCircle className="h-4 w-4" />
+                      {post.comments}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Default hashtags view
+  if (tagsLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {trendingHashtags.map((tag, index) => (
-        <Card key={index} className="p-6 hover:shadow-md transition-shadow cursor-pointer">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                <Hash className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">#{tag.hashtag}</h3>
-                <p className="text-muted-foreground">{tag.posts.toLocaleString()} posts</p>
-              </div>
-            </div>
-            {tag.trending && (
-              <Badge className="starmar-gradient text-white border-0">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                Trending
-              </Badge>
-            )}
-          </div>
-          <Button variant="outline" className="w-full mt-auto">
-            Follow #{tag.hashtag}
-          </Button>
-        </Card>
-      ))}
+    <div className="space-y-6">
+      <TrendingTags limit={20} />
     </div>
   );
 };
