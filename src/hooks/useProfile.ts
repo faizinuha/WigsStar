@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import supabase from "@/lib/supabase.ts";
 import { useAuth } from "@/contexts/AuthContext";
 
 export interface Profile {
@@ -189,7 +189,7 @@ export function useTogglePostLike() {
         if (error) throw error;
 
         // Decrement likes_count in posts table
-        await supabase.rpc("decrement_likes_count", { post_id: postId });
+        await supabase.rpc("likes_count_decrement", { post_id: postId });
 
       } else {
         // Like post
@@ -203,7 +203,7 @@ export function useTogglePostLike() {
         if (error) throw error;
 
         // Increment likes_count in posts table
-        await supabase.rpc("increment_likes_count", { post_id: postId });
+        await supabase.rpc("increment_post_likes_count", { post_id: postId });
       }
 
       return true;

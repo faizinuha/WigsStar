@@ -6,17 +6,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  ImageIcon, 
-  Video, 
-  MapPin, 
-  Hash, 
-  AtSign, 
+import {
+  ImageIcon,
+  Video,
+  MapPin,
+  Hash,
+  AtSign,
   X,
   Upload
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import  supabase from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -101,7 +101,7 @@ export const CreatePost = () => {
         const { data: publicUrlData } = supabase.storage
           .from('posts')
           .getPublicUrl(filePath);
-        
+
         imageUrl = publicUrlData.publicUrl;
       }
 
@@ -149,8 +149,8 @@ export const CreatePost = () => {
       <Card className="p-4 animate-fade-in">
         <div className="flex items-center space-x-3">
           <Avatar className="h-10 w-10">
-            <AvatarImage src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face" />
-            <AvatarFallback>You</AvatarFallback>
+            <AvatarImage src={user?.user_metadata?.avatar_url || '/placeholder.svg'} />
+            <AvatarFallback>{user?.user_metadata?.display_name?.charAt(0) || user?.email?.charAt(0) || 'U'}</AvatarFallback>
           </Avatar>
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
@@ -162,12 +162,12 @@ export const CreatePost = () => {
               <DialogHeader>
                 <DialogTitle className="flex items-center space-x-3">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face" />
-                    <AvatarFallback>You</AvatarFallback>
+                    <AvatarImage src={user?.user_metadata?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face"} />
+                    <AvatarFallback>{user?.user_metadata?.display_name?.charAt(0) || user?.email?.charAt(0) || "U"}</AvatarFallback>
                   </Avatar>
                   <div>
                     <p className="font-semibold">Create New Post</p>
-                    <p className="text-sm text-muted-foreground font-normal">@yourname</p>
+                    <p className="text-sm text-muted-foreground font-normal">@{user?.user_metadata?.display_name || user?.email?.split('@')[0] || "yourname"}</p>
                   </div>
                 </DialogTitle>
               </DialogHeader>
@@ -186,9 +186,9 @@ export const CreatePost = () => {
                 {/* Image Preview */}
                 {imagePreview && (
                   <div className="relative">
-                    <img 
-                      src={imagePreview} 
-                      alt="Preview" 
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
                       className="w-full max-h-96 object-cover rounded-2xl"
                     />
                     <Button
@@ -224,9 +224,9 @@ export const CreatePost = () => {
                   </Label>
                   <div className="flex flex-wrap gap-2">
                     {hashtags.map((tag, index) => (
-                      <Badge 
-                        key={index} 
-                        variant="secondary" 
+                      <Badge
+                        key={index}
+                        variant="secondary"
                         className="flex items-center space-x-1"
                       >
                         <span>#{tag}</span>
@@ -270,7 +270,7 @@ export const CreatePost = () => {
                         className="hidden"
                       />
                     </label>
-                    
+
                     <label className="cursor-pointer">
                       <Button variant="ghost" size="icon" className="h-10 w-10" asChild>
                         <span>

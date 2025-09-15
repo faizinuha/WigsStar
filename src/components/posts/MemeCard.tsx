@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import supabase from "@/lib/supabase.ts";
 import { useToast } from "@/hooks/use-toast";
 import { Meme } from "@/hooks/useMemes";
 

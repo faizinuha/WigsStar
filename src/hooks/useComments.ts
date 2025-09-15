@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import supabase from "@/lib/supabase.ts";
 import { useAuth } from "@/contexts/AuthContext";
 
 export interface CommentUser {
@@ -55,7 +55,7 @@ export function usePostComments(postId: string) {
           likes_count,
           created_at,
           updated_at,
-          profiles!comments_user_id_fkey (
+          profiles (
             username,
             display_name,
             avatar_url
@@ -107,7 +107,7 @@ export function useMemeComments(memeId: string) {
           likes_count,
           created_at,
           updated_at,
-          profiles!comments_user_id_fkey (
+          profiles (
             username,
             display_name,
             avatar_url

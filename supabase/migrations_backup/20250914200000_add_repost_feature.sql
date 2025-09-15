@@ -1,3 +1,0 @@
-ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS is_repost BOOLEAN DEFAULT false;
-ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS reposted_by UUID REFERENCES auth.users(id) ON DELETE SET NULL;
-ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS original_post_id UUID REFERENCES public.posts(id) ON DELETE CASCADE;

@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { LocationInput } from "@/components/ui/location-input";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import supabase from "@/lib/supabase.ts";
 import { useAuth } from "@/contexts/AuthContext";
 import { Upload, X, Image, Video, Laugh } from "lucide-react";
 
