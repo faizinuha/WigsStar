@@ -16,8 +16,13 @@ import {
   Upload
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
 
 export const CreatePost = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [content, setContent] = useState("");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -25,6 +30,7 @@ export const CreatePost = () => {
   const [location, setLocation] = useState("");
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [mentions, setMentions] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -53,24 +59,88 @@ export const CreatePost = () => {
     setHashtags(hashtags.filter(t => t !== tag));
   };
 
-  const handlePost = () => {
-    // Here you would handle the actual posting logic
-    console.log({
-      content,
-      image: selectedImage,
-      location,
-      hashtags,
-      mentions
-    });
-    
-    // Reset form
-    setContent("");
-    setSelectedImage(null);
-    setImagePreview(null);
-    setLocation("");
-    setHashtags([]);
-    setMentions([]);
-    setIsOpen(false);
+  const handlePost = async () => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to create a post.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!content.trim() && !selectedImage) {
+      toast({
+        title: "Error",
+        description: "Post content or an image is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    let imageUrl: string | undefined;
+
+    try {
+      if (selectedImage) {
+        const fileExt = selectedImage.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        const { error: uploadError, data: uploadData } = await supabase.storage
+          .from('posts')
+          .upload(filePath, selectedImage, {
+            cacheControl: '3600',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from('posts')
+          .getPublicUrl(filePath);
+        
+        imageUrl = publicUrlData.publicUrl;
+      }
+
+      const { error: postError } = await supabase
+        .from('posts')
+        .insert({
+          user_id: user.id,
+          content: content.trim(),
+          image_url: imageUrl,
+          location: location || null,
+          // TODO: Add hashtags and mentions handling if needed
+        });
+
+      if (postError) {
+        throw postError;
+      }
+
+      toast({
+        title: "Success",
+        description: "Your post has been created!",
+      });
+
+      // Reset form
+      setContent("");
+      setSelectedImage(null);
+      setImagePreview(null);
+      setLocation("");
+      setHashtags([]);
+      setMentions([]);
+      setIsOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -221,10 +291,10 @@ export const CreatePost = () => {
                     </span>
                     <Button
                       onClick={handlePost}
-                      disabled={!content.trim() && !selectedImage}
+                      disabled={(!content.trim() && !selectedImage) || isLoading}
                       className="gradient-button"
                     >
-                      Post
+                      {isLoading ? "Posting..." : "Post"}
                     </Button>
                   </div>
                 </div>

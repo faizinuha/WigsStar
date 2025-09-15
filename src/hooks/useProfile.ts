@@ -29,7 +29,7 @@ export interface Post {
   created_at: string;
   likes: number;
   comments: number;
-  isLiked: boolean;
+  isLiked: boolean; // This will be derived from user_likes
   isBookmarked: boolean;
   location?: string;
   user: {
@@ -74,6 +74,7 @@ export function useUserPosts(userId?: string) {
         .from("posts")
         .select(`
           id,
+          user_id,
           caption,
           location,
           created_at,
@@ -87,7 +88,8 @@ export function useUserPosts(userId?: string) {
           post_media (
             media_url,
             media_type
-          )
+          ),
+          user_likes: likes(user_id)
         `)
         .eq("user_id", targetUserId)
         .order("created_at", { ascending: false });
@@ -101,15 +103,15 @@ export function useUserPosts(userId?: string) {
         created_at: post.created_at,
         likes: post.likes_count || 0,
         comments: post.comments_count || 0,
-        isLiked: false,
-        isBookmarked: false,
+        isLiked: post.user_likes.some((like: { user_id: string }) => like.user_id === user?.id),
+        isBookmarked: false, // TODO: Implement bookmark logic
         image_url: post.post_media?.[0]?.media_url,
         user: {
           username: post.profiles?.username || '',
           displayName: post.profiles?.display_name || post.profiles?.username || '',
           avatar: post.profiles?.avatar_url || '',
         },
-        user_id: targetUserId,
+        user_id: post.user_id,
       })) as Post[];
     },
     enabled: !!targetUserId,
@@ -117,6 +119,8 @@ export function useUserPosts(userId?: string) {
 }
 
 export function useAllPosts() {
+  const { user } = useAuth();
+
   return useQuery({
     queryKey: ["allPosts"],
     queryFn: async () => {
@@ -138,7 +142,8 @@ export function useAllPosts() {
           post_media (
             media_url,
             media_type
-          )
+          ),
+          user_likes: likes(user_id)
         `)
         .order("created_at", { ascending: false });
 
@@ -151,8 +156,8 @@ export function useAllPosts() {
         created_at: post.created_at,
         likes: post.likes_count || 0,
         comments: post.comments_count || 0,
-        isLiked: false,
-        isBookmarked: false,
+        isLiked: post.user_likes.some((like: { user_id: string }) => like.user_id === user?.id),
+        isBookmarked: false, // TODO: Implement bookmark logic
         image_url: post.post_media?.[0]?.media_url,
         user: {
           username: post.profiles?.username || '',
@@ -161,6 +166,53 @@ export function useAllPosts() {
         },
         user_id: post.user_id,
       })) as Post[];
+    },
+  });
+}
+
+export function useTogglePostLike() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ postId, isLiked }: { postId: string; isLiked: boolean }) => {
+      if (!user) throw new Error("User not authenticated");
+
+      if (isLiked) {
+        // Unlike post
+        const { error } = await supabase
+          .from("likes")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("post_id", postId);
+
+        if (error) throw error;
+
+        // Decrement likes_count in posts table
+        await supabase.rpc("decrement_likes_count", { post_id: postId });
+
+      } else {
+        // Like post
+        const { error } = await supabase
+          .from("likes")
+          .insert({
+            user_id: user.id,
+            post_id: postId,
+          });
+
+        if (error) throw error;
+
+        // Increment likes_count in posts table
+        await supabase.rpc("increment_likes_count", { post_id: postId });
+      }
+
+      return true;
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate queries to refetch posts with updated like status and count
+      queryClient.invalidateQueries({ queryKey: ["allPosts"] });
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] });
+      queryClient.invalidateQueries({ queryKey: ["post", variables.postId] }); // Invalidate single post query if exists
     },
   });
 }

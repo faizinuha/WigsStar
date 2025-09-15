@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { format } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -10,7 +11,8 @@ import {
   MoreHorizontal,
   MapPin,
   Maximize,
-  Repeat
+  Repeat,
+  Laugh
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -20,8 +22,9 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
-import { useDeletePost } from "@/hooks/useProfile";
+import { useDeletePost, useTogglePostLike } from "@/hooks/useProfile"; // Import useTogglePostLike
 import { useToast } from "@/components/ui/use-toast";
+import { CommentSection } from "./CommentSection"; // Import CommentSection
 
 // Interface disesuaikan dengan data dari Supabase
 interface Post {
@@ -50,6 +53,20 @@ interface PostCardProps {
   post: Post;
 }
 
+const formatTimeAgo = (dateString: string) => {
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+  
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes}m`;
+  } else if (diffInMinutes < 1440) {
+    return `${Math.floor(diffInMinutes / 60)}h`;
+  } else {
+    return `${Math.floor(diffInMinutes / 1440)}d`;
+  }
+};
+
 const RepostCard = ({ repost_by, children }) => (
   <div className="bg-muted/20 rounded-lg p-4 mt-2">
     <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-2">
@@ -64,34 +81,26 @@ export const PostCard = ({ post }: PostCardProps) => {
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
   const deletePostMutation = useDeletePost();
+  const toggleLikeMutation = useTogglePostLike(); // Initialize useTogglePostLike
 
-  const initialLikes = post?.likes ?? 0;
-  const initialIsLiked = post?.isLiked ?? false;
-  const initialIsBookmarked = post?.isBookmarked ?? false;
   const initialContent = post?.content ?? "";
 
-  const [isLiked, setIsLiked] = useState(initialIsLiked);
-  const [isBookmarked, setIsBookmarked] = useState(initialIsBookmarked);
-  const [likesCount, setLikesCount] = useState(initialLikes);
   const [showFullCaption, setShowFullCaption] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isLongImage, setIsLongImage] = useState(false);
+  const [showComments, setShowComments] = useState(false); // New state for comments
 
-  const checkImageRatio = (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    const { naturalWidth, naturalHeight } = event.currentTarget;
-    if (naturalHeight > naturalWidth * 1.5) {
-      setIsLongImage(true);
+  const handleLike = async () => {
+    if (!currentUser) {
+      toast({
+        title: "Login required",
+        description: "You need to be logged in to like posts.",
+        variant: "destructive",
+      });
+      return;
     }
-  };
-
-  const handleLike = () => {
-    setIsLiked(!isLiked);
-    setLikesCount(isLiked ? likesCount - 1 : likesCount + 1);
-    // TODO: Logic to update Supabase
+    toggleLikeMutation.mutateAsync({ postId: post.id, isLiked: post.isLiked });
   };
 
   const handleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
     // TODO: Logic to update Supabase
   };
 
@@ -109,12 +118,15 @@ export const PostCard = ({ post }: PostCardProps) => {
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: `Post by ${post.user.displayName}`,
+        title: `Post by @${post.user.username}`,
         text: post.content,
-        url: `${window.location.origin}/post/${post.id}`,
+        url: window.location.href,
       });
     } else {
-      toast({ title: "Share not supported on this browser" });
+      navigator.clipboard.writeText(window.location.href);
+      toast({
+        title: "Link copied to clipboard!",
+      });
     }
   };
 
@@ -139,20 +151,14 @@ export const PostCard = ({ post }: PostCardProps) => {
             <AvatarFallback>{post.user.displayName?.charAt(0)}</AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-semibold text-sm">{post.user.displayName}</p>
+            <div className="flex items-center gap-2">
+              <p className="font-semibold text-sm">{post.user.displayName}</p>
+              <Laugh className="h-4 w-4 text-primary" />
+            </div>
             <div className="flex items-center space-x-1 text-xs text-muted-foreground">
               <span>@{post.user.username}</span>
               <span>•</span>
-              <span>{new Date(post.created_at).toLocaleDateString()}</span>
-              {post.location && (
-                <>
-                  <span>•</span>
-                  <div className="flex items-center space-x-1">
-                    <MapPin className="h-3 w-3" />
-                    <span>{post.location}</span>
-                  </div>
-                </>
-              )}
+              <span>{formatTimeAgo(post.created_at)}</span>
             </div>
           </div>
         </div>
@@ -180,26 +186,12 @@ export const PostCard = ({ post }: PostCardProps) => {
 
       {/* Image */}
       {post.image_url && (
-        <div className={`relative group ${isExpanded ? '' : 'aspect-square'} overflow-hidden`}>
+        <div className="aspect-square overflow-hidden bg-black">
           <img
             src={post.image_url}
             alt="Post content"
-            className={`w-full h-full object-cover transition-all duration-500 ${isExpanded ? '' : 'group-hover:scale-105'}`}
-            onLoad={checkImageRatio}
+            className="w-full h-full object-contain"
           />
-          {isLongImage && !isExpanded && (
-            <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button
-                variant="secondary"
-                size="sm"
-                className="rounded-full bg-black/50 text-white hover:bg-black/75 h-8 px-3"
-                onClick={() => setIsExpanded(true)}
-              >
-                <Maximize className="h-4 w-4 mr-1.5" />
-                Show More
-              </Button>
-            </div>
-          )}
         </div>
       )}
 
@@ -215,14 +207,14 @@ export const PostCard = ({ post }: PostCardProps) => {
             >
               <Heart 
                 className={`h-6 w-6 transition-all duration-200 ${
-                  isLiked 
-                    ? 'fill-red-500 text-red-500 animate-heart-beat' 
+                  post.isLiked
+                    ? 'fill-red-500 text-red-500 animate-heart-beat'
                     : 'hover:text-red-500'
                 }`}
               />
             </Button>
-            
-            <Button variant="ghost" size="icon" className="h-10 w-10">
+
+            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => setShowComments(true)}>
               <MessageCircle className="h-6 w-6 hover:text-blue-500 transition-colors" />
             </Button>
             
@@ -239,8 +231,8 @@ export const PostCard = ({ post }: PostCardProps) => {
           >
             <Bookmark 
               className={`h-6 w-6 transition-colors ${
-                isBookmarked 
-                  ? 'fill-yellow-500 text-yellow-500' 
+                post.isBookmarked
+                  ? 'fill-yellow-500 text-yellow-500'
                   : 'hover:text-yellow-500'
               }`}
             />
@@ -249,7 +241,7 @@ export const PostCard = ({ post }: PostCardProps) => {
 
         {/* Likes Count */}
         <div className="text-sm font-semibold">
-          {likesCount.toLocaleString()} likes
+          {post.likes.toLocaleString()} likes
         </div>
 
         {/* Caption */}
@@ -268,7 +260,10 @@ export const PostCard = ({ post }: PostCardProps) => {
 
         {/* Comments Link */}
         {post.comments > 0 && (
-          <button className="text-sm text-muted-foreground hover:text-foreground">
+          <button
+            className="text-sm text-muted-foreground hover:text-foreground"
+            onClick={() => setShowComments(true)}
+          >
             View all {post.comments} comments
           </button>
         )}
@@ -284,5 +279,16 @@ export const PostCard = ({ post }: PostCardProps) => {
     );
   }
 
-  return <PostContent />;
+  return (
+    <>
+      <PostContent />
+      {post.id && (
+        <CommentSection
+          isOpen={showComments}
+          onClose={() => setShowComments(false)}
+          postId={post.id}
+        />
+      )}
+    </>
+  );
 };

@@ -20,14 +20,30 @@ export interface Comment {
   updated_at: string;
   isLiked: boolean;
   user: CommentUser;
+  replies?: Comment[]; // Added for nested comments
 }
+
+// Helper function to build a nested comment tree
+const buildCommentTree = (comments: Comment[], parentId: string | null = null): Comment[] => {
+  const nestedComments: Comment[] = [];
+  comments.forEach(comment => {
+    if (comment.parent_comment_id === parentId) {
+      const children = buildCommentTree(comments, comment.id);
+      if (children.length) {
+        comment.replies = children;
+      }
+      nestedComments.push(comment);
+    }
+  });
+  return nestedComments;
+};
 
 export function usePostComments(postId: string) {
   const { user } = useAuth();
   
   return useQuery({
     queryKey: ["comments", "post", postId],
-    queryFn: async () => {
+    queryFn: async (): Promise<Comment[]> => {
       const { data, error } = await supabase
         .from("comments")
         .select(`
@@ -43,15 +59,15 @@ export function usePostComments(postId: string) {
             username,
             display_name,
             avatar_url
-          )
+          ),
+          likes(user_id)
         `)
         .eq("post_id", postId)
-        .is("parent_comment_id", null)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
 
-      const comments: Comment[] = data.map((comment: any) => ({
+      const allComments: Comment[] = data.map((comment: any) => ({
         id: comment.id,
         content: comment.content,
         user_id: comment.user_id,
@@ -60,7 +76,7 @@ export function usePostComments(postId: string) {
         likes_count: comment.likes_count || 0,
         created_at: comment.created_at,
         updated_at: comment.updated_at,
-        isLiked: false,
+        isLiked: comment.likes.some((like: { user_id: string }) => like.user_id === user?.id),
         user: {
           username: comment.profiles?.username || '',
           displayName: comment.profiles?.display_name || comment.profiles?.username || '',
@@ -68,7 +84,7 @@ export function usePostComments(postId: string) {
         },
       }));
 
-      return comments;
+      return buildCommentTree(allComments);
     },
     enabled: !!postId,
   });
@@ -79,7 +95,7 @@ export function useMemeComments(memeId: string) {
   
   return useQuery({
     queryKey: ["comments", "meme", memeId],
-    queryFn: async () => {
+    queryFn: async (): Promise<Comment[]> => {
       const { data, error } = await supabase
         .from("comments")
         .select(`
@@ -95,15 +111,15 @@ export function useMemeComments(memeId: string) {
             username,
             display_name,
             avatar_url
-          )
+          ),
+          likes(user_id)
         `)
         .eq("meme_id", memeId)
-        .is("parent_comment_id", null)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
 
-      const comments: Comment[] = data.map((comment: any) => ({
+      const allComments: Comment[] = data.map((comment: any) => ({
         id: comment.id,
         content: comment.content,
         user_id: comment.user_id,
@@ -112,7 +128,7 @@ export function useMemeComments(memeId: string) {
         likes_count: comment.likes_count || 0,
         created_at: comment.created_at,
         updated_at: comment.updated_at,
-        isLiked: false,
+        isLiked: comment.likes.some((like: { user_id: string }) => like.user_id === user?.id),
         user: {
           username: comment.profiles?.username || '',
           displayName: comment.profiles?.display_name || comment.profiles?.username || '',
@@ -120,7 +136,7 @@ export function useMemeComments(memeId: string) {
         },
       }));
 
-      return comments;
+      return buildCommentTree(allComments);
     },
     enabled: !!memeId,
   });
