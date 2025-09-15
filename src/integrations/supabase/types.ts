@@ -70,6 +70,13 @@ export type Database = {
             referencedRelation: "posts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       followers: {
@@ -90,6 +97,45 @@ export type Database = {
           follower_id?: string
           following_id?: string
           id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followers_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "followers_following_id_fkey"
+            columns: ["following_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      hashtags: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          posts_count: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          posts_count?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          posts_count?: number | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -130,6 +176,13 @@ export type Database = {
             referencedRelation: "posts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       memes: {
@@ -166,7 +219,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "memes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -211,6 +272,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "notifications_from_user_id_fkey"
+            columns: ["from_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
             foreignKeyName: "notifications_meme_id_fkey"
             columns: ["meme_id"]
             isOneToOne: false
@@ -219,6 +287,49 @@ export type Database = {
           },
           {
             foreignKeyName: "notifications_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      post_hashtags: {
+        Row: {
+          created_at: string
+          hashtag_id: string
+          id: string
+          post_id: string
+        }
+        Insert: {
+          created_at?: string
+          hashtag_id: string
+          id?: string
+          post_id: string
+        }
+        Update: {
+          created_at?: string
+          hashtag_id?: string
+          id?: string
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_hashtags_hashtag_id_fkey"
+            columns: ["hashtag_id"]
+            isOneToOne: false
+            referencedRelation: "hashtags"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_hashtags_post_id_fkey"
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "posts"
@@ -267,8 +378,11 @@ export type Database = {
           comments_count: number | null
           created_at: string
           id: string
+          is_repost: boolean | null
           likes_count: number | null
           location: string | null
+          original_post_id: string | null
+          reposted_by: string | null
           updated_at: string
           user_id: string
         }
@@ -277,8 +391,11 @@ export type Database = {
           comments_count?: number | null
           created_at?: string
           id?: string
+          is_repost?: boolean | null
           likes_count?: number | null
           location?: string | null
+          original_post_id?: string | null
+          reposted_by?: string | null
           updated_at?: string
           user_id: string
         }
@@ -287,12 +404,30 @@ export type Database = {
           comments_count?: number | null
           created_at?: string
           id?: string
+          is_repost?: boolean | null
           likes_count?: number | null
           location?: string | null
+          original_post_id?: string | null
+          reposted_by?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "posts_original_post_id_fkey"
+            columns: ["original_post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -402,18 +537,66 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      delete_post: {
+        Args: { p_post_id: string }
+        Returns: undefined
+      }
+      extract_and_store_hashtags: {
+        Args: { post_content: string; post_id: string }
+        Returns: undefined
+      }
+      get_all_posts: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          avatar_url: string
+          caption: string
+          comments_count: number
+          created_at: string
+          display_name: string
+          id: string
+          likes_count: number
+          location: string
+          media: Json
+          user_id: string
+          username: string
+        }[]
+      }
       get_trending_hashtags: {
         Args: { limit_count: number }
         Returns: {
           hashtag: string
           post_count: number
+        }[]
+      }
+      get_user_posts: {
+        Args: { p_user_id: string }
+        Returns: {
+          avatar_url: string
+          caption: string
+          comments_count: number
+          created_at: string
+          display_name: string
+          id: string
+          likes_count: number
+          location: string
+          media: Json
+          user_id: string
+          username: string
         }[]
       }
     }
