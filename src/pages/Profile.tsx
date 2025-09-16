@@ -42,9 +42,15 @@ const PostCard = ({ post, authUser }) => {
   const [isLiked, setIsLiked] = useState(post.isLiked);
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
   const { mutate: deletePost } = useDeletePost();
+  const { mutate: toggleLike } = useTogglePostLike();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const isOwnPost = authUser?.id === post.user_id;
+
+  const handleLike = () => {
+    toggleLike({ postId: post.id, isLiked });
+    setIsLiked(!isLiked);
+  };
 
   return (
     <Card className="p-4 md:p-6 space-y-4 animate-fade-in">
@@ -117,7 +123,7 @@ const PostCard = ({ post, authUser }) => {
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <div className="flex items-center space-x-4">
           <button
-            onClick={() => setIsLiked(!isLiked)}
+            onClick={handleLike}
             className="flex items-center space-x-1"
           >
             <Heart fill={isLiked ? "currentColor" : "none"} className={`h-4 w-4 transition-colors ${isLiked ? "text-red-500" : ""}`} />
@@ -141,9 +147,11 @@ const Profile = () => {
   const { user: authUser } = useAuth();
   const { data: profile, isLoading: profileLoading, error: profileError } = useProfile(userId);
   const { data: posts, isLoading: postsLoading, error: postsError } = useUserPosts(userId);
-  const [isFollowing, setIsFollowing] = useState(false);
+  const { data: isFollowing = false, isLoading: followLoading } = useFollowStatus(userId || '');
+  const { mutate: toggleFollow } = useToggleFollow();
+  const { mutate: toggleLike } = useTogglePostLike();
 
-  const loading = profileLoading || postsLoading;
+  const loading = profileLoading || postsLoading || followLoading;
   const error = profileError || postsError;
 
   const userPosts: (Post & { timestamp: string })[] = posts
@@ -171,6 +179,10 @@ const Profile = () => {
   }
 
   const isOwnProfile = !userId || authUser?.id === profile.user_id;
+  const targetUserId = userId || authUser?.id;
+
+  // Handle privacy settings - hide content if private and not following
+  const showContent = !profile.is_private || isOwnProfile || isFollowing;
 
   return (
     <div className="min-h-screen bg-background">
@@ -219,20 +231,23 @@ const Profile = () => {
                     Edit Profile
                   </Button>
                 ) : (
-                  <><Button
-                    variant={isFollowing ? "outline" : "default"}
-                    className={!isFollowing ? "gradient-button" : ""}
-
-                    onClick={() => setIsFollowing(!isFollowing)}
-                  >
-                    {isFollowing ? "Following" : "Follow"}
-                  </Button>
-                    <Button variant="outline" size="icon" onClick={() => { }}>
-
-                      <MessageCircle className="h-4 w-4" />
-                    </Button><Button variant="outline" size="icon" onClick={() => { }}>
+                  <>
+                    <Button
+                      variant={isFollowing ? "outline" : "default"}
+                      className={!isFollowing ? "gradient-button" : ""}
+                      onClick={() => toggleFollow({ userId: targetUserId!, isFollowing })}
+                    >
+                      {isFollowing ? "Following" : "Follow"}
+                    </Button>
+                    <Link to={`/messages/${profile.username}`}>
+                      <Button variant="outline" size="icon">
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                    <Button variant="outline" size="icon">
                       <MoreHorizontal className="h-4 w-4" />
-                    </Button></>
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
@@ -301,7 +316,15 @@ const Profile = () => {
           </TabsList>
 
           <TabsContent value="posts" className="space-y-6">
-            {userPosts.length > 0 ? (
+            {!showContent ? (
+              <div className="text-center py-12">
+                <Lock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">This account is private</h3>
+                <p className="text-muted-foreground">
+                  Follow this account to see their posts.
+                </p>
+              </div>
+            ) : userPosts.length > 0 ? (
               userPosts.map((post: Post) => (
                 <PostCard key={post.id} post={post} authUser={authUser} />
               ))

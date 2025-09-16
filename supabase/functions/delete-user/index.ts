@@ -31,9 +31,9 @@ Deno.serve(async (req) => {
 
     console.log('Starting account deletion for user:', user.id)
 
-    // Use the existing database function to handle all cascading deletes
-    const { error: deleteError } = await supabaseClient.rpc('handle_user_deletion', {
-      user_id: user.id
+    // Use the new database function
+    const { error: deleteError } = await supabaseClient.rpc('delete_user_data', {
+      target_user_id: user.id
     })
 
     if (deleteError) {
