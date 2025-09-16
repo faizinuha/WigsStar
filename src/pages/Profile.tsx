@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import {
   MoreHorizontal,
   Grid3X3,
@@ -9,8 +9,10 @@ import {
   MapPin,
   Link as LinkIcon,
   Calendar,
+  Lock,
 } from "lucide-react";
-import { useProfile, useUserPosts, useDeletePost, Post } from "@/hooks/useProfile";
+import { useProfile, useUserPosts, useDeletePost, Post, useTogglePostLike } from "@/hooks/useProfile";
+import { useFollowStatus, useToggleFollow } from "@/hooks/useFollow";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigation } from "@/components/layout/Navigation";
 import { Card } from "@/components/ui/card";

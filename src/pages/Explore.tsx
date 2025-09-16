@@ -222,7 +222,7 @@ const PeopleContent = () => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {users.map((user) => (
-        <Link to={`/Profile/${user.username}`} key={user.id}>
+        <Link to={`/profile/${user.username}`} key={user.id}>
           <Card className="p-4 text-center hover:shadow-lg transition-shadow h-full flex flex-col">
             <Avatar className="h-20 w-20 mx-auto mb-4">
               <AvatarImage src={user.avatar_url} alt={user.display_name} />

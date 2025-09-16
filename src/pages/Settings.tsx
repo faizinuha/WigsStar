@@ -442,7 +442,7 @@ export const Settings = () => {
                     2FA is enabled.
                   </p>
                   <ul className="space-y-2">
-                    {(mfaFactors.all as MfaFactor[]).map((factor) => (
+                    {mfaFactors.all.map((factor: any) => (
                       <li
                         key={factor.id}
                         className="flex items-center justify-between text-sm p-2 border rounded-md"
@@ -608,9 +608,9 @@ export const Settings = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-6 py-4">
-            {mfaEnrollData?.totp.qr_code && (
+            {mfaEnrollData && 'qr_code' in mfaEnrollData && (
               <img
-                src={mfaEnrollData.totp.qr_code}
+                src={(mfaEnrollData as any).qr_code}
                 alt="2FA QR Code"
                 className="p-2 bg-white rounded-lg"
               />

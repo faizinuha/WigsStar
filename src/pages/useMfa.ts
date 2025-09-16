@@ -26,7 +26,7 @@ export const useMfa = () => {
       if (!user) return null;
       const { data, error } = await supabase.auth.mfa.listFactors();
       if (error) throw error;
-      return data as AuthMFAListFactorsResponse;
+      return data;
     },
     enabled: !!user,
   });
