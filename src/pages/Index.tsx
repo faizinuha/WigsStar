@@ -1,13 +1,20 @@
+import { useState } from "react";
 import { PostCard } from "@/components/posts/PostCard";
+import { PostGrid } from "@/components/posts/PostGrid";
+import { PostDetailModal } from "@/components/posts/PostDetailModal";
+import { SuggestedFriends } from "@/components/posts/SuggestedFriends";
 import { StoriesSection } from "@/components/posts/StoriesSection";
 import { CreatePost } from "@/components/posts/CreatePost";
 import { Navigation } from "@/components/layout/Navigation";
 import { TrendingTags } from "@/components/posts/TrendingTags";
-import { useAllPosts } from "@/hooks/useProfile";
-import { Loader2 } from "lucide-react";
+import { useAllPosts, Post } from "@/hooks/useProfile";
+import { Loader2, Grid3X3, LayoutGrid } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const { data: posts = [], isLoading } = useAllPosts();
+  const [viewMode, setViewMode] = useState<'feed' | 'grid'>('feed');
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   return (
     <div className="min-h-screen bg-background">
@@ -19,13 +26,45 @@ const Index = () => {
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-8">
               <StoriesSection />
+              <SuggestedFriends />
               <CreatePost />
               
-              <div className="space-y-8">
-                {posts.map((post) => (
-                  <PostCard key={post.id} post={post} />
-                ))}
+              {/* View Mode Toggle */}
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Posts</h2>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={viewMode === 'feed' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('feed')}
+                  >
+                    <LayoutGrid className="h-4 w-4 mr-2" />
+                    Feed
+                  </Button>
+                  <Button
+                    variant={viewMode === 'grid' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('grid')}
+                  >
+                    <Grid3X3 className="h-4 w-4 mr-2" />
+                    Grid
+                  </Button>
+                </div>
               </div>
+              
+              {/* Content based on view mode */}
+              {viewMode === 'feed' ? (
+                <div className="space-y-8">
+                  {posts.map((post) => (
+                    <PostCard key={post.id} post={post} />
+                  ))}
+                </div>
+              ) : (
+                <PostGrid 
+                  posts={posts} 
+                  onPostClick={(post) => setSelectedPost(post)} 
+                />
+              )}
 
               {isLoading && (
                 <div className="flex justify-center py-8">
@@ -51,6 +90,13 @@ const Index = () => {
           </div>
         </div>
       </main>
+      
+      {/* Post Detail Modal */}
+      <PostDetailModal 
+        post={selectedPost}
+        isOpen={!!selectedPost}
+        onClose={() => setSelectedPost(null)}
+      />
     </div>
   );
 };

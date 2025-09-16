@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import {
   MoreHorizontal,
   Grid3X3,
@@ -9,10 +9,14 @@ import {
   MapPin,
   Link as LinkIcon,
   Calendar,
+  Lock,
 } from "lucide-react";
-import { useProfile, useUserPosts, useDeletePost, Post } from "@/hooks/useProfile";
+import { useProfile, useUserPosts, useDeletePost, Post, useTogglePostLike } from "@/hooks/useProfile";
+import { useFollowStatus, useToggleFollow } from "@/hooks/useFollow";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigation } from "@/components/layout/Navigation";
+import { PostGrid } from "@/components/posts/PostGrid";
+import { PostDetailModal } from "@/components/posts/PostDetailModal";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -40,9 +44,15 @@ const PostCard = ({ post, authUser }) => {
   const [isLiked, setIsLiked] = useState(post.isLiked);
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
   const { mutate: deletePost } = useDeletePost();
+  const { mutate: toggleLike } = useTogglePostLike();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const isOwnPost = authUser?.id === post.user_id;
+
+  const handleLike = () => {
+    toggleLike({ postId: post.id, isLiked });
+    setIsLiked(!isLiked);
+  };
 
   return (
     <Card className="p-4 md:p-6 space-y-4 animate-fade-in">
@@ -115,7 +125,7 @@ const PostCard = ({ post, authUser }) => {
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <div className="flex items-center space-x-4">
           <button
-            onClick={() => setIsLiked(!isLiked)}
+            onClick={handleLike}
             className="flex items-center space-x-1"
           >
             <Heart fill={isLiked ? "currentColor" : "none"} className={`h-4 w-4 transition-colors ${isLiked ? "text-red-500" : ""}`} />
@@ -135,13 +145,18 @@ const PostCard = ({ post, authUser }) => {
 };
 
 const Profile = () => {
-  const { userId } = useParams<{ userId?: string }>();
+  const { username } = useParams<{ username?: string }>();
   const { user: authUser } = useAuth();
-  const { data: profile, isLoading: profileLoading, error: profileError } = useProfile(userId);
-  const { data: posts, isLoading: postsLoading, error: postsError } = useUserPosts(userId);
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  // If no username in params, show current user's profile
+  const targetUserId = username ? undefined : authUser?.id; // We'll need to fetch by username
+  const { data: profile, isLoading: profileLoading, error: profileError } = useProfile(targetUserId);
+  const { data: posts, isLoading: postsLoading, error: postsError } = useUserPosts(targetUserId);
+  const { data: isFollowing = false, isLoading: followLoading } = useFollowStatus(targetUserId || '');
+  const { mutate: toggleFollow } = useToggleFollow();
+  const { mutate: toggleLike } = useTogglePostLike();
 
-  const loading = profileLoading || postsLoading;
+  const loading = profileLoading || postsLoading || followLoading;
   const error = profileError || postsError;
 
   const userPosts: (Post & { timestamp: string })[] = posts
@@ -168,7 +183,11 @@ const Profile = () => {
     );
   }
 
-  const isOwnProfile = !userId || authUser?.id === profile.user_id;
+  const isOwnProfile = !username || authUser?.id === profile?.user_id;
+  const actualTargetUserId = targetUserId || authUser?.id;
+
+  // Handle privacy settings - hide content if private and not following
+  const showContent = !profile.is_private || isOwnProfile || isFollowing;
 
   return (
     <div className="min-h-screen bg-background">
@@ -217,20 +236,23 @@ const Profile = () => {
                     Edit Profile
                   </Button>
                 ) : (
-                  <><Button
-                    variant={isFollowing ? "outline" : "default"}
-                    className={!isFollowing ? "gradient-button" : ""}
-
-                    onClick={() => setIsFollowing(!isFollowing)}
-                  >
-                    {isFollowing ? "Following" : "Follow"}
-                  </Button>
-                    <Button variant="outline" size="icon" onClick={() => { }}>
-
-                      <MessageCircle className="h-4 w-4" />
-                    </Button><Button variant="outline" size="icon" onClick={() => { }}>
+                  <>
+                    <Button
+                      variant={isFollowing ? "outline" : "default"}
+                      className={!isFollowing ? "gradient-button" : ""}
+                      onClick={() => toggleFollow({ userId: actualTargetUserId!, isFollowing })}
+                    >
+                      {isFollowing ? "Following" : "Follow"}
+                    </Button>
+                    <Link to={`/messages/${profile.username}`}>
+                      <Button variant="outline" size="icon">
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                    <Button variant="outline" size="icon">
                       <MoreHorizontal className="h-4 w-4" />
-                    </Button></>
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
@@ -299,10 +321,19 @@ const Profile = () => {
           </TabsList>
 
           <TabsContent value="posts" className="space-y-6">
-            {userPosts.length > 0 ? (
-              userPosts.map((post: Post) => (
-                <PostCard key={post.id} post={post} authUser={authUser} />
-              ))
+            {!showContent ? (
+              <div className="text-center py-12">
+                <Lock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">This account is private</h3>
+                <p className="text-muted-foreground">
+                  Follow this account to see their posts.
+                </p>
+              </div>
+            ) : userPosts.length > 0 ? (
+              <PostGrid 
+                posts={userPosts} 
+                onPostClick={(post) => setSelectedPost(post)} 
+              />
             ) : (
               <div className="text-center py-12">
                 <Grid3X3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -335,6 +366,13 @@ const Profile = () => {
           </TabsContent>
         </Tabs>
       </main>
+      
+      {/* Post Detail Modal */}
+      <PostDetailModal 
+        post={selectedPost}
+        isOpen={!!selectedPost}
+        onClose={() => setSelectedPost(null)}
+      />
     </div>
   );
 };

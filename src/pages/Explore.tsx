@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingTags } from "@/components/posts/TrendingTags";
 import { useTrendingTags, usePostsByTag } from "@/hooks/useTags";
+import { useFollowStatus, useToggleFollow } from "@/hooks/useFollow";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Search,
   TrendingUp,
@@ -186,6 +188,7 @@ const TrendingContent = () => {
 };
 
 const PeopleContent = () => {
+  const { user: currentUser } = useAuth();
   const { data: realUsers, isLoading } = useQuery<UserProfile[]>({
     queryKey: ["suggested_users"],
     queryFn: async () => {
@@ -193,6 +196,7 @@ const PeopleContent = () => {
         .from("profiles")
         .select(`
           id,
+          user_id,
           username,
           display_name,
           avatar_url,
@@ -222,31 +226,59 @@ const PeopleContent = () => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {users.map((user) => (
-        <Link to={`/Profile/${user.username}`} key={user.id}>
-          <Card className="p-4 text-center hover:shadow-lg transition-shadow h-full flex flex-col">
-            <Avatar className="h-20 w-20 mx-auto mb-4">
-              <AvatarImage src={user.avatar_url} alt={user.display_name} />
-              <AvatarFallback className="text-lg">
-                {user.display_name?.charAt(0) || user.username.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="space-y-1 mb-4">
-              <div className="flex items-center justify-center space-x-2">
-                <h3 className="font-semibold truncate" title={user.display_name || user.username}>
-                  {user.display_name || user.username}
-                </h3>
-              </div>
-              <p className="text-muted-foreground text-sm">@{user.username}</p>
-              <p className="text-sm text-muted-foreground">
-                {user.followers_count.toLocaleString()} followers
-              </p>
-              <p className="text-sm line-clamp-2 h-10">{user.bio}</p>
-            </div>
-            <Button className="w-full gradient-button mt-auto">Follow</Button>
-          </Card>
-        </Link>
+        <UserCard key={user.id} user={user} currentUser={currentUser} />
       ))}
     </div>
+  );
+};
+
+const UserCard = ({ user, currentUser }) => {
+  const { data: isFollowing = false } = useFollowStatus(user.user_id || user.id);
+  const { mutate: toggleFollow } = useToggleFollow();
+  
+  const handleFollow = () => {
+    if (user.user_id || user.id) {
+      toggleFollow({ 
+        userId: user.user_id || user.id, 
+        isFollowing 
+      });
+    }
+  };
+
+  return (
+    <Link to={`/profile/${user.username}`}>
+      <Card className="p-4 text-center hover:shadow-lg transition-shadow h-full flex flex-col">
+        <Avatar className="h-20 w-20 mx-auto mb-4">
+          <AvatarImage src={user.avatar_url} alt={user.display_name} />
+          <AvatarFallback className="text-lg">
+            {user.display_name?.charAt(0) || user.username.charAt(0)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="space-y-1 mb-4">
+          <div className="flex items-center justify-center space-x-2">
+            <h3 className="font-semibold truncate" title={user.display_name || user.username}>
+              {user.display_name || user.username}
+            </h3>
+          </div>
+          <p className="text-muted-foreground text-sm">@{user.username}</p>
+          <p className="text-sm text-muted-foreground">
+            {user.followers_count.toLocaleString()} followers
+          </p>
+          <p className="text-sm line-clamp-2 h-10">{user.bio}</p>
+        </div>
+        {user.user_id !== currentUser?.id && user.id !== currentUser?.id && (
+          <Button 
+            className={`w-full mt-auto ${isFollowing ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80' : 'gradient-button'}`}
+            onClick={(e) => {
+              e.preventDefault();
+              handleFollow();
+            }}
+          >
+            {isFollowing ? 'Following' : 'Follow'}
+          </Button>
+        )}
+      </Card>
+    </Link>
   );
 };
 
