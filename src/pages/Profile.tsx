@@ -15,6 +15,8 @@ import { useProfile, useUserPosts, useDeletePost, Post, useTogglePostLike } from
 import { useFollowStatus, useToggleFollow } from "@/hooks/useFollow";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigation } from "@/components/layout/Navigation";
+import { PostGrid } from "@/components/posts/PostGrid";
+import { PostDetailModal } from "@/components/posts/PostDetailModal";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -143,11 +145,14 @@ const PostCard = ({ post, authUser }) => {
 };
 
 const Profile = () => {
-  const { userId } = useParams<{ userId?: string }>();
+  const { username } = useParams<{ username?: string }>();
   const { user: authUser } = useAuth();
-  const { data: profile, isLoading: profileLoading, error: profileError } = useProfile(userId);
-  const { data: posts, isLoading: postsLoading, error: postsError } = useUserPosts(userId);
-  const { data: isFollowing = false, isLoading: followLoading } = useFollowStatus(userId || '');
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  // If no username in params, show current user's profile
+  const targetUserId = username ? undefined : authUser?.id; // We'll need to fetch by username
+  const { data: profile, isLoading: profileLoading, error: profileError } = useProfile(targetUserId);
+  const { data: posts, isLoading: postsLoading, error: postsError } = useUserPosts(targetUserId);
+  const { data: isFollowing = false, isLoading: followLoading } = useFollowStatus(targetUserId || '');
   const { mutate: toggleFollow } = useToggleFollow();
   const { mutate: toggleLike } = useTogglePostLike();
 
@@ -178,8 +183,8 @@ const Profile = () => {
     );
   }
 
-  const isOwnProfile = !userId || authUser?.id === profile.user_id;
-  const targetUserId = userId || authUser?.id;
+  const isOwnProfile = !username || authUser?.id === profile?.user_id;
+  const actualTargetUserId = targetUserId || authUser?.id;
 
   // Handle privacy settings - hide content if private and not following
   const showContent = !profile.is_private || isOwnProfile || isFollowing;
@@ -235,7 +240,7 @@ const Profile = () => {
                     <Button
                       variant={isFollowing ? "outline" : "default"}
                       className={!isFollowing ? "gradient-button" : ""}
-                      onClick={() => toggleFollow({ userId: targetUserId!, isFollowing })}
+                      onClick={() => toggleFollow({ userId: actualTargetUserId!, isFollowing })}
                     >
                       {isFollowing ? "Following" : "Follow"}
                     </Button>
@@ -325,9 +330,10 @@ const Profile = () => {
                 </p>
               </div>
             ) : userPosts.length > 0 ? (
-              userPosts.map((post: Post) => (
-                <PostCard key={post.id} post={post} authUser={authUser} />
-              ))
+              <PostGrid 
+                posts={userPosts} 
+                onPostClick={(post) => setSelectedPost(post)} 
+              />
             ) : (
               <div className="text-center py-12">
                 <Grid3X3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -360,6 +366,13 @@ const Profile = () => {
           </TabsContent>
         </Tabs>
       </main>
+      
+      {/* Post Detail Modal */}
+      <PostDetailModal 
+        post={selectedPost}
+        isOpen={!!selectedPost}
+        onClose={() => setSelectedPost(null)}
+      />
     </div>
   );
 };
