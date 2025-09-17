@@ -12,6 +12,8 @@ import { Memes } from "./pages/Memes";
 import { Notifications } from "./pages/Notifications";
 import { Settings } from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import Admin from "./pages/Admin";
+import PrivateRoute from "./components/PrivateRoute";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +33,14 @@ const App = () => (
             <Route path="/memes" element={<Memes />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/settings" element={<Settings />} />
+            <Route
+              path="/Admin_Dashbord"
+              element={
+                <PrivateRoute>
+                  <Admin />
+                </PrivateRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

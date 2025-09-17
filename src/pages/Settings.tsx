@@ -384,6 +384,9 @@ export const Settings = () => {
                     rows={3}
                   />
                 </div>
+                <div>
+                  <Label htmlFor="bio">Role: {profile.role}</Label>
+                </div>
 
                 <Button
                   onClick={handleProfileUpdate}
