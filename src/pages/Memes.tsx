@@ -1,11 +1,11 @@
-import { useAllMemes } from "@/hooks/useMemes";
+import { useAllMemesWithBadges } from "@/hooks/useMemes";
 import { MemeCard } from "@/components/posts/MemeCard";
 import { Navigation } from "@/components/layout/Navigation";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Memes = () => {
-  const { data: memes = [], isLoading, refetch } = useAllMemes();
+  const { data: memes = [], isLoading, refetch } = useAllMemesWithBadges();
 
   return (
     <div className="min-h-screen bg-background">
@@ -16,10 +16,10 @@ export const Memes = () => {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Memes 😂
+                Halaman Memes 😂
               </h1>
               <p className="text-muted-foreground mt-2">
-                The funniest content from our community
+                Selamat datang! Lihat, bagikan, dan tambahkan lencana ke meme terlucu dari komunitas kami.
               </p>
             </div>
             <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>

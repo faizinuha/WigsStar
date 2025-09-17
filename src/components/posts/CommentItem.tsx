@@ -3,9 +3,10 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Heart, MoreHorizontal } from "lucide-react";
-import { Comment, useCreateComment, useToggleCommentLike } from "@/hooks/useComments";
+import { Comment, useCreateComment } from "@/hooks/useComments";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
+import { useLikes } from "@/hooks/useLikes";
 
 interface CommentItemProps {
   comment: Comment;
@@ -19,7 +20,7 @@ export const CommentItem = ({ comment, postId, memeId, level = 0 }: CommentItemP
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyContent, setReplyContent] = useState("");
   const { mutate: createComment, isPending: isCreatingComment } = useCreateComment();
-  const { mutate: toggleLike, isPending: isTogglingLike } = useToggleCommentLike();
+  const { likesCount, isLiked, toggleLike } = useLikes('comment', comment.id);
 
   const handleReply = () => {
     if (!replyContent.trim()) return;
@@ -41,10 +42,8 @@ export const CommentItem = ({ comment, postId, memeId, level = 0 }: CommentItemP
   };
 
   const handleLike = () => {
-    toggleLike({
-      commentId: comment.id,
-      isLiked: comment.isLiked,
-    });
+    if (!user) return; // Or show toast
+    toggleLike();
   };
 
   return (
@@ -69,12 +68,11 @@ export const CommentItem = ({ comment, postId, memeId, level = 0 }: CommentItemP
 
         <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
           <button
-            className={`flex items-center gap-1 text-xs hover:text-foreground transition-colors ${comment.isLiked ? 'text-red-500' : 'text-muted-foreground'}`}
+            className={`flex items-center gap-1 text-xs hover:text-foreground transition-colors ${isLiked ? 'text-red-500' : 'text-muted-foreground'}`}
             onClick={handleLike}
-            disabled={isTogglingLike}
           >
-            <Heart className={`h-3 w-3 ${comment.isLiked ? 'fill-red-500' : ''}`} />
-            <span>{comment.likes_count || 0}</span>
+            <Heart className={`h-3 w-3 ${isLiked ? 'fill-red-500' : ''}`} />
+            <span>{likesCount || 0}</span>
           </button>
 
           <button

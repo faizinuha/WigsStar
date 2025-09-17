@@ -79,7 +79,7 @@ const Explore = () => {
               Discover new posts, people, and trends.
             </p>
 
-            {/* Search Bar */}
+            {/* Search Bar 
             <div className="relative max-w-2xl">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
               <Input
@@ -89,6 +89,7 @@ const Explore = () => {
                 className="pl-12 h-12 text-lg rounded-full"
               />
             </div>
+            */}
           </div>
 
           {/* Tabs */}

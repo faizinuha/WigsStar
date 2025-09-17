@@ -3,13 +3,17 @@ import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { 
   Heart, 
   MessageCircle, 
   Share, 
   Bookmark, 
   MoreHorizontal,
-  Laugh
+  Laugh,
+  PlusCircle,
+  Loader2
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -18,59 +22,84 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
-import supabase from "@/lib/supabase.ts";
 import { useToast } from "@/hooks/use-toast";
-import { Meme } from "@/hooks/useMemes";
+import { Meme, useBadges, useAddMemeBadge } from "@/hooks/useMemes";
+import { useLikes } from "@/hooks/useLikes";
 
 interface MemeCardProps {
   meme: Meme;
 }
 
+// A new component to handle adding badges
+const AddBadgePopover = ({ meme }: { meme: Meme }) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const { data: allBadges, isLoading: isLoadingBadges } = useBadges();
+  const addMemeBadge = useAddMemeBadge();
+
+  const handleAddBadge = (badgeId: number) => {
+    if (!user) {
+      toast({ title: "Login required", description: "You must be logged in to add a badge.", variant: "destructive" });
+      return;
+    }
+    addMemeBadge.mutate({ memeId: meme.id, badgeId });
+  };
+
+  const existingBadgeIds = new Set(meme.badges.map(b => b.id));
+  const availableBadges = allBadges?.filter(b => !existingBadgeIds.has(b.id));
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-6 w-6">
+          <PlusCircle className="h-4 w-4 text-muted-foreground hover:text-primary" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-48 p-2">
+        <div className="space-y-1">
+          <p className="font-semibold text-sm px-2">Add a badge</p>
+          {isLoadingBadges ? (
+            <div className="flex items-center justify-center p-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </div>
+          ) : availableBadges && availableBadges.length > 0 ? (
+            availableBadges.map(badge => (
+              <Button
+                key={badge.id}
+                variant="ghost"
+                className="w-full justify-start h-8 px-2"
+                onClick={() => handleAddBadge(badge.id)}
+                disabled={addMemeBadge.isPending}
+              >
+                {badge.name}
+              </Button>
+            ))
+          ) : (
+            <p className="text-xs text-muted-foreground px-2">No more badges to add.</p>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
 export const MemeCard = ({ meme }: MemeCardProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [isLiked, setIsLiked] = useState(false);
+  const { likesCount, isLiked, toggleLike } = useLikes('meme', meme.id);
   const [isBookmarked, setIsBookmarked] = useState(false);
-  const [likesCount, setLikesCount] = useState(meme.likes_count);
   const [showFullCaption, setShowFullCaption] = useState(false);
 
   const handleLike = async () => {
-    if (!user) return;
-
-    try {
-      if (isLiked) {
-        // Unlike
-        const { error } = await supabase
-          .from('likes')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('meme_id', meme.id);
-          
-        if (error) throw error;
-        
-        setIsLiked(false);
-        setLikesCount(prev => prev - 1);
-      } else {
-        // Like
-        const { error } = await supabase
-          .from('likes')
-          .insert({
-            user_id: user.id,
-            meme_id: meme.id,
-          });
-          
-        if (error) throw error;
-        
-        setIsLiked(true);
-        setLikesCount(prev => prev + 1);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+    if (!user) {
+        toast({
+            title: "Login required",
+            description: "You need to be logged in to like memes.",
+            variant: "destructive",
+        });
+        return;
     }
+    toggleLike();
   };
 
   const handleShare = () => {
@@ -160,7 +189,7 @@ export const MemeCard = ({ meme }: MemeCardProps) => {
         )}
       </div>
 
-      {/* Actions */}
+      {/* Actions & Badges */}
       <div className="p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -209,6 +238,16 @@ export const MemeCard = ({ meme }: MemeCardProps) => {
           {likesCount.toLocaleString()} likes
         </div>
 
+        {/* Badges Section */}
+        {(meme.badges && meme.badges.length > 0) && (
+            <div className="flex items-center flex-wrap gap-2">
+                {meme.badges.map((badge) => (
+                    <Badge key={badge.id} variant="secondary">{badge.name}</Badge>
+                ))}
+                <AddBadgePopover meme={meme} />
+            </div>
+        )}
+
         {/* Caption */}
         {meme.caption && (
           <div className="text-sm space-y-1">
@@ -223,6 +262,14 @@ export const MemeCard = ({ meme }: MemeCardProps) => {
               </button>
             )}
           </div>
+        )}
+
+        {/* Add Badge Button (if no badges exist yet) */}
+        {(!meme.badges || meme.badges.length === 0) && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Add a badge:</span>
+                <AddBadgePopover meme={meme} />
+            </div>
         )}
 
         {/* Comments Link */}
