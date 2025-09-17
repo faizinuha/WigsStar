@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator"; 
-import { Heart, Github, Chrome } from "lucide-react";
+import { Github, Chrome } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "../contexts/AuthContext";
 import { DisplayNameField, EmailField, PasswordField, UsernameField } from "../contexts/AuthFormFields";
+import starMarLogo from "../../assets/Logo/StarMar-.png"; // Import the logo
 
 export function Auth() {
   const { signIn, signUp, resetPassword, signInWithOAuth } = useAuth();
@@ -46,17 +46,10 @@ export function Auth() {
     setIsLoading(true);
 
     try {
-      let error;
-      if (isLogin) {
-        ({ error } = await signIn(formData.email, formData.password));
-      } else {
-        ({ error } = await signUp(
-          formData.email,
-          formData.password,
-          formData.username,
-          formData.displayName
-        ));
-      }
+      const { error } = isLogin
+        ? await signIn(formData.email, formData.password)
+        : await signUp(formData.email, formData.password, formData.username, formData.displayName);
+      
       if (error) {
         setErrors({ general: error.message });
       } else {
@@ -93,148 +86,87 @@ export function Auth() {
     }
   };
 
+  const toggleForm = () => {
+    setIsLogin(!isLogin);
+    setErrors({});
+    setFormData({ username: "", email: "", password: "", confirmPassword: "", displayName: "" });
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6 animate-fade-in">
-        {/* Logo */}
-        <div className="text-center space-y-2">
-          <div className="w-20 h-20 mx-auto rounded-3xl starmar-gradient flex items-center justify-center shadow-lg">
-            <span className="text-white font-bold text-3xl">S</span>
+    <div className="min-h-screen w-full lg:grid lg:grid-cols-2 bg-background">
+      {/* Left Column: Logo and Description */}
+      <div className="hidden bg-primary/5 lg:flex flex-col items-center justify-center p-12 text-center">
+        <img src={starMarLogo} alt="StarMar Logo" className="w-48 mb-6" />
+        <h1 className="text-4xl font-bold text-primary">Welcome to StarMar</h1>
+        <p className="mt-4 text-lg text-muted-foreground">
+          Connect with friends, share your moments, and discover a universe of amazing content.
+        </p>
+      </div>
+
+      {/* Right Column: Auth Form */}
+      <div className="flex items-center justify-center py-12 px-4">
+        <div className="w-full max-w-md space-y-6">
+          <div className="text-center lg:hidden">
+             <img src={starMarLogo} alt="StarMar Logo" className="w-24 mx-auto mb-4" />
           </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            StarMar
-          </h1>
-          <p className="text-muted-foreground">
-            Connect, share, and discover amazing moments
-          </p>
-        </div>
+          <Card className="border-none shadow-none sm:border sm:shadow-sm">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">{isLogin ? "Sign In" : "Create an Account"}</CardTitle>
+              <CardDescription>
+                {isLogin ? "Welcome back! Please enter your details." : "Join the community to start sharing."}
+              </CardDescription>
+            </CardHeader>
 
-        <Card className="glass-card">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">
-              {isLogin ? "Welcome Back" : "Join StarMar"}
-            </CardTitle>
-            <p className="text-muted-foreground">
-              {isLogin
-                ? "Sign in to your account to continue"
-                : "Create your account and start sharing"}
-            </p>
-          </CardHeader>
-
-          <CardContent className="space-y-6">
-            {errors.general && (
-              <Alert variant="destructive">
-                <AlertDescription>{errors.general}</AlertDescription>
-              </Alert>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
-                <>
-                  <DisplayNameField
-                    value={formData.displayName}
-                    onChange={(e) => handleInputChange("displayName", e.target.value)}
-                    error={errors.displayName}
-                  />
-                  <UsernameField
-                    value={formData.username}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
-                      handleInputChange("username", value);
-                    } }
-                    error={errors.username} />
-                </>
+            <CardContent className="space-y-4">
+              {errors.general && (
+                <Alert variant="destructive">
+                  <AlertDescription>{errors.general}</AlertDescription>
+                </Alert>
               )}
 
-              <EmailField
-                value={formData.email}
-                onChange={(e) => handleInputChange("email", e.target.value)}
-                error={errors.email} />
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {!isLogin && (
+                  <>
+                    <DisplayNameField value={formData.displayName} onChange={(e) => handleInputChange("displayName", e.target.value)} error={errors.displayName} />
+                    <UsernameField value={formData.username} onChange={(e) => handleInputChange("username", e.target.value.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase())} error={errors.username} />
+                  </>
+                )}
+                <EmailField value={formData.email} onChange={(e) => handleInputChange("email", e.target.value)} error={errors.email} />
+                <PasswordField id="password" label="Password" value={formData.password} onChange={(e) => handleInputChange("password", e.target.value)} error={errors.password} showPassword={showPassword} toggleShowPassword={() => setShowPassword(!showPassword)} />
+                {!isLogin && <PasswordField id="confirmPassword" label="Confirm Password" value={formData.confirmPassword} onChange={(e) => handleInputChange("confirmPassword", e.target.value)} error={errors.confirmPassword} />}
+                <Button type="submit" className="w-full gradient-button" disabled={isLoading}>
+                  {isLoading ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
+                </Button>
+              </form>
 
-              <PasswordField
-                id="password"
-                label="Password"
-                value={formData.password}
-                onChange={(e) => handleInputChange("password", e.target.value)}
-                error={errors.password}
-                showPassword={showPassword}
-                toggleShowPassword={() => setShowPassword(!showPassword)} />
-
-              {!isLogin && (
-                <PasswordField
-                  id="confirmPassword"
-                  label="Confirm Password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                  error={errors.confirmPassword} />
-              )}
-
-              <Button
-                type="submit"
-                className="w-full gradient-button"
-                disabled={isLoading}
-              >
-                {isLoading ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
-              </Button>
-            </form>
-
-            <div className="text-center space-y-4">
               <div className="relative">
-                <Separator />
-                <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-sm text-muted-foreground">
-                  or
-                </span>
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <Button variant="outline" onClick={() => handleOAuthSignIn('google')} disabled={isLoading}>
-                  <Chrome className="mr-2 h-4 w-4" />
-                  Google
-                </Button>
-                <Button variant="outline" onClick={() => handleOAuthSignIn('github')} disabled={isLoading}>
-                  <Github className="mr-2 h-4 w-4" />
-                  GitHub
-                </Button>
+                <Button variant="outline" onClick={() => handleOAuthSignIn('google')} disabled={isLoading}><Chrome className="mr-2 h-4 w-4" />Google</Button>
+                <Button variant="outline" onClick={() => handleOAuthSignIn('github')} disabled={isLoading}><Github className="mr-2 h-4 w-4" />GitHub</Button>
               </div>
 
-              <p className="text-center text-xs text-muted-foreground">
-                {isLogin ? "Or sign in with your email" : "Or sign up with your email"}
-              </p>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setErrors({});
-                  setFormData({
-                    username: "",
-                    email: "",
-                    password: "",
-                    confirmPassword: "",
-                    displayName: ""
-                  });
-                } }
-              >
-                {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
-              </Button>
-
-              {isLogin && (
-                <Button variant="ghost" className="text-sm" onClick={handleForgotPassword}>
-                  Forgot your password?
+              <p className="text-center text-sm text-muted-foreground">
+                {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+                <Button variant="link" onClick={toggleForm} className="p-0 h-auto">
+                  {isLogin ? "Sign up" : "Sign in"}
                 </Button>
+              </p>
+              
+              {isLogin && (
+                <div className="text-center">
+                  <Button variant="link" className="text-sm p-0 h-auto" onClick={handleForgotPassword}>
+                    Forgot your password?
+                  </Button>
+                </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="text-center text-sm text-muted-foreground">
-          <p className="flex items-center justify-center space-x-1">
-            <span>Made with</span>
-            <Heart className="h-4 w-4 text-red-500" />
-            <span>by StarMar</span>
-          </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
