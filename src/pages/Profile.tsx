@@ -59,7 +59,7 @@ const PostCard = ({ post, authUser }) => {
       <div className="flex items-center space-x-4">
         <Avatar className="w-12 h-12">
           <AvatarImage src={post.user.avatar} alt={post.user.displayName} />
-          <AvatarFallback className="text-2xl">{post.user.displayName?.charAt(0)}</AvatarFallback>
+          <AvatarFallback className="text-2xl">{post.user.displayName?.charAt(0) || ''}</AvatarFallback>
         </Avatar>
         <div className="flex-1">
           <h4 className="font-semibold">{post.user.displayName}</h4>
@@ -213,7 +213,7 @@ const Profile = () => {
               <div className="flex flex-col md:flex-row md:items-end md:space-x-6">
                 <Avatar className="h-32 w-32 border-4 border-background shadow-xl">
                   <AvatarImage src={profile.avatar_url || '/placeholder-avatar.jpg'} alt={profile.display_name} />
-                  <AvatarFallback className="text-2xl">{profile.display_name?.charAt(0) || profile.username.charAt(0)}</AvatarFallback>
+                  <AvatarFallback className="text-2xl">{profile.display_name?.charAt(0) || profile.username?.charAt(0) || ''}</AvatarFallback>
                 </Avatar>
 
                 <div className="mt-4 md:mt-0 md:mb-2">

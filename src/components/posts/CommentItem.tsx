@@ -51,7 +51,7 @@ export const CommentItem = ({ comment, postId, memeId, level = 0 }: CommentItemP
       <Avatar className="h-7 w-7 mt-1">
         <AvatarImage src={comment.user.avatar} />
         <AvatarFallback className="text-xs">
-          {comment.user.displayName?.[0] || comment.user.username?.[0]}
+          {comment.user.displayName?.[0] || comment.user.username?.[0] || ''}
         </AvatarFallback>
       </Avatar>
 
@@ -92,7 +92,7 @@ export const CommentItem = ({ comment, postId, memeId, level = 0 }: CommentItemP
             <Avatar className="h-6 w-6">
               <AvatarImage src={user?.user_metadata?.avatar_url} />
               <AvatarFallback className="text-xs">
-                {user?.user_metadata?.display_name?.[0] || user?.email?.[0]}
+                {user?.user_metadata?.display_name?.[0] || user?.email?.[0] || ''}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 flex gap-2">
