@@ -16,10 +16,11 @@ import {
   Upload
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import  supabase from "@/lib/supabase";
+import supabase from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
-
+import { profile } from "console";
+import { useProfile } from "@/hooks/useProfile";
 export const CreatePost = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -31,6 +32,7 @@ export const CreatePost = () => {
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [mentions, setMentions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { data: userProfile } = useProfile();
 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -105,14 +107,19 @@ export const CreatePost = () => {
         imageUrl = publicUrlData.publicUrl;
       }
 
+      // Gabungkan hashtag ke dalam caption
+      let captionWithTags = content.trim();
+      if (hashtags.length > 0) {
+        const tagsString = hashtags.map(tag => tag.startsWith('#') ? tag : `#${tag}`).join(' ');
+        captionWithTags = `${captionWithTags} ${tagsString}`.trim();
+      }
       const { error: postError } = await supabase
         .from('posts')
         .insert({
           user_id: user.id,
-          content: content.trim(),
+          caption: captionWithTags,
           image_url: imageUrl,
           location: location || null,
-          // TODO: Add hashtags and mentions handling if needed
         });
 
       if (postError) {
@@ -147,9 +154,9 @@ export const CreatePost = () => {
     <>
       {/* Quick Create */}
       <Card className="p-4 animate-fade-in">
-        <div className="flex items-center space-x-3">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={user?.user_metadata?.avatar_url || '/placeholder.svg'} />
+        <div className="flex items-center space-x-https://discord.gg/SQG3hrjCqS3">
+          <Avatar className="h-10 w-10"> 
+            <AvatarImage src={userProfile?.avatar_url || '/assets/placeholder/cewek.png'} />
             <AvatarFallback>{user?.user_metadata?.display_name?.charAt(0) || user?.email?.charAt(0) || 'U'}</AvatarFallback>
           </Avatar>
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -162,7 +169,7 @@ export const CreatePost = () => {
               <DialogHeader>
                 <DialogTitle className="flex items-center space-x-3">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={user?.user_metadata?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face"} />
+                   <AvatarImage src={userProfile?.avatar_url || '/assets/placeholder/cewek.png'} />
                     <AvatarFallback>{user?.user_metadata?.display_name?.charAt(0) || user?.email?.charAt(0) || "U"}</AvatarFallback>
                   </Avatar>
                   <div>

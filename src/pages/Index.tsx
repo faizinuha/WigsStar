@@ -19,16 +19,14 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      
+
       <main className="md:ml-72 min-h-screen pb-20 md:pb-8">
         <div className="max-w-6xl mx-auto px-4 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-8">
               <StoriesSection />
-              <SuggestedFriends />
               <CreatePost />
-              
               {/* View Mode Toggle */}
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold">Posts</h2>
@@ -51,7 +49,6 @@ const Index = () => {
                   </Button>
                 </div>
               </div>
-              
               {/* Content based on view mode */}
               {viewMode === 'feed' ? (
                 <div className="space-y-8">
@@ -60,18 +57,16 @@ const Index = () => {
                   ))}
                 </div>
               ) : (
-                <PostGrid 
-                  posts={posts} 
-                  onPostClick={(post) => setSelectedPost(post)} 
+                <PostGrid
+                  posts={posts}
+                  onPostClick={(post) => setSelectedPost(post)}
                 />
               )}
-
               {isLoading && (
                 <div className="flex justify-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
               )}
-
               {posts.length === 0 && !isLoading && (
                 <div className="text-center py-12">
                   <div className="text-6xl mb-4">📝</div>
@@ -85,14 +80,17 @@ const Index = () => {
 
             {/* Sidebar - Hidden on mobile */}
             <div className="hidden lg:block lg:col-span-1 space-y-6">
-              <TrendingTags className="sticky top-8" />
+              <div className="sticky top-8 space-y-6">
+                <SuggestedFriends />
+                <TrendingTags />
+              </div>
             </div>
           </div>
         </div>
       </main>
-      
+
       {/* Post Detail Modal */}
-      <PostDetailModal 
+      <PostDetailModal
         post={selectedPost}
         isOpen={!!selectedPost}
         onClose={() => setSelectedPost(null)}

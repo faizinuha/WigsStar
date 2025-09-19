@@ -29,6 +29,7 @@ import { Navigation } from "@/components/layout/Navigation";
 interface Profile {
   id: string;
   username: string;
+  avatar_url: string;
   display_name: string;
   followers_count: number;
   following_count: number;
@@ -131,6 +132,7 @@ const AdminContent = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Avatar</TableHead>
                     <TableHead>Username</TableHead>
                     <TableHead>Display Name</TableHead>
                     <TableHead>Followers</TableHead>
@@ -138,6 +140,7 @@ const AdminContent = () => {
                     <TableHead>Posts</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Created At</TableHead>
+                    <TableHead>Action</TableHead>
                     <TableHead>
                       <span className="sr-only">Actions</span>
                     </TableHead>
@@ -146,82 +149,85 @@ const AdminContent = () => {
                 <TableBody>
                   {loading
                     ? Array.from({ length: 8 }).map((_, index) => (
-                        <TableRow key={index}>
-                          <TableCell>
-                            <Skeleton className="h-5 w-24" />
-                          </TableCell>
-                          <TableCell>
-                            <Skeleton className="h-5 w-32" />
-                          </TableCell>
-                          <TableCell>
-                            <Skeleton className="h-5 w-16" />
-                          </TableCell>
-                          <TableCell>
-                            <Skeleton className="h-5 w-16" />
-                          </TableCell>
-                          <TableCell>
-                            <Skeleton className="h-5 w-16" />
-                          </TableCell>
-                          <TableCell>
-                            <Skeleton className="h-5 w-20" />
-                          </TableCell>
-                          <TableCell>
-                            <Skeleton className="h-5 w-24" />
-                          </TableCell>
-                          <TableCell>
-                            <Skeleton className="h-5 w-8" />
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      <TableRow key={index}>
+                        <TableCell>
+                          <Skeleton className="h-5 w-24" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-5 w-32" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-5 w-16" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-5 w-16" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-5 w-16" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-5 w-20" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-5 w-24" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-5 w-8" />
+                        </TableCell>
+                      </TableRow>
+                    ))
                     : users.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">{user.username}</TableCell>
-                          <TableCell>{user.display_name}</TableCell>
-                          <TableCell>{user.followers_count}</TableCell>
-                          <TableCell>{user.following_count}</TableCell>
-                          <TableCell>{user.posts_count}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                user.role === "admin" ? "destructive" : "outline"
-                              }
-                            >
-                              {user.role}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {new Date(user.created_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  aria-haspopup="true"
-                                  size="icon"
-                                  variant="ghost"
-                                >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                  <span className="sr-only">Toggle menu</span>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem
-                                  onClick={() => handleEditClick(user)}
-                                >
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleDeleteClick(user.id)}
-                                  className="text-red-600"
-                                >
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      <TableRow key={user.id}>
+                        <TableCell>
+                          <img src={user.avatar_url || '/assets/placeholder/cewek.png'} alt={user.username} className="h-8 w-8 rounded-full" />
+                        </TableCell>
+                        <TableCell className="font-medium">{user.username}</TableCell>
+                        <TableCell>{user.display_name}</TableCell>
+                        <TableCell>{user.followers_count}</TableCell>
+                        <TableCell>{user.following_count}</TableCell>
+                        <TableCell>{user.posts_count}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              user.role === "admin" ? "destructive" : "outline"
+                            }
+                          >
+                            {user.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {new Date(user.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                aria-haspopup="true"
+                                size="icon"
+                                variant="ghost"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => handleEditClick(user)}
+                              >
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteClick(user.id)}
+                                className="text-red-600"
+                              >
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             </CardContent>

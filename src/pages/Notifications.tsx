@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import {
   Bell,
@@ -17,58 +17,62 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import supabase from '@/lib/supabase';
 
 export const Notifications = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
+  // 🔹 Fetch notifications dari Supabase
   const { data: notifications, isLoading } = useQuery({
     queryKey: ['notifications', user?.id],
     queryFn: async () => {
       if (!user) return [];
 
-      // Mock notifications for now since we need to fix the foreign key relationship
-      return [
-        {
-          id: '1',
-          type: 'like',
-          created_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-          is_read: false,
-          from_user: {
-            username: 'alice_wonder',
-            display_name: 'Alice Wonder',
-            avatar_url:
-              'https://images.unsplash.com/photo-1494790108755-2616b612b977?w=150&h=150&fit=crop&crop=face',
-          },
-        },
-        {
-          id: '2',
-          type: 'comment',
-          created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-          is_read: true,
-          from_user: {
-            username: 'bob_builder',
-            display_name: 'Bob Builder',
-            avatar_url:
-              'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
-          },
-        },
-        {
-          id: '3',
-          type: 'follow',
-          created_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-          is_read: false,
-          from_user: {
-            username: 'charlie_cat',
-            display_name: 'Charlie Cat',
-            avatar_url:
-              'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face',
-          },
-        },
-      ];
+      const { data, error } = await supabase
+        .from('notifications')
+        .select(`
+          id,
+          type,
+          created_at,
+          is_read,
+          from_user:from_user_id (
+            username,
+            display_name,
+            avatar_url
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching notifications:', error);
+        return [];
+      }
+
+      return data || [];
     },
     enabled: !!user,
   });
 
+  // 🔹 Mark all as read
+  const markAllRead = useMutation({
+    mutationFn: async () => {
+      if (!user) return;
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', user.id)
+        .eq('is_read', false);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
+    },
+  });
+
+  // 🔹 Icons
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'like':
@@ -82,6 +86,7 @@ export const Notifications = () => {
     }
   };
 
+  // 🔹 Messages
   const getNotificationMessage = (type: string, fromUser: any) => {
     const displayName =
       fromUser?.display_name || fromUser?.username || 'Someone';
@@ -113,8 +118,17 @@ export const Notifications = () => {
                 Stay updated with your latest activities
               </p>
             </div>
-            <Button variant="outline" size="sm">
-              <CheckCheck className="h-4 w-4 mr-2" />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => markAllRead.mutate()}
+              disabled={markAllRead.isPending}
+            >
+              {markAllRead.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCheck className="h-4 w-4 mr-2" />
+              )}
               Mark All Read
             </Button>
           </div>
@@ -142,8 +156,7 @@ export const Notifications = () => {
                       src={notification.from_user?.avatar_url || undefined}
                     />
                     <AvatarFallback>
-                      {notification.from_user?.display_name?.charAt(0) ||
-                        notification.from_user?.username?.charAt(0) ||
+                      {notification.from_user?.display_name?.charAt(0) || notification.from_user?.username?.charAt(0) ||
                         'U'}
                     </AvatarFallback>
                   </Avatar>

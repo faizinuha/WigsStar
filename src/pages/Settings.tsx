@@ -37,12 +37,13 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useMfa } from './useMfa';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
 import supabase from '@/lib/supabase.ts';
 import { Factor } from '@supabase/supabase-js';
 import { useQuery } from '@tanstack/react-query';
-import { Camera, Loader2, LogOut, Mail, ShieldAlert } from 'lucide-react';
+import { Camera, Loader2, LogOut, Mail, ShieldAlert, Sun, Moon, Laptop } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 interface UserSettings {
@@ -62,6 +63,7 @@ export const Settings = () => {
   const navigate = useNavigate();
   const { data: profile } = useProfile();
   const updateProfile = useUpdateProfile();
+  const { theme, setTheme } = useTheme();
 
   const {
     mfaFactors,
@@ -394,6 +396,47 @@ export const Settings = () => {
                 >
                   {updateProfile.isPending ? 'Saving...' : 'Save Changes'}
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Theme Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Theme</CardTitle>
+              <CardDescription>
+                Select the theme for the application.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4">
+                <div
+                  className={`cursor-pointer rounded-md border-2 p-4 text-center ${
+                    theme === 'light' ? 'border-primary' : 'border-muted'
+                  }`}
+                  onClick={() => setTheme('light')}
+                >
+                  <Sun className="mx-auto mb-2 h-6 w-6" />
+                  <span>Light</span>
+                </div>
+                <div
+                  className={`cursor-pointer rounded-md border-2 p-4 text-center ${
+                    theme === 'dark' ? 'border-primary' : 'border-muted'
+                  }`}
+                  onClick={() => setTheme('dark')}
+                >
+                  <Moon className="mx-auto mb-2 h-6 w-6" />
+                  <span>Dark</span>
+                </div>
+                <div
+                  className={`cursor-pointer rounded-md border-2 p-4 text-center ${
+                    theme === 'system' ? 'border-primary' : 'border-muted'
+                  }`}
+                  onClick={() => setTheme('system')}
+                >
+                  <Laptop className="mx-auto mb-2 h-6 w-6" />
+                  <span>System</span>
+                </div>
               </div>
             </CardContent>
           </Card>

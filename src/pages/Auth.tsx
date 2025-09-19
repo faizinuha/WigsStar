@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator"; 
+import { Separator } from "@/components/ui/separator";
 import { Github, Chrome } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "../contexts/AuthContext";
@@ -53,7 +53,7 @@ export function Auth() {
       const { error } = isLogin
         ? await signIn(formData.email, formData.password)
         : await signUp(formData.email, formData.password, formData.username, formData.displayName);
-      
+
       if (error) {
         setErrors({ general: error.message });
       } else {
@@ -107,8 +107,13 @@ export function Auth() {
       setShowDownloadModal(false);
       // After download, navigate to login state or home, depending on desired flow.
       // For now, let's navigate to home as per original flow after successful signup.
-      navigate("/"); 
+      navigate("/");
     }
+  };
+
+  const handleDownloadCancel = () => {
+    setShowDownloadModal(false);
+    navigate("/");
   };
 
   return (
@@ -126,7 +131,7 @@ export function Auth() {
       <div className="flex items-center justify-center py-12 px-4">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center lg:hidden">
-             <img src={starMarLogo} alt="StarMar Logo" className="w-24 mx-auto mb-4" />
+            <img src={starMarLogo} alt="StarMar Logo" className="w-24 mx-auto mb-4" />
           </div>
           <Card className="border-none shadow-none sm:border sm:shadow-sm">
             <CardHeader className="text-center">
@@ -176,7 +181,7 @@ export function Auth() {
                   {isLogin ? "Sign up" : "Sign in"}
                 </Button>
               </p>
-              
+
               {isLogin && (
                 <div className="text-center">
                   <Button variant="link" className="text-sm p-0 h-auto" onClick={handleForgotPassword}>
@@ -192,6 +197,7 @@ export function Auth() {
         isOpen={showDownloadModal}
         onClose={() => setShowDownloadModal(false)}
         onConfirmDownload={handleDownloadConfirm}
+        
       />
     </div>
   );

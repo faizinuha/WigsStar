@@ -223,15 +223,25 @@ export const Navigation = () => {
                   onClick={handleProfileClick}
                 >
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face" />
-                    <AvatarFallback>You</AvatarFallback>
+                   <AvatarImage src={profile?.avatar_url || '/assets/placeholder/cewek.png'} />
+                    <AvatarFallback>{user?.user_metadata?.display_name?.charAt(0) || user?.email?.charAt(0) || "U"}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-medium">Your Name</p>
-                    <p className="text-sm text-muted-foreground">@yourname</p>
+                    <p className="font-medium">{user?.user_metadata?.display_name || user?.email?.split('@')[0] || "yourname"}  </p>
+                    <p className="text-sm text-muted-foreground">@{user?.user_metadata?.username || user?.email?.split('@')[0] || "yourname"}</p>
                   </div>
                 </div>
-
+ {/* Admin button khusus kalau role admin */}
+            {profile?.role === 'admin' && (
+              <Button
+                variant={location.pathname === '/admin' ? 'secondary' : 'ghost'}
+                className="w-full justify-start space-x-3 h-12 text-base"
+                onClick={() => navigate('/Admin_Dashbord')}
+              >
+                <Home className="h-6 w-6" />
+                <span>Dashbaord Admin</span>
+              </Button>
+            )}
                 {/* Navigation Items */}
                 <div className="space-y-2">
                   {navItems.map((item, index) => {
@@ -260,7 +270,7 @@ export const Navigation = () => {
                 </div>
 
                 <hr className="border-border" />
-
+                  
                 {/* Settings & Logout */}
                 <div className="space-y-2">
                   <Button

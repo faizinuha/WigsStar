@@ -3,11 +3,11 @@ import { format } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { 
-  Heart, 
-  MessageCircle, 
-  Share, 
-  Bookmark, 
+import {
+  Heart,
+  MessageCircle,
+  Share,
+  Bookmark,
   MoreHorizontal,
   MapPin,
   Maximize,
@@ -25,6 +25,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDeletePost, useTogglePostLike } from "@/hooks/useProfile"; // Import useTogglePostLike
 import { useToast } from "@/components/ui/use-toast";
 import { CommentSection } from "./CommentSection"; // Import CommentSection
+import { usePostTags } from "@/hooks/useTags";
 
 // Interface disesuaikan dengan data dari Supabase
 interface Post {
@@ -57,7 +58,7 @@ const formatTimeAgo = (dateString: string) => {
   const now = new Date();
   const date = new Date(dateString);
   const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-  
+
   if (diffInMinutes < 60) {
     return `${diffInMinutes}m`;
   } else if (diffInMinutes < 1440) {
@@ -82,6 +83,7 @@ export const PostCard = ({ post }: PostCardProps) => {
   const { toast } = useToast();
   const deletePostMutation = useDeletePost();
   const toggleLikeMutation = useTogglePostLike(); // Initialize useTogglePostLike
+  const { data: postTags = [] } = usePostTags(post.id);
 
   const initialContent = post?.content ?? "";
 
@@ -131,7 +133,7 @@ export const PostCard = ({ post }: PostCardProps) => {
   };
 
   const isLongCaption = initialContent.length > 150;
-  const displayContent = showFullCaption || !isLongCaption 
+  const displayContent = showFullCaption || !isLongCaption
     ? initialContent
     : `${initialContent.substring(0, 150)}...`;
 
@@ -162,7 +164,7 @@ export const PostCard = ({ post }: PostCardProps) => {
             </div>
           </div>
         </div>
-        
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -205,36 +207,34 @@ export const PostCard = ({ post }: PostCardProps) => {
               className="h-10 w-10 hover:bg-red-50 dark:hover:bg-red-950"
               onClick={handleLike}
             >
-              <Heart 
-                className={`h-6 w-6 transition-all duration-200 ${
-                  post.isLiked
+              <Heart
+                className={`h-6 w-6 transition-all duration-200 ${post.isLiked
                     ? 'fill-red-500 text-red-500 animate-heart-beat'
                     : 'hover:text-red-500'
-                }`}
+                  }`}
               />
             </Button>
 
             <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => setShowComments(true)}>
               <MessageCircle className="h-6 w-6 hover:text-blue-500 transition-colors" />
             </Button>
-            
+
             <Button variant="ghost" size="icon" className="h-10 w-10">
               <Share className="h-6 w-6 hover:text-green-500 transition-colors" />
             </Button>
           </div>
-          
+
           <Button
             variant="ghost"
             size="icon"
             className="h-10 w-10"
             onClick={handleBookmark}
           >
-            <Bookmark 
-              className={`h-6 w-6 transition-colors ${
-                post.isBookmarked
+            <Bookmark
+              className={`h-6 w-6 transition-colors ${post.isBookmarked
                   ? 'fill-yellow-500 text-yellow-500'
                   : 'hover:text-yellow-500'
-              }`}
+                }`}
             />
           </Button>
         </div>
@@ -257,6 +257,15 @@ export const PostCard = ({ post }: PostCardProps) => {
             </button>
           )}
         </div>
+
+        {/* Hashtags */}
+        {postTags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {postTags.map((tag: string, idx: number) => (
+              <span key={idx} className="text-xs text-primary bg-primary/10 rounded px-2 py-1 font-mono">{tag}</span>
+            ))}
+          </div>
+        )}
 
         {/* Comments Link */}
         {post.comments > 0 && (
