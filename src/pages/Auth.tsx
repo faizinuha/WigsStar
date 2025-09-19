@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Github, Chrome } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "../contexts/AuthContext";
-import { DisplayNameField, EmailField, PasswordField, UsernameField } from "../contexts/AuthFormFields";
+import { DisplayNameField, EmailField, PasswordField, UsernameField, HCaptchaField } from "../contexts/AuthFormFields";
 import starMarLogo from "../../assets/Logo/StarMar-.png"; // Import the logo
 
 export function Auth() {
@@ -23,6 +23,7 @@ export function Auth() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -35,6 +36,7 @@ export function Auth() {
       else if (formData.username.length < 3) newErrors.username = "Username must be at least 3 characters";
       if (!formData.displayName) newErrors.displayName = "Display name is required";
       if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = "Passwords don't match";
+      if (!captchaToken) newErrors.captcha = "Please complete the captcha";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -47,8 +49,8 @@ export function Auth() {
 
     try {
       const { error } = isLogin
-        ? await signIn(formData.email, formData.password)
-        : await signUp(formData.email, formData.password, formData.username, formData.displayName);
+        ? await signIn(formData.email, formData.password, captchaToken)
+        : await signUp(formData.email, formData.password, formData.username, formData.displayName, captchaToken);
       
       if (error) {
         setErrors({ general: error.message });
@@ -90,6 +92,7 @@ export function Auth() {
     setIsLogin(!isLogin);
     setErrors({});
     setFormData({ username: "", email: "", password: "", confirmPassword: "", displayName: "" });
+    setCaptchaToken(null);
   };
 
   return (
@@ -134,6 +137,7 @@ export function Auth() {
                 <EmailField value={formData.email} onChange={(e) => handleInputChange("email", e.target.value)} error={errors.email} />
                 <PasswordField id="password" label="Password" value={formData.password} onChange={(e) => handleInputChange("password", e.target.value)} error={errors.password} showPassword={showPassword} toggleShowPassword={() => setShowPassword(!showPassword)} />
                 {!isLogin && <PasswordField id="confirmPassword" label="Confirm Password" value={formData.confirmPassword} onChange={(e) => handleInputChange("confirmPassword", e.target.value)} error={errors.confirmPassword} />}
+                {!isLogin && <HCaptchaField onVerify={setCaptchaToken} error={errors.captcha} />}
                 <Button type="submit" className="w-full gradient-button" disabled={isLoading}>
                   {isLoading ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
                 </Button>

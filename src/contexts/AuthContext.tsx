@@ -6,8 +6,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, username?: string, displayName?: string) => Promise<{ error: AuthError | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signUp: (email: string, password: string, username?: string, displayName?: string, captchaToken?: string | null) => Promise<{ error: AuthError | null }>;
+  signIn: (email: string, password: string, captchaToken?: string | null) => Promise<{ error: AuthError | null }>;
   signInWithOAuth: (provider: Provider) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
@@ -50,21 +50,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, username?: string, displayName?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+  const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+
+  const signUp = async (email: string, password: string, username?: string, displayName?: string, captchaToken?: string | null) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: redirectUrl,
-        data: { username, display_name: displayName }
+        emailRedirectTo: `${siteUrl}/auth/callback`,
+        data: { username, display_name: displayName },
+        captchaToken,
       }
     });
     return { error };
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const signIn = async (email: string, password: string, captchaToken?: string | null) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
     return { error };
   };
 
@@ -72,7 +74,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: `${siteUrl}/auth/callback`,
       },
     });
     return { error };
@@ -84,7 +86,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth?mode=reset`,
+      redirectTo: `${siteUrl}/auth?mode=reset`,
     });
     return { error };
   };

@@ -1,73 +1,99 @@
-# Welcome to your Lovable project
+# StarMar - Platform Media Sosial
 
-## Project info
+![Logo StarMar](./assets/Logo/StarMar-.png)
 
-**URL**: https://lovable.dev/projects/eb5c1aad-5076-45f3-b31a-63593c81b4fc
+StarMar adalah aplikasi media sosial modern dan kaya fitur yang dirancang untuk menghubungkan orang dan membangun komunitas. Ini memungkinkan pengguna untuk berbagi postingan, cerita, dan meme, berinteraksi dengan teman, dan menjelajahi konten yang sedang tren.
 
-## How can I edit this code?
+**Demo Langsung:** [https://starmar2.vercel.app](https://starmar2.vercel.app)
 
-There are several ways of editing your application.
+## Fitur
 
-**Use Lovable**
+-   **Autentikasi:** Autentikasi pengguna yang aman dengan email/kata sandi, serta penyedia OAuth seperti Google dan GitHub.
+-   **Postingan:** Buat, baca, perbarui, dan hapus postingan. Pengguna dapat menyukai dan mengomentari postingan.
+-   **Cerita:** Bagikan cerita sementara dengan pengikut Anda.
+-   **Meme:** Bagian khusus untuk berbagi dan menelusuri meme.
+-   **Profil Pengguna:** Lihat dan sesuaikan profil pengguna Anda dengan gambar profil, bio, dan nama tampilan.
+-   **Sistem Mengikuti:** Ikuti dan diikuti oleh pengguna lain.
+-   **Notifikasi:** Terima notifikasi untuk suka, komentar, dan pengikut baru.
+-   **Halaman Jelajahi:** Temukan konten baru dan sedang tren dari pengguna lain.
+-   **Dasbor Admin:** Dasbor bagi administrator untuk mengelola pengguna dan konten.
+-   **Desain Responsif:** Antarmuka pengguna yang indah dan responsif yang berfungsi di semua perangkat.
+-   **Pencarian:** Cari pengguna dan postingan.
+-   **Pesan Langsung:** Kirim pesan langsung ke pengguna lain.
+-   **Tagar:** Gunakan tagar untuk mengkategorikan postingan dan menemukan konten terkait.
+-   **Bookmark:** Simpan postingan untuk dilihat nanti.
+-   **Mode Gelap/Terang:** Beralih antara mode gelap dan terang untuk pengalaman menonton yang nyaman.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/eb5c1aad-5076-45f3-b31a-63593c81b4fc) and start prompting.
+## Teknologi yang Digunakan
 
-Changes made via Lovable will be committed automatically to this repo.
+-   **Frontend:**
+    -   [React](https://reactjs.org/)
+    -   [Vite](https://vitejs.dev/)
+    -   [TypeScript](https://www.typescriptlang.org/)
+    -   [Tailwind CSS](https://tailwindcss.com/)
+    -   [shadcn/ui](https://ui.shadcn.com/)
+-   **Backend & Basis Data:**
+    -   [Supabase](https://supabase.io/) - untuk autentikasi, basis data, dan penyimpanan.
+-   **Deployment:**
+    -   [Vercel](https://vercel.com/)
 
-**Use your preferred IDE**
+## Memulai
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Untuk mendapatkan salinan lokal dan menjalankannya, ikuti langkah-langkah sederhana ini.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Prasyarat
 
-Follow these steps:
+-   Node.js dan npm (atau yarn/pnpm)
+-   Akun Supabase
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Instalasi
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+1.  **Kloning repositori:**
+    ```sh
+    git clone <URL_GIT_ANDA>
+    cd star-snap-social
+    ```
 
-# Step 3: Install the necessary dependencies.
-npm i
+2.  **Instal dependensi:**
+    ```sh
+    npm install
+    ```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+3.  **Siapkan variabel lingkungan:**
+    Buat file `.env` di root proyek Anda dan tambahkan variabel lingkungan berikut. Anda bisa mendapatkannya dari pengaturan proyek Supabase Anda.
 
-**Edit a file directly in GitHub**
+    ```env
+    VITE_SUPABASE_URL=URL_SUPABASE_ANDA
+    VITE_SUPABASE_ANON_KEY=KUNCI_ANON_SUPABASE_ANDA
+    VITE_SITE_URL=http://localhost:5173
+    ```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+4.  **Konfigurasi Supabase:**
+    -   Aktifkan penyedia autentikasi Google dan GitHub di dasbor proyek Supabase Anda di bawah **Autentikasi > Penyedia**.
+    -   Tambahkan URL pengalihan berikut ke pengaturan autentikasi proyek Supabase Anda di bawah **Autentikasi > Konfigurasi URL**:
+        -   `http://localhost:5173/auth/callback`
+        -   `https://url-produksi-anda.com/auth/callback`
 
-**Use GitHub Codespaces**
+5.  **Jalankan server pengembangan:**
+    ```sh
+    npm run dev
+    ```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+    Aplikasi akan tersedia di `http://localhost:5173`.
 
-## What technologies are used for this project?
+## Deployment
 
-This project is built with:
+Proyek ini di-deploy di [Vercel](https://vercel.com/). Untuk men-deploy versi Anda sendiri, Anda dapat menghubungkan repositori GitHub Anda ke Vercel dan mengkonfigurasi variabel lingkungan di pengaturan proyek Vercel.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Berkontribusi
 
-## How can I deploy this project?
+Kontribusi adalah hal yang membuat komunitas sumber terbuka menjadi tempat yang luar biasa untuk belajar, menginspirasi, dan berkreasi. Setiap kontribusi yang Anda buat **sangat dihargai**.
 
-Simply open [Lovable](https://lovable.dev/projects/eb5c1aad-5076-45f3-b31a-63593c81b4fc) and click on Share -> Publish.
+Jika Anda memiliki saran yang akan membuat ini lebih baik, silakan fork repo dan buat pull request. Anda juga bisa langsung membuka isu dengan tag "peningkatan".
+Jangan lupa beri bintang pada proyek ini! Terima kasih lagi!
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+1.  Fork Proyek
+2.  Buat Cabang Fitur Anda (`git checkout -b feature/FiturLuarBiasa`)
+3.  Commit Perubahan Anda (`git commit -m 'Tambahkan beberapa FiturLuarBiasa'`)
+4.  Push ke Cabang (`git push origin feature/FiturLuarBiasa`)
+5.  Buka Pull Request
