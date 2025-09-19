@@ -6,8 +6,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, username?: string, displayName?: string, captchaToken?: string | null) => Promise<{ error: AuthError | null }>;
-  signIn: (email: string, password: string, captchaToken?: string | null) => Promise<{ error: AuthError | null }>;
+  signUp: (email: string, password: string, username?: string, displayName?: string) => Promise<{ error: AuthError | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signInWithOAuth: (provider: Provider) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
@@ -52,21 +52,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
 
-  const signUp = async (email: string, password: string, username?: string, displayName?: string, captchaToken?: string | null) => {
+  const signUp = async (email: string, password: string, username?: string, displayName?: string) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${siteUrl}/auth/callback`,
         data: { username, display_name: displayName },
-        captchaToken,
       }
     });
     return { error };
   };
 
-  const signIn = async (email: string, password: string, captchaToken?: string | null) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   };
 

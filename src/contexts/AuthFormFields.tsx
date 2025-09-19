@@ -2,7 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, User, Mail, Lock } from "lucide-react";
-import HCaptcha from "@hcaptcha/react-hcaptcha";
+
 
 interface FormFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   id: string;
@@ -102,14 +102,4 @@ export const PasswordField = ({ id, label, value, onChange, error, showPassword,
     </div>
     {error && <p className="text-sm text-destructive">{error}</p>}
   </div>
-);
-
-export const HCaptchaField = ({ onVerify, error }: { onVerify: (token: string) => void; error?: string; }) => (
-    <div className="space-y-2">
-        <HCaptcha
-                        sitekey={import.meta.env.VITE_HCAPTCHA_SITE_KEY}
-            onVerify={onVerify}
-        />
-        {error && <p className="text-sm text-destructive">{error}</p>}
-    </div>
 );
