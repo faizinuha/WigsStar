@@ -147,7 +147,8 @@ const TrendingContent = () => {
         .from("posts")
         .select(`
           id,
-          post_media ( media_url ),
+          caption,
+          post_media ( media_url, media_type ),
           likes_count,
           comments_count
         `)
@@ -162,28 +163,56 @@ const TrendingContent = () => {
   if (!posts || posts.length === 0) return <EmptyState icon={<TrendingUp className="h-12 w-12" />} title="No Trending Posts" message="Check back later to see what's popular." />;
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1 sm:gap-2">
-      {posts.map((post) => (
-        <div key={post.id} className="relative aspect-square group cursor-pointer overflow-hidden rounded-lg">
-          <img
-            src={post.post_media[0]?.media_url || '/placeholder-image.jpg'}
-            alt="Trending post"
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-          />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-            <div className="flex items-center space-x-4 text-white">
-              <div className="flex items-center space-x-1">
-                <Heart className="h-5 w-5" />
-                <span className="font-semibold">{post.likes_count.toLocaleString()}</span>
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+      {posts.map((post) => {
+        const media = post.post_media?.[0];
+        const hasImage = !!media?.media_url && media?.media_type !== 'video';
+        const isVideo = media?.media_type === 'video' && !!media?.media_url;
+        const caption = post.caption || '';
+
+        return (
+          <div key={post.id} className="relative aspect-square group cursor-pointer overflow-hidden rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 bg-gray-50 flex items-center justify-center">
+            {isVideo ? (
+              <video
+                src={media.media_url}
+                controls
+                className="w-full h-full object-cover rounded-2xl"
+              />
+            ) : hasImage ? (
+              <img
+                src={media.media_url}
+                alt="Trending post"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 rounded-2xl"
+              />
+            ) : caption ? (
+              <div className="p-4 text-left w-full h-full flex items-center justify-center">
+                <div className="bg-white/80 rounded-xl p-4 w-full h-full flex items-center justify-center text-center">
+                  <p className="text-sm text-foreground line-clamp-6 px-2">{caption}</p>
+                </div>
               </div>
-              <div className="flex items-center space-x-1">
-                <MessageCircle className="h-5 w-5" />
-                <span className="font-semibold">{post.comments_count}</span>
+            ) : (
+              <img
+                src={'/placeholder-image.jpg'}
+                alt="Trending post"
+                className="w-full h-full object-cover rounded-2xl"
+              />
+            )}
+
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100 rounded-2xl">
+              <div className="flex items-center space-x-6 text-white font-semibold">
+                <div className="flex items-center space-x-2">
+                  <Heart className="h-5 w-5" />
+                  <span className="text-sm">{post.likes_count?.toLocaleString?.() ?? 0}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <MessageCircle className="h-5 w-5" />
+                  <span className="text-sm">{post.comments_count ?? 0}</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
@@ -236,40 +265,36 @@ const PeopleContent = () => {
 const UserCard = ({ user, currentUser }) => {
   const { data: isFollowing = false } = useFollowStatus(user.user_id || user.id);
   const { mutate: toggleFollow } = useToggleFollow();
-  
+
   const handleFollow = () => {
     if (user.user_id || user.id) {
-      toggleFollow({ 
-        userId: user.user_id || user.id, 
-        isFollowing 
+      toggleFollow({
+        userId: user.user_id || user.id,
+        isFollowing
       });
     }
   };
 
   return (
     <Link to={`/profile/${user.username}`}>
-      <Card className="p-4 text-center hover:shadow-lg transition-shadow h-full flex flex-col">
-        <Avatar className="h-20 w-20 mx-auto mb-4">
+      <Card className="p-6 text-center hover:shadow-2xl transition-shadow h-full flex flex-col items-center rounded-3xl">
+        <Avatar className="h-28 w-28 mb-4 ring-4 ring-white shadow">
           <AvatarImage src={user.avatar_url} alt={user.display_name} />
-          <AvatarFallback className="text-lg">
+          <AvatarFallback className="text-2xl">
             {user.display_name?.charAt(0) || user.username.charAt(0)}
           </AvatarFallback>
         </Avatar>
-        <div className="space-y-1 mb-4">
-          <div className="flex items-center justify-center space-x-2">
-            <h3 className="font-semibold truncate" title={user.display_name || user.username}>
-              {user.display_name || user.username}
-            </h3>
-          </div>
+        <div className="space-y-1 mb-4 text-center">
+          <h3 className="font-semibold text-lg truncate" title={user.display_name || user.username}>
+            {user.display_name || user.username}
+          </h3>
           <p className="text-muted-foreground text-sm">@{user.username}</p>
-          <p className="text-sm text-muted-foreground">
-            {user.followers_count.toLocaleString()} followers
-          </p>
-          <p className="text-sm line-clamp-2 h-10">{user.bio}</p>
+          <p className="text-sm text-muted-foreground">{user.followers_count.toLocaleString()} followers</p>
+          <p className="text-sm line-clamp-2 h-12 mt-2">{user.bio}</p>
         </div>
         {user.user_id !== currentUser?.id && user.id !== currentUser?.id && (
-          <Button 
-            className={`w-full mt-auto ${isFollowing ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80' : 'gradient-button'}`}
+          <Button
+            className={`w-full mt-auto rounded-full py-3 ${isFollowing ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80' : 'gradient-button'}`}
             onClick={(e) => {
               e.preventDefault();
               handleFollow();
@@ -307,21 +332,21 @@ const HashtagsContent = () => {
           <Hash className="h-6 w-6 text-primary" />
           <h2 className="text-xl font-semibold">Posts tagged with {tagFromUrl}</h2>
         </div>
-        
+
         {postsForTag.length === 0 ? (
-          <EmptyState 
-            icon={<Hash className="h-12 w-12" />} 
-            title="No posts found" 
-            message={`No posts found with the tag ${tagFromUrl}`} 
+          <EmptyState
+            icon={<Hash className="h-12 w-12" />}
+            title="No posts found"
+            message={`No posts found with the tag ${tagFromUrl}`}
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {postsForTag.map((post: any) => (
               <Card key={post.id} className="p-4 space-y-3">
                 {post.image_url && (
-                  <img 
-                    src={post.image_url} 
-                    alt="Post" 
+                  <img
+                    src={post.image_url}
+                    alt="Post"
                     className="w-full h-48 object-cover rounded-lg"
                   />
                 )}

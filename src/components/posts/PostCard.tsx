@@ -1,39 +1,24 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Heart,
-  MessageCircle,
-  Share,
-  Bookmark,
-  MoreHorizontal,
-  MapPin,
-  Maximize,
-  Repeat,
-  Laugh
-} from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, Repeat, Laugh } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
-import { useDeletePost, useTogglePostLike } from "@/hooks/useProfile"; // Import useTogglePostLike
+import { useDeletePost } from "@/hooks/useProfile";
+import { usePostComments } from "@/hooks/useComments";
+import { useLikes } from "@/hooks/useLikes";
 import { useToast } from "@/components/ui/use-toast";
-import { CommentSection } from "./CommentSection"; // Import CommentSection
+import { CommentSection } from "./CommentSection";
 import { usePostTags } from "@/hooks/useTags";
 
-// Interface disesuaikan dengan data dari Supabase
 interface Post {
   id: string;
   user_id: string;
   content: string;
   image_url?: string;
-  created_at: string; // Menggunakan created_at dari Supabase
+  created_at: string;
   likes: number;
   comments: number;
   isLiked: boolean;
@@ -59,16 +44,17 @@ const formatTimeAgo = (dateString: string) => {
   const date = new Date(dateString);
   const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
 
-  if (diffInMinutes < 60) {
-    return `${diffInMinutes}m`;
-  } else if (diffInMinutes < 1440) {
-    return `${Math.floor(diffInMinutes / 60)}h`;
-  } else {
-    return `${Math.floor(diffInMinutes / 1440)}d`;
-  }
+  if (diffInMinutes < 60) return `${diffInMinutes}m`;
+  if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h`;
+  return `${Math.floor(diffInMinutes / 1440)}d`;
 };
 
-const RepostCard = ({ repost_by, children }) => (
+interface RepostCardProps {
+  repost_by: { username?: string; displayName?: string } | undefined;
+  children: React.ReactNode;
+}
+
+const RepostCard = ({ repost_by, children }: RepostCardProps) => (
   <div className="bg-muted/20 rounded-lg p-4 mt-2">
     <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-2">
       <Repeat className="h-4 w-4" />
@@ -82,66 +68,65 @@ export const PostCard = ({ post }: PostCardProps) => {
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
   const deletePostMutation = useDeletePost();
-  const toggleLikeMutation = useTogglePostLike(); // Initialize useTogglePostLike
+
+
+  // Comments for preview
+  const { data: commentsForPost = [], isLoading: areCommentsLoading } = usePostComments(post.id);
+
+  // Prepare comment preview data (latest top-level) — compute early so hooks stay top-level
+  const latestComment = commentsForPost.length ? commentsForPost[commentsForPost.length - 1] : null;
+  const commentPreviewId = latestComment?.id || '';
+  const { likesCount: previewLikesCount = 0, isLiked: previewIsLiked = false, toggleLike: togglePreviewLike, loading: previewLikesLoading } = useLikes('comment', commentPreviewId);
+
+  // Use shared likes hook for post to keep status accurate across relog
+  const { likesCount: likesCountPost = 0, isLiked: isLikedPost = false, toggleLike: togglePostLike, loading: likesLoading } = useLikes('post', post.id);
+
   const { data: postTags = [] } = usePostTags(post.id);
 
-  const initialContent = post?.content ?? "";
-
   const [showFullCaption, setShowFullCaption] = useState(false);
-  const [showComments, setShowComments] = useState(false); // New state for comments
+  const [showComments, setShowComments] = useState(false);
 
-  const handleLike = async () => {
+  const handleLike = () => {
     if (!currentUser) {
-      toast({
-        title: "Login required",
-        description: "You need to be logged in to like posts.",
-        variant: "destructive",
-      });
+      toast({ title: 'Login required', description: 'You need to be logged in to like posts.', variant: 'destructive' });
       return;
     }
-    toggleLikeMutation.mutateAsync({ postId: post.id, isLiked: post.isLiked });
+
+    togglePostLike();
   };
 
   const handleBookmark = () => {
-    // TODO: Logic to update Supabase
+    // bookmark persistence TODO
   };
 
   const handleDelete = async () => {
     await deletePostMutation.mutateAsync(post.id);
-    toast({ title: "Post deleted successfully" });
+    toast({ title: 'Post deleted successfully' });
   };
 
   const handleCopyLink = () => {
     const postUrl = `${window.location.origin}/post/${post.id}`;
     navigator.clipboard.writeText(postUrl);
-    toast({ title: "Link copied to clipboard" });
+    toast({ title: 'Link copied to clipboard' });
   };
 
   const handleShare = () => {
     if (navigator.share) {
-      navigator.share({
-        title: `Post by @${post.user.username}`,
-        text: post.content,
-        url: window.location.href,
-      });
+      navigator.share({ title: `Post by @${post.user.username}`, text: post.content, url: `${window.location.origin}/post/${post.id}` });
     } else {
-      navigator.clipboard.writeText(window.location.href);
-      toast({
-        title: "Link copied to clipboard!",
-      });
+      navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);
+      toast({ title: 'Link copied to clipboard!' });
     }
   };
 
+  const initialContent = post?.content ?? '';
   const isLongCaption = initialContent.length > 150;
-  const displayContent = showFullCaption || !isLongCaption
-    ? initialContent
-    : `${initialContent.substring(0, 150)}...`;
+  const displayContent = showFullCaption || !isLongCaption ? initialContent : `${initialContent.substring(0, 150)}...`;
 
-  if (!post || !post.user) {
-    return null;
-  }
+  if (!post || !post.user) return null;
 
   const isOwnPost = currentUser?.id === post.user_id;
+
 
   const PostContent = () => (
     <Card className="post-card bg-card animate-fade-in">
@@ -186,76 +171,73 @@ export const PostCard = ({ post }: PostCardProps) => {
         </DropdownMenu>
       </div>
 
-      {/* Image */}
-      {post.image_url && (
-        <div className="aspect-square overflow-hidden bg-black">
-          <img
-            src={post.image_url}
-            alt="Post content"
-            className="w-full h-full object-contain"
-          />
-        </div>
-      )}
+      {/* Caption */}
+      <div className="text-sm space-y-1">
+        <span className="font-semibold">@{post.user.username}</span>{' '}
+        <span className="whitespace-pre-wrap">{displayContent}</span>
+        {isLongCaption && !showFullCaption && (
+          <button className="text-muted-foreground hover:text-foreground ml-1" onClick={() => setShowFullCaption(true)}>more</button>
+        )}
 
-      {/* Actions */}
-      <div className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10 hover:bg-red-50 dark:hover:bg-red-950"
-              onClick={handleLike}
-            >
-              <Heart
-                className={`h-6 w-6 transition-all duration-200 ${post.isLiked
-                    ? 'fill-red-500 text-red-500 animate-heart-beat'
-                    : 'hover:text-red-500'
-                  }`}
-              />
-            </Button>
+        {/* Media (Image/Video) */}
+        {post.image_url && (
+          <div className="aspect-square overflow-hidden bg-black flex items-center justify-center mt-2">
+            {/(mp4|webm|mov)$/i.test(post.image_url) ? (
+              <video src={post.image_url} controls className="w-full h-full object-contain" />
+            ) : (
+              <img src={post.image_url} alt="Post content" className="w-full h-full object-contain" />
+            )}
+          </div>
+        )}
 
-            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => setShowComments(true)}>
-              <MessageCircle className="h-6 w-6 hover:text-blue-500 transition-colors" />
-            </Button>
+        {/* Actions */}
+        <div className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setShowComments(true)}
+                aria-label="Open comments"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-blue-500 transition-colors"
+              >
+                <MessageCircle className="h-6 w-6" />
+                <span className="text-sm">{post.comments?.toLocaleString?.() ?? 0}</span>
+              </button>
 
-            <Button variant="ghost" size="icon" className="h-10 w-10">
-              <Share className="h-6 w-6 hover:text-green-500 transition-colors" />
+              <button
+                aria-label="Repost"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Repeat className="h-6 w-6" />
+              </button>
+
+              <button
+                onClick={handleLike}
+                aria-label="Like post"
+                disabled={likesLoading}
+                className={`flex items-center gap-2 text-sm transition-colors ${isLikedPost ? 'text-red-500' : 'text-muted-foreground hover:text-red-500'}`}
+              >
+                <Heart className={`h-6 w-6 ${isLikedPost ? 'fill-red-500' : ''}`} />
+                <span className="text-sm">{likesCountPost?.toLocaleString?.() ?? (post.likes || 0)}</span>
+              </button>
+
+              <button
+                onClick={handleShare}
+                aria-label="Share post"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-green-500 transition-colors"
+              >
+                <Share className="h-6 w-6" />
+              </button>
+            </div>
+
+            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={handleBookmark}>
+              <Bookmark className={`h-6 w-6 transition-colors ${post.isBookmarked ? 'fill-yellow-500 text-yellow-500' : 'hover:text-yellow-500'}`} />
             </Button>
           </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10"
-            onClick={handleBookmark}
-          >
-            <Bookmark
-              className={`h-6 w-6 transition-colors ${post.isBookmarked
-                  ? 'fill-yellow-500 text-yellow-500'
-                  : 'hover:text-yellow-500'
-                }`}
-            />
-          </Button>
-        </div>
-
-        {/* Likes Count */}
-        <div className="text-sm font-semibold">
-          {post.likes.toLocaleString()} likes
-        </div>
-
-        {/* Caption */}
-        <div className="text-sm space-y-1">
-          <span className="font-semibold">@{post.user.username}</span>{" "}
-          <span className="whitespace-pre-wrap">{displayContent}</span>
-          {isLongCaption && !showFullCaption && (
-            <button
-              className="text-muted-foreground hover:text-foreground ml-1"
-              onClick={() => setShowFullCaption(true)}
-            >
-              more
-            </button>
-          )}
+          {/* Likes Count */}
+          <div className="text-sm font-semibold">
+            {likesCountPost?.toLocaleString?.() ?? (post.likes || 0).toLocaleString()} likes
+          </div>
         </div>
 
         {/* Hashtags */}
@@ -267,36 +249,66 @@ export const PostCard = ({ post }: PostCardProps) => {
           </div>
         )}
 
-        {/* Comments Link */}
-        {post.comments > 0 && (
-          <button
-            className="text-sm text-muted-foreground hover:text-foreground"
-            onClick={() => setShowComments(true)}
-          >
-            View all {post.comments} comments
-          </button>
+        {/* Comment preview (latest) */}
+        {areCommentsLoading && (
+          <div className="mt-3 border-t pt-3 animate-pulse">
+            <div className="flex items-start gap-3">
+              <div className="h-8 w-8 bg-muted rounded-full" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 bg-muted rounded w-1/3" />
+                <div className="h-3 bg-muted rounded w-3/4" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {latestComment && (
+          <div className="mt-3 border-t pt-3 w-full flex items-start gap-3">
+            <button onClick={() => setShowComments(true)} className="flex items-start gap-3 flex-1 text-left">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={latestComment.user.avatar} alt={latestComment.user.displayName} />
+                <AvatarFallback>{latestComment.user.displayName?.charAt(0)}</AvatarFallback>
+              </Avatar>
+
+              <div className="flex-1">
+                <div className="text-sm">
+                  <span className="font-semibold mr-2">{latestComment.user.displayName}</span>
+                  <span className="text-muted-foreground">@{latestComment.user.username}</span>
+                </div>
+                <div className="text-sm text-muted-foreground mt-1 line-clamp-2">{latestComment.content}</div>
+              </div>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!commentPreviewId) return;
+                  togglePreviewLike();
+                }}
+                className={`flex items-center gap-1 text-xs hover:text-foreground transition-colors ${previewIsLiked ? 'text-red-500' : 'text-muted-foreground'}`}
+              >
+                <Heart className={`h-4 w-4 ${previewIsLiked ? 'fill-red-500' : ''}`} />
+                <span className="text-xs">{previewLikesCount}</span>
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </Card>
   );
 
-  if (post.repost_by) {
-    return (
-      <RepostCard repost_by={post.repost_by}>
-        <PostContent />
-      </RepostCard>
-    );
-  }
+  if (post.repost_by) return (
+    <RepostCard repost_by={post.repost_by}>
+      <PostContent />
+    </RepostCard>
+  );
 
   return (
     <>
       <PostContent />
       {post.id && (
-        <CommentSection
-          isOpen={showComments}
-          onClose={() => setShowComments(false)}
-          postId={post.id}
-        />
+        <CommentSection isOpen={showComments} onClose={() => setShowComments(false)} postId={post.id} />
       )}
     </>
   );
