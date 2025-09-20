@@ -11,15 +11,12 @@ import { useProfile } from "@/hooks/useProfile";
 import { useAllProfiles } from "@/hooks/useAllProfiles";
 
 interface SuggestedUser {
-  avatar_url: string;
+  avatar_url: string | null;
   id: string;
-  username: string;
-  displayName: string;
-  avatar: string;
-  mutualFollows?: number; // Optional, as it might not always be present
+  username: string | null;
+  displayName: string | null;
+  mutualFollows?: number;
 }
-
-
 
 export const SuggestedFriends = () => {
   const { user } = useAuth();
@@ -29,7 +26,6 @@ export const SuggestedFriends = () => {
 
   if (!user || !currentUserProfile || isLoading) return null;
 
-  // Filter: bukan user sendiri, bukan yang sudah dismissed, dan batasi 5
   const visibleUsers = (allProfiles || [])
     .filter((u: any) => u.user_id !== user.id && !dismissedUsers.includes(u.user_id))
     .slice(0, 5)
@@ -37,8 +33,7 @@ export const SuggestedFriends = () => {
       id: u.user_id,
       username: u.username,
       displayName: u.display_name || u.username,
-      avatar_url: u.avatar_url || "/assets/placeholder/cewek.png",
-      avatar: u.avatar_url || "/assets/placeholder/cewek.png", // Ensure avatar is present
+      avatar_url: u.avatar_url,
     }));
 
   return (
@@ -49,7 +44,7 @@ export const SuggestedFriends = () => {
           <h2 className="text-lg font-semibold">Current user</h2>
           <div className="flex items-center gap-3">
             <Avatar className="h-12 w-12">
-              <AvatarImage src={currentUserProfile.avatar_url || '/assets/placeholder/cewek.png'} />
+              <AvatarImage src={currentUserProfile.avatar_url || undefined} />
               <AvatarFallback>{currentUserProfile.display_name?.charAt(0) || currentUserProfile.username?.charAt(0) || 'U'}</AvatarFallback>
             </Avatar>
             <div>
@@ -104,12 +99,12 @@ const SuggestedUserCard = ({ user: suggestedUser }: SuggestedUserCardProps) => {
     <div className="flex items-center justify-between gap-3 p-2 rounded-md hover:bg-muted/50">
       <div className="flex items-center gap-3">
         <Avatar className="h-10 w-10">
-          <AvatarImage src={suggestedUser.avatar_url} />
-          <AvatarFallback>{suggestedUser.displayName.charAt(0)}</AvatarFallback>
+          <AvatarImage src={suggestedUser.avatar_url || undefined} />
+          <AvatarFallback>{suggestedUser.displayName?.charAt(0) || suggestedUser.username?.charAt(0) || 'U'}</AvatarFallback>
         </Avatar>
         <div>
-          <h3 className="font-semibold text-sm">{suggestedUser.displayName}</h3>
-          <p className="text-xs text-muted-foreground">@{suggestedUser.username}</p>
+          <h3 className="font-semibold text-sm">{suggestedUser.displayName || suggestedUser.username}</h3>
+          <p className="text-sm text-muted-foreground">@{suggestedUser.username || 'user'}</p>
         </div>
       </div>
       <Button

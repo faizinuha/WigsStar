@@ -364,7 +364,7 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
                 {/* Stats */}
                 <div className="flex items-center space-x-6 pt-2">
                   <div className="text-center">
-                    <p className="font-bold text-lg">{profile.posts_count}</p>
+                    <p className="font-bold text-lg">{profile.posts_count.toLocaleString()}</p>
                     <p className="text-sm text-muted-foreground">Posts</p>
                   </div>
                   <div className="text-center cursor-pointer hover:text-primary transition-colors">

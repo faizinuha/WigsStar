@@ -25,6 +25,8 @@ export interface Profile {
 }
 
 export interface Post {
+  likes_count: ReactNode;
+  profiles: any;
   id: string;
   user_id: string;
   content: string;

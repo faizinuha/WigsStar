@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session, AuthError, Provider } from "@supabase/supabase-js";
 import supabase from "@/lib/supabase.ts";
-import { createSession } from "@/lib/supabaseFunctions"; // Import createSession
 
 // --- Helper Functions for Local Storage ---
 
@@ -33,9 +32,9 @@ function setActiveAccountId(userId: string) {
 // --- Auth Context ---
 
 interface AuthContextType {
-  user: User | null; // The currently active user
-  session: Session | null; // The currently active session
-  accounts: StoredAccount[]; // All logged-in accounts
+  user: User | null;
+  session: Session | null;
+  accounts: StoredAccount[];
   loading: boolean;
   addAccount: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signUp: (email: string, password: string, username?: string, displayName?: string) => Promise<{ error: AuthError | null }>;
@@ -117,14 +116,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setSession(session);
 
             if (isNewLogin && session.refresh_token) {
-                await createSession(
-                    supabase,
-                    session.user.id,
-                    session.refresh_token,
-                    'Browser',
-                    undefined,
-                    navigator.userAgent
-                );
+                console.log('Invoking log-session function (fire-and-forget)...');
+                // Fire-and-forget the function call, but handle potential errors in the background.
+                supabase.functions.invoke('log-session', {
+                  body: { refreshToken: session.refresh_token },
+                }).then(({ error }) => {
+                  if (error) {
+                    console.error("Background error invoking log-session:", error);
+                  }
+                });
             }
 
         } else if (_event === "TOKEN_REFRESHED" && session) {

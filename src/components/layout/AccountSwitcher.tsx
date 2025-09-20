@@ -9,15 +9,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut, PlusCircle, User, Check } from "lucide-react";
+import { LogOut, PlusCircle, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export function AccountSwitcher() {
   const { user, accounts, switchAccount, signOut } = useAuth();
   const navigate = useNavigate();
 
-  // Only render the switcher if there are multiple accounts
-  if (accounts.length <= 1) {
+  // --- DEBUG: The condition to hide for a single account is removed. ---
+  // This component will now render as long as there is at least one user.
+
+  // Do not render anything if there is no user or no accounts.
+  if (!user || accounts.length === 0) {
     return null;
   }
 

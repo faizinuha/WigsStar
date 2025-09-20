@@ -265,23 +265,6 @@ export const Settings = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      navigate('/auth');
-      toast({
-        title: 'Signed Out',
-        description: 'You have been successfully signed out.',
-      });
-    } catch (error: any) {
-      toast({
-        title: 'Logout Failed',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  };
-
   const handleSwitchAccount = async () => {
     if (!user?.email) return;
     setSendingCode(true);
@@ -697,9 +680,6 @@ export const Settings = () => {
                     <Mail className="mr-2 h-4 w-4" />
                   )}
                   {countdown > 0 ? `Resend in ${countdown}s` : 'Switch Account'}
-                </Button>
-                <Button variant="destructive" onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" /> Sign Out
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground">
