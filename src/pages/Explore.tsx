@@ -27,9 +27,12 @@ import {
   Compass,
 } from "lucide-react";
 import supabase from "@/lib/supabase.ts";
+import { Post } from "@/hooks/useProfile";
+import { PostDetailModal } from "@/components/posts/PostDetailModal";
 
 type UserProfile = {
   id: string;
+  user_id: string;
   username: string;
   display_name: string | null;
   avatar_url: string | null;
@@ -56,6 +59,7 @@ const Explore = () => {
   const [activeTab, setActiveTab] = useState("trending");
   const [searchParams] = useSearchParams();
   const tagFromUrl = searchParams.get('tag');
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   // Set active tab to hashtags if tag is provided
   useEffect(() => {
@@ -78,18 +82,6 @@ const Explore = () => {
             <p className="text-muted-foreground mt-2">
               Discover new posts, people, and trends.
             </p>
-
-            {/* Search Bar 
-            <div className="relative max-w-2xl">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
-              <Input
-                placeholder="Search for users, hashtags, or locations..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 h-12 text-lg rounded-full"
-              />
-            </div>
-            */}
           </div>
 
           {/* Tabs */}
@@ -114,7 +106,7 @@ const Explore = () => {
             </TabsList>
 
             <TabsContent value="trending" className="space-y-8">
-              <TrendingContent />
+              <TrendingContent onPostClick={setSelectedPost} />
             </TabsContent>
 
             <TabsContent value="people" className="space-y-6">
@@ -135,27 +127,63 @@ const Explore = () => {
           </Tabs>
         </div>
       </main>
+      <PostDetailModal
+        post={selectedPost}
+        isOpen={!!selectedPost}
+        onClose={() => setSelectedPost(null)}
+      />
     </div>
   );
 };
 
-const TrendingContent = () => {
-  const { data: posts, isLoading } = useQuery({
+const TrendingContent = ({ onPostClick }: { onPostClick: (post: Post) => void }) => {
+  const { user } = useAuth();
+  const { data: posts, isLoading } = useQuery<Post[]>({ 
     queryKey: ["trending_posts"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("posts")
         .select(`
           id,
+          user_id,
           caption,
-          post_media ( media_url, media_type ),
+          location,
+          created_at,
           likes_count,
-          comments_count
+          comments_count,
+          profiles!posts_user_id_fkey (
+            username,
+            display_name,
+            avatar_url
+          ),
+          post_media (
+            media_url,
+            media_type
+          ),
+          user_likes: likes(user_id)
         `)
         .order("likes_count", { ascending: false })
         .limit(18);
       if (error) throw error;
-      return data;
+      
+      return data.map((post: any) => ({
+        id: post.id,
+        content: post.caption || '',
+        location: post.location,
+        created_at: post.created_at,
+        likes: post.likes_count || 0,
+        comments: post.comments_count || 0,
+        isLiked: post.user_likes.some((like: { user_id: string }) => like.user_id === user?.id),
+        isBookmarked: false,
+        image_url: post.post_media?.[0]?.media_url,
+        media_type: post.post_media?.[0]?.media_type,
+        user: {
+          username: post.profiles?.username || '',
+          displayName: post.profiles?.display_name || post.profiles?.username || '',
+          avatar: post.profiles?.avatar_url || '',
+        },
+        user_id: post.user_id,
+      })) as Post[];
     },
   });
 
@@ -165,22 +193,22 @@ const TrendingContent = () => {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
       {posts.map((post) => {
-        const media = post.post_media?.[0];
-        const hasImage = !!media?.media_url && media?.media_type !== 'video';
-        const isVideo = media?.media_type === 'video' && !!media?.media_url;
-        const caption = post.caption || '';
+        const hasImage = !!post.image_url && post.media_type !== 'video';
+        const isVideo = post.media_type === 'video' && !!post.image_url;
+        const caption = post.content || '';
 
         return (
-          <div key={post.id} className="relative aspect-square group cursor-pointer overflow-hidden rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 bg-gray-50 flex items-center justify-center">
+          <div key={post.id} className="relative aspect-square group cursor-pointer overflow-hidden rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 bg-gray-50 flex items-center justify-center" onClick={() => onPostClick(post)}>
             {isVideo ? (
               <video
-                src={media.media_url}
-                controls
+                src={post.image_url}
+                loop={true}
+                muted={true}
                 className="w-full h-full object-cover rounded-2xl"
               />
             ) : hasImage ? (
               <img
-                src={media.media_url}
+                src={post.image_url}
                 alt="Trending post"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 rounded-2xl"
               />
@@ -202,11 +230,11 @@ const TrendingContent = () => {
               <div className="flex items-center space-x-6 text-white font-semibold">
                 <div className="flex items-center space-x-2">
                   <Heart className="h-5 w-5" />
-                  <span className="text-sm">{post.likes_count?.toLocaleString?.() ?? 0}</span>
+                  <span className="text-sm">{post.likes?.toLocaleString?.() ?? 0}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <MessageCircle className="h-5 w-5" />
-                  <span className="text-sm">{post.comments_count ?? 0}</span>
+                  <span className="text-sm">{post.comments ?? 0}</span>
                 </div>
               </div>
             </div>
@@ -241,11 +269,11 @@ const PeopleContent = () => {
 
   // Data dummy untuk melengkapi tampilan
   const dummyUsers: UserProfile[] = [
-    { id: 'dummy1', username: 'code_ninja', display_name: 'Code Ninja', avatar_url: dummyAvatar('ninja'), bio: 'Slicing through code with precision. React & TypeScript enthusiast.', followers_count: 15200 },
-    { id: 'dummy2', username: 'design_dreamer', display_name: 'Design Dreamer', avatar_url: dummyAvatar('dreamer'), bio: 'Crafting beautiful and intuitive user interfaces. Figma wizard.', followers_count: 8750 },
-    { id: 'dummy3', username: 'data_dynamo', display_name: 'Data Dynamo', avatar_url: dummyAvatar('dynamo'), bio: 'Making sense of data, one query at a time. Python & SQL.', followers_count: 7300 },
-    { id: 'dummy4', username: 'startup_savant', display_name: 'Startup Savant', avatar_url: dummyAvatar('savant'), bio: 'Building the future, one startup at a time. Founder & Investor.', followers_count: 25400 },
-    { id: 'dummy5', username: 'gaming_guru', display_name: 'Gaming Guru', avatar_url: dummyAvatar('guru'), bio: 'Professional gamer and streamer. Exploring virtual worlds.', followers_count: 11200 },
+    { id: 'dummy1', user_id: 'dummy1', username: 'code_ninja', display_name: 'Code Ninja', avatar_url: dummyAvatar('ninja'), bio: 'Slicing through code with precision. React & TypeScript enthusiast.', followers_count: 15200 },
+    { id: 'dummy2', user_id: 'dummy2', username: 'design_dreamer', display_name: 'Design Dreamer', avatar_url: dummyAvatar('dreamer'), bio: 'Crafting beautiful and intuitive user interfaces. Figma wizard.', followers_count: 8750 },
+    { id: 'dummy3', user_id: 'dummy3', username: 'data_dynamo', display_name: 'Data Dynamo', avatar_url: dummyAvatar('dynamo'), bio: 'Making sense of data, one query at a time. Python & SQL.', followers_count: 7300 },
+    { id: 'dummy4', user_id: 'dummy4', username: 'startup_savant', display_name: 'Startup Savant', avatar_url: dummyAvatar('savant'), bio: 'Building the future, one startup at a time. Founder & Investor.', followers_count: 25400 },
+    { id: 'dummy5', user_id: 'dummy5', username: 'gaming_guru', display_name: 'Gaming Guru', avatar_url: dummyAvatar('guru'), bio: 'Professional gamer and streamer. Exploring virtual worlds.', followers_count: 11200 },
   ];
 
   const users = [...(realUsers || []), ...dummyUsers];
@@ -276,7 +304,7 @@ const UserCard = ({ user, currentUser }) => {
   };
 
   return (
-    <Link to={`/profile/${user.username}`}>
+    <Link to={`/profile/${user.user_id}`}>
       <Card className="p-6 text-center hover:shadow-2xl transition-shadow h-full flex flex-col items-center rounded-3xl">
         <Avatar className="h-28 w-28 mb-4 ring-4 ring-white shadow">
           <AvatarImage src={user.avatar_url} alt={user.display_name} />
