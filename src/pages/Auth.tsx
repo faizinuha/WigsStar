@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { DownloadProofModal } from "../components/DownloadProofModal";
 import { generateAndDownloadProofFile } from "../lib/utils";
 
 export function Auth() {
-  const { signIn, signUp, resetPassword, signInWithOAuth } = useAuth();
+  const { addAccount, signUp, resetPassword, addAccountWithOAuth, user } = useAuth();
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -27,6 +27,14 @@ export function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+
+  // If a user is already logged in when visiting /auth, 
+  // ensure the form is set to the login/add account view.
+  useEffect(() => {
+    if (user) {
+      setIsLogin(true);
+    }
+  }, [user]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -51,16 +59,18 @@ export function Auth() {
 
     try {
       const { error } = isLogin
-        ? await signIn(formData.email, formData.password)
+        ? await addAccount(formData.email, formData.password)
         : await signUp(formData.email, formData.password, formData.username, formData.displayName);
 
       if (error) {
         setErrors({ general: error.message });
       } else {
-        if (!isLogin) { // Only show modal after successful registration
-          setShowDownloadModal(true);
-          setRegisteredEmail(formData.email);
-        } else {
+        if (!isLogin) { // This is sign up flow
+          alert("Sign up successful! Please check your email to verify your account.");
+          // After verification, the user will be logged in, and onAuthStateChange will trigger.
+          // You might want to switch to the login view after successful sign-up.
+          setIsLogin(true);
+        } else { // This is login / add account flow
           navigate("/");
         }
       }
@@ -88,11 +98,8 @@ export function Auth() {
 
   const handleOAuthSignIn = async (provider: 'google' | 'github') => {
     setIsLoading(true);
-    const { error } = await signInWithOAuth(provider);
-    if (error) {
-      setErrors({ general: error.message });
-      setIsLoading(false);
-    }
+    await addAccountWithOAuth(provider);
+    // The onAuthStateChange listener in AuthContext will handle the rest.
   };
 
   const toggleForm = () => {
@@ -101,12 +108,11 @@ export function Auth() {
     setFormData({ username: "", email: "", password: "", confirmPassword: "", displayName: "" });
   };
 
+  // This part for DownloadProofModal can be adjusted based on your needs after sign-up
   const handleDownloadConfirm = () => {
     if (registeredEmail) {
       generateAndDownloadProofFile(registeredEmail);
       setShowDownloadModal(false);
-      // After download, navigate to login state or home, depending on desired flow.
-      // For now, let's navigate to home as per original flow after successful signup.
       navigate("/");
     }
   };
@@ -116,9 +122,15 @@ export function Auth() {
     navigate("/");
   };
 
+  const getTitle = () => {
+    if (isLogin) {
+      return user ? 'Add Another Account' : 'Sign In';
+    }
+    return 'Create an Account';
+  }
+
   return (
     <div className="min-h-screen w-full lg:grid lg:grid-cols-2 bg-background">
-      {/* Left Column: Logo and Description */}
       <div className="hidden bg-primary/5 lg:flex flex-col items-center justify-center p-12 text-center">
         <img src={starMarLogo} alt="StarMar Logo" className="w-48 mb-6" />
         <h1 className="text-4xl font-bold text-primary">Welcome to StarMar</h1>
@@ -127,7 +139,6 @@ export function Auth() {
         </p>
       </div>
 
-      {/* Right Column: Auth Form */}
       <div className="flex items-center justify-center py-12 px-4">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center lg:hidden">
@@ -135,9 +146,9 @@ export function Auth() {
           </div>
           <Card className="border-none shadow-none sm:border sm:shadow-sm">
             <CardHeader className="text-center">
-              <CardTitle className="text-2xl">{isLogin ? "Sign In" : "Create an Account"}</CardTitle>
+              <CardTitle className="text-2xl">{getTitle()}</CardTitle>
               <CardDescription>
-                {isLogin ? "Welcome back! Please enter your details." : "Join the community to start sharing."}
+                {isLogin ? "Enter details to sign in or add an account." : "Join the community to start sharing."}
               </CardDescription>
             </CardHeader>
 
@@ -159,7 +170,7 @@ export function Auth() {
                 <PasswordField id="password" label="Password" value={formData.password} onChange={(e) => handleInputChange("password", e.target.value)} error={errors.password} showPassword={showPassword} toggleShowPassword={() => setShowPassword(!showPassword)} />
                 {!isLogin && <PasswordField id="confirmPassword" label="Confirm Password" value={formData.confirmPassword} onChange={(e) => handleInputChange("confirmPassword", e.target.value)} error={errors.confirmPassword} />}
                 <Button type="submit" className="w-full gradient-button" disabled={isLoading}>
-                  {isLoading ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
+                  {isLoading ? "Please wait..." : isLogin ? (user ? 'Add Account' : 'Sign In') : 'Create Account'}
                 </Button>
               </form>
 
@@ -175,12 +186,15 @@ export function Auth() {
                 <Button variant="outline" onClick={() => handleOAuthSignIn('github')} disabled={isLoading}><Github className="mr-2 h-4 w-4" />GitHub</Button>
               </div>
 
-              <p className="text-center text-sm text-muted-foreground">
-                {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-                <Button variant="link" onClick={toggleForm} className="p-0 h-auto">
-                  {isLogin ? "Sign up" : "Sign in"}
-                </Button>
-              </p>
+              {/* Do not show Sign Up toggle if a user is already logged in */}
+              {!user && (
+                <p className="text-center text-sm text-muted-foreground">
+                  {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+                  <Button variant="link" onClick={toggleForm} className="p-0 h-auto">
+                    {isLogin ? "Sign up" : "Sign in"}
+                  </Button>
+                </p>
+              )}
 
               {isLogin && (
                 <div className="text-center">
@@ -197,7 +211,6 @@ export function Auth() {
         isOpen={showDownloadModal}
         onClose={() => setShowDownloadModal(false)}
         onConfirmDownload={handleDownloadConfirm}
-        
       />
     </div>
   );

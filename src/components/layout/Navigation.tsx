@@ -13,7 +13,6 @@ import {
   Menu,
   X,
   Settings,
-  LogOut,
   Laugh,
 } from 'lucide-react';
 import {
@@ -26,9 +25,10 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
 import { CreatePostModal } from '@/components/posts/CreatePostModal';
+import { AccountSwitcher } from './AccountSwitcher'; // Import the new component
 
 export const Navigation = () => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth(); // signOut is no longer needed here directly
   const { data: profile } = useProfile();
   const [notifications] = useState(3);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -92,12 +92,6 @@ export const Navigation = () => {
     setIsMenuOpen(false);
   };
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/auth');
-    setIsMenuOpen(false);
-  };
-
   const handleSettingsClick = () => {
     navigate('/settings');
     setIsMenuOpen(false);
@@ -143,7 +137,6 @@ export const Navigation = () => {
                 </Button>
               );
             })}
-            {/* Admin button khusus kalau role admin */}
             {profile?.role === 'admin' && (
               <Button
                 variant={location.pathname === '/admin' ? 'secondary' : 'ghost'}
@@ -157,7 +150,7 @@ export const Navigation = () => {
           </div>
         </div>
 
-        {/* User Profile */}
+        {/* User Profile & Account Switcher */}
         <div className="space-y-4">
           <Button
             variant="ghost"
@@ -168,24 +161,27 @@ export const Navigation = () => {
             <span>Settings</span>
           </Button>
 
-          <div
-            className="flex items-center space-x-3 p-3 rounded-2xl bg-secondary cursor-pointer hover:bg-secondary/80 transition-colors"
-            onClick={handleProfileClick}
-          >
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={profile?.avatar_url} />
-              <AvatarFallback>
-                {profile?.display_name?.[0] || profile?.username?.[0] || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium truncate">
-                {profile?.display_name || profile?.username}
-              </p>
-              <p className="text-sm text-muted-foreground truncate">
-                @{profile?.username}
-              </p>
+          <div className="flex items-center space-x-3 p-3 rounded-2xl bg-secondary">
+            <div 
+              className="flex-1 min-w-0 flex items-center space-x-3 cursor-pointer" 
+              onClick={handleProfileClick}
+            >
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={profile?.avatar_url} />
+                <AvatarFallback>
+                  {profile?.display_name?.[0] || profile?.username?.[0] || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">
+                  {profile?.display_name || profile?.username}
+                </p>
+                <p className="text-sm text-muted-foreground truncate">
+                  @{profile?.username}
+                </p>
+              </div>
             </div>
+            <AccountSwitcher />
           </div>
         </div>
       </nav>
@@ -217,21 +213,24 @@ export const Navigation = () => {
               </SheetHeader>
 
               <div className="mt-8 space-y-6">
-                {/* Profile Section */}
-                <div
-                  className="flex items-center space-x-3 p-4 rounded-2xl bg-secondary cursor-pointer hover:bg-secondary/80 transition-colors"
-                  onClick={handleProfileClick}
-                >
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={profile?.avatar_url || '/assets/placeholder/cewek.png'} />
-                    <AvatarFallback>{user?.user_metadata?.display_name?.charAt(0) || user?.email?.charAt(0) || "U"}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{user?.user_metadata?.display_name || user?.email?.split('@')[0] || "yourname"}  </p>
-                    <p className="text-sm text-muted-foreground">@{user?.user_metadata?.username || user?.email?.split('@')[0] || "yourname"}</p>
-                  </div>
+                {/* Profile Section & Account Switcher */}
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-secondary">
+                    <div 
+                      className="flex items-center space-x-3 cursor-pointer flex-1 min-w-0"
+                      onClick={handleProfileClick}
+                    >
+                        <Avatar className="h-12 w-12">
+                            <AvatarImage src={profile?.avatar_url || '/assets/placeholder/cewek.png'} />
+                            <AvatarFallback>{user?.user_metadata?.display_name?.charAt(0) || user?.email?.charAt(0) || "U"}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{user?.user_metadata?.display_name || user?.email?.split('@')[0] || "yourname"}</p>
+                            <p className="text-sm text-muted-foreground truncate">@{user?.user_metadata?.username || user?.email?.split('@')[0] || "yourname"}</p>
+                        </div>
+                    </div>
+                    <AccountSwitcher />
                 </div>
-                {/* Admin button khusus kalau role admin */}
+                
                 {profile?.role === 'admin' && (
                   <Button
                     variant={location.pathname === '/admin' ? 'secondary' : 'ghost'}
@@ -242,7 +241,7 @@ export const Navigation = () => {
                     <span>Dashbaord Admin</span>
                   </Button>
                 )}
-                {/* Navigation Items */}
+                
                 <div className="space-y-2">
                   {navItems.map((item, index) => {
                     const Icon = item.icon;
@@ -271,7 +270,7 @@ export const Navigation = () => {
 
                 <hr className="border-border" />
 
-                {/* Settings & Logout */}
+                {/* Settings & Logout are now in AccountSwitcher */}
                 <div className="space-y-2">
                   <Button
                     variant="ghost"
@@ -280,14 +279,6 @@ export const Navigation = () => {
                   >
                     <Settings className="h-6 w-6" />
                     <span>Settings</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start space-x-3 h-12 text-destructive"
-                    onClick={handleLogout}
-                  >
-                    <LogOut className="h-6 w-6" />
-                    <span>Logout</span>
                   </Button>
                 </div>
               </div>

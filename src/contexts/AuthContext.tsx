@@ -1,15 +1,47 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session, AuthError, Provider } from "@supabase/supabase-js";
 import supabase from "@/lib/supabase.ts";
+import { createSession } from "@/lib/supabaseFunctions"; // Import createSession
+
+// --- Helper Functions for Local Storage ---
+
+const ACCOUNTS_STORAGE_KEY = "supabase-multi-accounts";
+const ACTIVE_ACCOUNT_ID_KEY = "supabase-active-account-id";
+
+interface StoredAccount {
+  session: Session;
+  user: User;
+}
+
+function getStoredAccounts(): StoredAccount[] {
+  const accountsJson = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
+  return accountsJson ? JSON.parse(accountsJson) : [];
+}
+
+function setStoredAccounts(accounts: StoredAccount[]) {
+  localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
+}
+
+function getActiveAccountId(): string | null {
+  return localStorage.getItem(ACTIVE_ACCOUNT_ID_KEY);
+}
+
+function setActiveAccountId(userId: string) {
+  localStorage.setItem(ACTIVE_ACCOUNT_ID_KEY, userId);
+}
+
+// --- Auth Context ---
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: User | null; // The currently active user
+  session: Session | null; // The currently active session
+  accounts: StoredAccount[]; // All logged-in accounts
   loading: boolean;
+  addAccount: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signUp: (email: string, password: string, username?: string, displayName?: string) => Promise<{ error: AuthError | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  signInWithOAuth: (provider: Provider) => Promise<{ error: AuthError | null }>;
-  signOut: () => Promise<void>;
+  addAccountWithOAuth: (provider: Provider) => Promise<void>;
+  signOut: (userIdToSignOut?: string) => Promise<void>;
+  switchAccount: (userId: string) => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
 }
 
@@ -28,69 +60,182 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
+  const [accounts, setAccounts] = useState<StoredAccount[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Listener untuk perubahan auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    async function initializeAuth() {
+      setLoading(true);
+      const storedAccounts = getStoredAccounts();
+      const activeId = getActiveAccountId();
+      const activeAccount = storedAccounts.find(acc => acc.user.id === activeId);
 
-    // Cek session aktif saat load pertama
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+      if (activeAccount) {
+        await supabase.auth.setSession(activeAccount.session);
+        setUser(activeAccount.user);
+        setSession(activeAccount.session);
+      } else if (storedAccounts.length > 0) {
+        const defaultAccount = storedAccounts[0];
+        setActiveAccountId(defaultAccount.user.id);
+        await supabase.auth.setSession(defaultAccount.session);
+        setUser(defaultAccount.user);
+        setSession(defaultAccount.session);
+      } else {
+        await supabase.auth.signOut();
+        setUser(null);
+        setSession(null);
+      }
+      
+      setAccounts(storedAccounts);
       setLoading(false);
-    });
+    }
+
+    initializeAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if ((_event === "SIGNED_IN" || _event === "USER_UPDATED") && session) {
+            const newAccount: StoredAccount = { user: session.user, session };
+            let isNewLogin = false;
+
+            setAccounts(prevAccounts => {
+                const accountExists = prevAccounts.some(acc => acc.user.id === newAccount.user.id);
+                if (!accountExists) isNewLogin = true;
+
+                const updatedAccounts = accountExists
+                    ? prevAccounts.map(acc => acc.user.id === newAccount.user.id ? newAccount : acc)
+                    : [...prevAccounts, newAccount];
+                
+                setStoredAccounts(updatedAccounts);
+                return updatedAccounts;
+            });
+
+            setActiveAccountId(session.user.id);
+            setUser(session.user);
+            setSession(session);
+
+            if (isNewLogin && session.refresh_token) {
+                await createSession(
+                    supabase,
+                    session.user.id,
+                    session.refresh_token,
+                    'Browser',
+                    undefined,
+                    navigator.userAgent
+                );
+            }
+
+        } else if (_event === "TOKEN_REFRESHED" && session) {
+            setAccounts(prevAccounts => {
+                const updatedAccounts = prevAccounts.map(acc => 
+                    acc.user.id === session.user.id ? { ...acc, session } : acc
+                );
+                setStoredAccounts(updatedAccounts);
+                return updatedAccounts;
+            });
+            setSession(session);
+        } else if (_event === "SIGNED_OUT") {
+            // Handled in signOut function
+        }
+      }
+    );
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+  const addAccount = async (email: string, password: string) => {
+    await supabase.auth.signOut(); 
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+        const activeId = getActiveAccountId();
+        const accounts = getStoredAccounts();
+        const activeAccount = accounts.find(acc => acc.user.id === activeId);
+        if (activeAccount) {
+            await supabase.auth.setSession(activeAccount.session);
+        }
+    }
+    return { error };
+  };
 
   const signUp = async (email: string, password: string, username?: string, displayName?: string) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${siteUrl}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: { username, display_name: displayName },
       }
     });
     return { error };
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error };
-  };
-
-  const signInWithOAuth = async (provider: Provider) => {
-    const { error } = await supabase.auth.signInWithOAuth({
+  const addAccountWithOAuth = async (provider: Provider) => {
+    await supabase.auth.signOut();
+    await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${siteUrl}/auth/callback`,
+        redirectTo: window.location.origin,
       },
     });
-    return { error };
   };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
+  const signOut = async (userIdToSignOut?: string) => {
+    const accounts = getStoredAccounts();
+    const activeId = getActiveAccountId();
+
+    if (!userIdToSignOut || accounts.length <= 1) {
+        setStoredAccounts([]);
+        localStorage.removeItem(ACTIVE_ACCOUNT_ID_KEY);
+        setAccounts([]);
+        setUser(null);
+        setSession(null);
+        await supabase.auth.signOut();
+    } else {
+        const updatedAccounts = accounts.filter(acc => acc.user.id !== userIdToSignOut);
+        setStoredAccounts(updatedAccounts);
+        setAccounts(updatedAccounts);
+
+        if (activeId === userIdToSignOut) {
+            const newActiveAccount = updatedAccounts[0];
+            if (newActiveAccount) {
+                await switchAccount(newActiveAccount.user.id);
+            } else {
+                setUser(null);
+                setSession(null);
+                await supabase.auth.signOut();
+            }
+        }
+    }
   };
 
+  const switchAccount = async (userId: string) => {
+    const accounts = getStoredAccounts();
+    const targetAccount = accounts.find(acc => acc.user.id === userId);
+
+    if (targetAccount) {
+        setLoading(true);
+        setActiveAccountId(userId);
+        const { error } = await supabase.auth.setSession(targetAccount.session);
+        if (error) {
+            console.error("Failed to switch session:", error);
+        }
+        setUser(targetAccount.user);
+        setSession(targetAccount.session);
+        setLoading(false);
+    }
+  };
+  
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${siteUrl}/auth?mode=reset`,
+      redirectTo: `${window.location.origin}/auth?mode=reset`,
     });
     return { error };
   };
 
-  const value = { user, session, loading, signUp, signIn, signInWithOAuth, signOut, resetPassword };
+  const value = { user, session, accounts, loading, addAccount, signUp, addAccountWithOAuth, signOut, switchAccount, resetPassword };
 
   return (
     <AuthContext.Provider value={value}>

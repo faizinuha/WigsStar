@@ -14,8 +14,9 @@ Deno.serve(async (req) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get('VITE_SUPABASE_URL') ?? '',
-      Deno.env.get('VITE_SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '' // ⚡ harus pakai ini
     )
+
 
     const authHeader = req.headers.get('Authorization')!
     const token = authHeader.replace('Bearer ', '')
