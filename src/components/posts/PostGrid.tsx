@@ -37,11 +37,18 @@ const PostGridItem = ({ post, onClick }: PostGridItemProps) => {
       onClick={onClick}
     >
       {post.image_url ? (
-        <img 
-          src={post.image_url} 
-          alt="Post" 
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-        />
+        (post.media_type === 'video' ? (
+          <video 
+            src={post.image_url} 
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <img 
+            src={post.image_url} 
+            alt="Post" 
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ))
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
           <div className="text-center p-4">

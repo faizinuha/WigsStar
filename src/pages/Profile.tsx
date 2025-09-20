@@ -10,8 +10,10 @@ import {
   Link as LinkIcon,
   Calendar,
   Lock,
+  Camera,
 } from "lucide-react";
-import { useProfile, useUserPosts, useDeletePost, Post, useTogglePostLike, useProfileByUsername } from "@/hooks/useProfile";
+import { useProfile, useUserPosts, useDeletePost, Post, useTogglePostLike, useUpdateProfile } from "@/hooks/useProfile";
+import supabase from "@/lib/supabase.ts";
 import { useFollowStatus, useToggleFollow } from "@/hooks/useFollow";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigation } from "@/components/layout/Navigation";
@@ -32,7 +34,7 @@ import {
 import {
   AlertDialog,
   AlertDialogAction,
-  AlertDialogCancel,
+  AlertDialogCancel, 
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -146,6 +148,7 @@ const PostCard = ({ post, authUser }) => {
 
 const ProfilePageContent = ({ profile, isLoading, error }) => {
   const { user: authUser } = useAuth();
+  const { mutateAsync: updateProfileMutate } = useUpdateProfile();
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   const { data: posts, isLoading: postsLoading } = useUserPosts(profile?.user_id);
@@ -181,186 +184,269 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
   const isOwnProfile = authUser?.id === profile?.user_id;
   const showContent = !profile.is_private || isOwnProfile || isFollowing;
 
+  const updateProfile = async (updates: Partial<any>) => {
+    try {
+      await updateProfileMutate(updates);
+    } catch (err) {
+      console.error('Failed to update profile', err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
 
-      <main className="max-w-4xl mx-auto px-4 py-6">
-        {/* Profile Header */}
-        <Card className="mb-6 overflow-hidden animate-fade-in">
-          {/* Cover Image */}
-          <div className="h-48 md:h-64 relative overflow-hidden">
-            <img
-              src={profile.avatar_url || '/placeholder-cover.jpg'}
-              alt="Cover"
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-          </div>
+      <main className="md:ml-72 min-h-screen pb-20 md:pb-8">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          {/* Profile Header */}
+          <Card className="mb-6 overflow-hidden animate-fade-in">
+            {/* Cover Image */}
+            <div className="h-48 md:h-64 relative overflow-hidden">
+              <img
+                src={profile.cover_img || profile.avatar_url || '/placeholder-cover.jpg'}
+                alt="Cover"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+              {/* Cover edit button */}
+              {authUser && (
+                <div className="absolute right-4 bottom-4">
+                  <input
+                    id="cover-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        // upload to storage and update profile.cover_img
+                        const ext = file.name.split('.').pop();
+                        const filePath = `${authUser.id}/cover-${Date.now()}.${ext}`;
+                        const { error: uploadErr } = await supabase.storage
+                          .from('avatar')
+                          .upload(filePath, file, { upsert: true });
+                        if (uploadErr) throw uploadErr;
+                        const { data } = supabase.storage.from('avatar').getPublicUrl(filePath);
+                        await updateProfile({ cover_img: data.publicUrl });
+                      } catch (err) {
+                        console.error('Cover upload failed', err);
+                      } finally {
+                        // reset input
+                        (e.target as HTMLInputElement).value = '';
+                      }
+                    }}
+                  />
+                  <label htmlFor="cover-upload">
+                    <Button variant="outline" size="icon">
+                      <Camera className="h-4 w-4" />
+                    </Button>
+                  </label>
+                </div>
+              )}
+            </div>
 
-          {/* Profile Info */}
-          <div className="p-6">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between -mt-20 md:-mt-16">
-              {/* Avatar & Basic Info */}
-              <div className="flex flex-col md:flex-row md:items-end md:space-x-6">
-                <Avatar className="h-32 w-32 border-4 border-background shadow-xl">
-                  <AvatarImage src={profile.avatar_url || '/placeholder-avatar.jpg'} alt={profile.display_name} />
-                  <AvatarFallback className="text-2xl">{profile.display_name?.charAt(0) || profile.username?.charAt(0) || ''}</AvatarFallback>
-                </Avatar>
+            {/* Profile Info */}
+            <div className="p-6">
+              <div className="flex flex-col md:flex-row md:items-end md:justify-between -mt-20 md:-mt-16">
+                {/* Avatar & Basic Info */}
+                <div className="flex flex-col md:flex-row md:items-end md:space-x-6">
+                  <div className="relative inline-block">
+                    <Avatar className="h-32 w-32 border-4 border-background shadow-xl">
+                      <AvatarImage src={profile.avatar_url || '/placeholder-avatar.jpg'} alt={profile.display_name} />
+                      <AvatarFallback className="text-2xl">{profile.display_name?.charAt(0) || profile.username?.charAt(0) || ''}</AvatarFallback>
+                    </Avatar>
 
-                <div className="mt-4 md:mt-0 md:mb-2">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <h1 className="text-2xl md:text-3xl font-bold">{profile.display_name || profile.username}</h1>
-                    {profile.is_verified && (
-                      <Badge className="starmar-gradient text-white border-0">
-                        ✓ Verified
-                      </Badge>
+                    {/* Avatar edit (only for own profile) */}
+                    {isOwnProfile && authUser && (
+                      <div className="absolute right-0 bottom-0">
+                        <input
+                          id="avatar-upload"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              const ext = file.name.split('.').pop();
+                              const filePath = `${authUser.id}/avatar-${Date.now()}.${ext}`;
+                              const { error: uploadErr } = await supabase.storage
+                                .from('avatar')
+                                .upload(filePath, file, { upsert: true });
+                              if (uploadErr) throw uploadErr;
+                              const { data } = supabase.storage.from('avatar').getPublicUrl(filePath);
+                              await updateProfile({ avatar_url: data.publicUrl });
+                            } catch (err) {
+                              console.error('Avatar upload failed', err);
+                            } finally {
+                              (e.target as HTMLInputElement).value = '';
+                            }
+                          }}
+                        />
+                        <label htmlFor="avatar-upload">
+                          <Button variant="outline" size="icon">
+                            <Camera className="h-4 w-4" />
+                          </Button>
+                        </label>
+                      </div>
                     )}
                   </div>
-                  <p className="text-muted-foreground text-lg">@{profile.username}</p>
-                </div>
-              </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center space-x-3 mt-4 md:mt-0">
-                {isOwnProfile ? (
-                  <Button variant="outline" asChild>
-                    <Link to="/settings">Edit Profile</Link>
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      variant={isFollowing ? "outline" : "default"}
-                      className={!isFollowing ? "gradient-button" : ""}
-                      onClick={() => toggleFollow({ userId: profile.user_id, isFollowing })}
-                    >
-                      {isFollowing ? "Following" : "Follow"}
+                  <div className="mt-4 md:mt-0 md:mb-2">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <h1 className="text-2xl md:text-3xl font-bold">{profile.display_name || profile.username}</h1>
+                      {profile.is_verified && (
+                        <Badge className="starmar-gradient text-white border-0">
+                          ✓ Verified
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-muted-foreground text-lg">@{profile.username}</p>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center space-x-3 mt-4 md:mt-0">
+                  {isOwnProfile ? (
+                    <Button variant="outline" asChild>
+                      <Link to="/settings">Edit Profile</Link>
                     </Button>
-                    <Link to={`/messages/${profile.username}`}>
-                      <Button variant="outline" size="icon">
-                        <MessageCircle className="h-4 w-4" />
+                  ) : (
+                    <>
+                      <Button
+                        variant={isFollowing ? "outline" : "default"}
+                        className={!isFollowing ? "gradient-button" : ""}
+                        onClick={() => toggleFollow({ userId: profile.user_id, isFollowing })}
+                      >
+                        {isFollowing ? "Following" : "Follow"}
                       </Button>
-                    </Link>
-                    <Button variant="outline" size="icon">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </>
-                )}
+                      <Link to={`/messages/${profile.username}`}>
+                        <Button variant="outline" size="icon">
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                      <Button variant="outline" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Bio & Details */}
+              <div className="mt-6 space-y-4">
+                <p className="text-foreground whitespace-pre-line leading-relaxed">
+                  {profile.bio}
+                </p>
+
+                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                  {profile.location && (
+                    <div className="flex items-center space-x-1">
+                      <MapPin className="h-4 w-4" />
+                      <span>{profile.location}</span>
+                    </div>
+                  )}
+                  {profile.website && (
+                    <div className="flex items-center space-x-1">
+                      <LinkIcon className="h-4 w-4" />
+                      <a href={`https://${profile.website}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                        {profile.website}
+                      </a>
+                    </div>
+                  )}
+                  <div className="flex items-center space-x-1">
+                    <Calendar className="h-4 w-4" />
+                    <span>Joined {format(new Date(profile.join_date || profile.created_at), "MMMM yyyy")}</span>
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className="flex items-center space-x-6 pt-2">
+                  <div className="text-center">
+                    <p className="font-bold text-lg">{profile.posts_count}</p>
+                    <p className="text-sm text-muted-foreground">Posts</p>
+                  </div>
+                  <div className="text-center cursor-pointer hover:text-primary transition-colors">
+                    <p className="font-bold text-lg">{profile.followers_count.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">Followers</p>
+                  </div>
+                  <div className="text-center cursor-pointer hover:text-primary transition-colors">
+                    <p className="font-bold text-lg">{profile.following_count.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">Following</p>
+                  </div>
+                </div>
               </div>
             </div>
+          </Card>
 
-            {/* Bio & Details */}
-            <div className="mt-6 space-y-4">
-              <p className="text-foreground whitespace-pre-line leading-relaxed">
-                {profile.bio}
-              </p>
+          {/* Content Tabs */}
+          <Tabs defaultValue="posts" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-3 lg:w-96 mx-auto">
+              <TabsTrigger value="posts" className="flex items-center space-x-2">
+                <Grid3X3 className="h-4 w-4" />
+                <span>Posts</span>
+              </TabsTrigger>
+              <TabsTrigger value="saved" className="flex items-center space-x-2">
+                <Bookmark className="h-4 w-4" />
+                <span>Saved</span>
+              </TabsTrigger>
+              <TabsTrigger value="liked" className="flex items-center space-x-2">
+                <Heart className="h-4 w-4" />
+                <span>Liked</span>
+              </TabsTrigger>
+            </TabsList>
 
-              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                {profile.location && (
-                  <div className="flex items-center space-x-1">
-                    <MapPin className="h-4 w-4" />
-                    <span>{profile.location}</span>
-                  </div>
-                )}
-                {profile.website && (
-                  <div className="flex items-center space-x-1">
-                    <LinkIcon className="h-4 w-4" />
-                    <a href={`https://${profile.website}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                      {profile.website}
-                    </a>
-                  </div>
-                )}
-                <div className="flex items-center space-x-1">
-                  <Calendar className="h-4 w-4" />
-                  <span>Joined {format(new Date(profile.join_date || profile.created_at), "MMMM yyyy")}</span>
+            <TabsContent value="posts" className="space-y-6">
+              {!showContent ? (
+                <div className="text-center py-12">
+                  <Lock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">This account is private</h3>
+                  <p className="text-muted-foreground">
+                    Follow this account to see their posts.
+                  </p>
                 </div>
-              </div>
-
-              {/* Stats */}
-              <div className="flex items-center space-x-6 pt-2">
-                <div className="text-center">
-                  <p className="font-bold text-lg">{profile.posts_count}</p>
-                  <p className="text-sm text-muted-foreground">Posts</p>
+              ) : userPosts.length > 0 ? (
+                <PostGrid
+                  posts={userPosts}
+                  onPostClick={(post) => setSelectedPost(post)}
+                />
+              ) : (
+                <div className="text-center py-12">
+                  <Grid3X3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Belum ada post</h3>
+                  <p className="text-muted-foreground">
+                    Pengguna ini belum membuat postingan apa pun.
+                  </p>
                 </div>
-                <div className="text-center cursor-pointer hover:text-primary transition-colors">
-                  <p className="font-bold text-lg">{profile.followers_count.toLocaleString()}</p>
-                  <p className="text-sm text-muted-foreground">Followers</p>
-                </div>
-                <div className="text-center cursor-pointer hover:text-primary transition-colors">
-                  <p className="font-bold text-lg">{profile.following_count.toLocaleString()}</p>
-                  <p className="text-sm text-muted-foreground">Following</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Card>
+              )}
+            </TabsContent>
 
-        {/* Content Tabs */}
-        <Tabs defaultValue="posts" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-96 mx-auto">
-            <TabsTrigger value="posts" className="flex items-center space-x-2">
-              <Grid3X3 className="h-4 w-4" />
-              <span>Posts</span>
-            </TabsTrigger>
-            <TabsTrigger value="saved" className="flex items-center space-x-2">
-              <Bookmark className="h-4 w-4" />
-              <span>Saved</span>
-            </TabsTrigger>
-            <TabsTrigger value="liked" className="flex items-center space-x-2">
-              <Heart className="h-4 w-4" />
-              <span>Liked</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="posts" className="space-y-6">
-            {!showContent ? (
+            <TabsContent value="saved" className="space-y-6">
               <div className="text-center py-12">
-                <Lock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">This account is private</h3>
+                <Bookmark className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No saved posts yet</h3>
                 <p className="text-muted-foreground">
-                  Follow this account to see their posts.
+                  Posts you save will appear here for easy access later.
                 </p>
               </div>
-            ) : userPosts.length > 0 ? (
-              <PostGrid 
-                posts={userPosts} 
-                onPostClick={(post) => setSelectedPost(post)} 
-              />
-            ) : (
+            </TabsContent>
+
+            <TabsContent value="liked" className="space-y-6">
               <div className="text-center py-12">
-                <Grid3X3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Belum ada post</h3>
+                <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No liked posts yet</h3>
                 <p className="text-muted-foreground">
-                  Pengguna ini belum membuat postingan apa pun.
+                  Posts you like will appear here so you can find them again.
                 </p>
               </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="saved" className="space-y-6">
-            <div className="text-center py-12">
-              <Bookmark className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No saved posts yet</h3>
-              <p className="text-muted-foreground">
-                Posts you save will appear here for easy access later.
-              </p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="liked" className="space-y-6">
-            <div className="text-center py-12">
-              <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No liked posts yet</h3>
-              <p className="text-muted-foreground">
-                Posts you like will appear here so you can find them again.
-              </p>
-            </div>
-          </TabsContent>
-        </Tabs>
+            </TabsContent>
+          </Tabs>
+        </div>
       </main>
-      
+
       {/* Post Detail Modal */}
-      <PostDetailModal 
+      <PostDetailModal
         post={selectedPost}
         isOpen={!!selectedPost}
         onClose={() => setSelectedPost(null)}
@@ -370,16 +456,12 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
 }
 
 const Profile = () => {
-  const { username } = useParams<{ username?: string }>();
+  const { userId } = useParams<{ userId?: string }>();
   const { user: authUser } = useAuth();
 
-  // Fetch profile based on username from URL, or from authenticated user
-  const { data: profileFromUsername, isLoading: pfuLoading, error: pfuError } = useProfileByUsername(username);
-  const { data: profileFromAuth, isLoading: pfaLoading, error: pfaError } = useProfile(authUser?.id);
+  const profileId = userId || authUser?.id;
 
-  const profile = username ? profileFromUsername : profileFromAuth;
-  const isLoading = username ? pfuLoading : pfaLoading;
-  const error = username ? pfuError : pfaError;
+  const { data: profile, isLoading, error } = useProfile(profileId);
 
   return <ProfilePageContent profile={profile} isLoading={isLoading} error={error} />;
 };

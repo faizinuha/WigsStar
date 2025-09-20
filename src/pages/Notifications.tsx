@@ -168,7 +168,7 @@ export const Notifications = () => {
                 }`}
               >
                 <Link
-                  to={`/profile/${notification.from_user?.username || notification.from_user?.user_id}`}
+                  to={`/profile/${notification.from_user?.user_id || notification.from_user?.user_id}`}
                   className="flex items-start gap-4"
                 >
                   <Avatar className="h-10 w-10">

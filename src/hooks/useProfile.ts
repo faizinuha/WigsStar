@@ -21,6 +21,7 @@ export interface Profile {
   is_private: boolean;
   created_at: string;
   updated_at: string;
+  cover_img?: string;
 }
 
 export interface Post {
@@ -28,6 +29,7 @@ export interface Post {
   user_id: string;
   content: string;
   image_url?: string;
+  media_type?: string;
   created_at: string;
   likes: number;
   comments: number;
@@ -129,6 +131,7 @@ export function useUserPosts(userId?: string) {
         isLiked: post.user_likes.some((like: { user_id: string }) => like.user_id === user?.id),
         isBookmarked: false, // TODO: Implement bookmark logic
         image_url: post.post_media?.[0]?.media_url,
+        media_type: post.post_media?.[0]?.media_type,
         user: {
           username: post.profiles?.username || '',
           displayName: post.profiles?.display_name || post.profiles?.username || '',
@@ -182,6 +185,7 @@ export function useAllPosts() {
         isLiked: post.user_likes.some((like: { user_id: string }) => like.user_id === user?.id),
         isBookmarked: false, // TODO: Implement bookmark logic
         image_url: post.post_media?.[0]?.media_url,
+        media_type: post.post_media?.[0]?.media_type,
         user: {
           username: post.profiles?.username || '',
           displayName: post.profiles?.display_name || post.profiles?.username || '',
