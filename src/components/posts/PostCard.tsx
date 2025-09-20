@@ -185,7 +185,7 @@ export const PostCard = ({ post }: PostCardProps) => {
             {/(mp4|webm|mov)$/i.test(post.image_url) ? (
               <video src={post.image_url} controls className="w-full h-full object-contain" />
             ) : (
-              <img src={post.image_url} alt="Post content" className="w-full h-full object-contain" />
+              <img src={post.image_url} alt={post.content || 'Post image'} loading="lazy" className="w-full h-full object-cover" />
             )}
           </div>
         )}

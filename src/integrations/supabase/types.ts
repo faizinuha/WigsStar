@@ -441,6 +441,8 @@ export type Database = {
       }
       profiles: {
         Row: {
+          role(role: string): unknown
+          role: string
           avatar_url: string | null
           bio: string | null
           created_at: string

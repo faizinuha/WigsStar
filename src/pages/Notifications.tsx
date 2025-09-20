@@ -1,6 +1,7 @@
 import { Navigation } from '@/components/layout/Navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { PostDetailModal } from '@/components/posts/PostDetailModal';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,13 +16,47 @@ import {
   Loader2,
   MessageCircle,
   UserPlus,
+  Info,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { type Tables } from '@/integrations/supabase/types';
+import { useNavigate } from 'react-router-dom';
 import supabase from '@/lib/supabase';
 
+// Define PostForModal type
+interface PostForModal {
+  id: string;
+  user_id: string;
+  content: string;
+  image_url?: string;
+  created_at: string;
+  likes: number;
+  comments: number;
+  isLiked: boolean;
+  isBookmarked: boolean;
+  location?: string;
+  user: { username: string; displayName: string; avatar: string };
+  media_type?: string;
+}
+// Definisikan tipe untuk data yang digabungkan
+type Profile = Tables<'profiles'>;
+type NotificationFromDb = Tables<'notifications'>;
+type PostFromDb = Tables<'posts'>;
+type UserNotificationFromDb = Tables<'user_notifications'>;
+
+type CombinedNotification = (
+  | (Omit<NotificationFromDb, 'from_user_id'> & { from_user: Profile | null; title?: never; message?: never; post_id: string | null })
+  | (UserNotificationFromDb & { from_user?: null; from_user_id?: never })
+) & {
+  // Pastikan properti umum ada
+  id: string;
+  created_at: string;
+};
 export const Notifications = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [selectedPost, setSelectedPost] = useState<PostForModal | null>(null);
 
   // 🔹 Fetch notifications dari Supabase
   const { data: notifications, isLoading } = useQuery({
@@ -29,51 +64,118 @@ export const Notifications = () => {
     queryFn: async () => {
       if (!user) return [];
 
-      const { data: notificationsData, error: notificationsError } = await supabase
-        .from('notifications')
-        .select(`
-          id,
-          type,
-          created_at,
-          is_read,
-          from_user_id
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      // 1. Fetch standard notifications
+      const { data: standardNotifications, error: standardError } =
+        await supabase
+          .from('notifications')
+          .select('id, type, created_at, is_read, from_user_id, post_id')
+          .eq('user_id', user.id);
 
-      if (notificationsError) {
-        console.error('Error fetching notifications:', notificationsError);
-        return [];
+      if (standardError) {
+        console.error('Error fetching standard notifications:', standardError);
+        // Lanjutkan meski gagal, mungkin notifikasi sistem masih bisa diambil
       }
 
-      if (!notificationsData || notificationsData.length === 0) {
-        return [];
+      // 2. Fetch system notifications
+      const { data: systemNotifications, error: systemError } = await supabase
+        .from('user_notifications')
+        .select('id, title, message, type, created_at, is_read')
+        .eq('user_id', user.id);
+
+      if (systemError) {
+        console.error('Error fetching system notifications:', systemError);
       }
 
-      const fromUserIds = [...new Set(notificationsData.map(n => n.from_user_id).filter(id => id))];
-      
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, username, display_name, avatar_url')
-        .in('user_id', fromUserIds);
+      const allNotifications: CombinedNotification[] = [];
 
-      if (profilesError) {
-        console.error('Error fetching profiles for notifications:', profilesError);
-        // Return notifications without profile data
-        return notificationsData.map(n => ({ ...n, from_user: null }));
+      // Proses notifikasi standar
+      if (standardNotifications && standardNotifications.length > 0) {
+        const fromUserIds = [
+          ...new Set(standardNotifications.map((n) => n.from_user_id).filter((id) => id)),
+        ];
+
+        let profilesMap = new Map<string, Profile>();
+        if (fromUserIds.length > 0) {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('user_id', fromUserIds);
+
+          if (profilesError) {
+            console.error('Error fetching profiles:', profilesError);
+          } else {
+            profilesMap = new Map(profilesData.map((p) => [p.user_id, p]));
+          }
+        }
+
+        const combinedStandard = standardNotifications.map((notification) => ({
+          ...notification,
+          from_user: profilesMap.get(notification.from_user_id) || null,
+        }));
+        allNotifications.push(...combinedStandard);
       }
 
-      const profilesMap = new Map(profilesData.map(p => [p.user_id, p]));
+      // Tambahkan notifikasi sistem
+      if (systemNotifications && systemNotifications.length > 0) {
+        // Explicitly cast systemNotifications to CombinedNotification[]
+        // This is a workaround for the type inference issue, assuming the data structure is correct.
+        allNotifications.push(
+          ...(systemNotifications.map((notification) => ({
+            ...notification,
+            from_user: null, // System notifications don't have a 'from_user'
+            from_user_id: undefined, // Ensure from_user_id is not present
+          })) as CombinedNotification[])
+        );
+      }
 
-      const combinedData = notificationsData.map(notification => ({
-        ...notification,
-        from_user: profilesMap.get(notification.from_user_id) || null,
-      }));
+      // Urutkan semua notifikasi berdasarkan tanggal pembuatan
+      allNotifications.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-      return combinedData;
+      return allNotifications;
     },
     enabled: !!user,
   });
+
+  // 🔹 Setup real-time subscriptions for notifications
+  useEffect(() => {
+    if (!user) return;
+
+    // Buat instance Audio di luar handler agar tidak dibuat ulang setiap saat
+    const notificationSound = new Audio('/assets/sounds/notification.mp3');
+
+    const handleNewNotification = () => {
+      // Invalidate query untuk memicu refetch
+      queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+      // Putar suara notifikasi
+      notificationSound.play().catch(error => console.error("Error playing sound:", error));
+    };
+
+    // Subscription untuk notifikasi standar (like, comment, follow)
+    const standardNotificationsChannel = supabase
+      .channel('public:notifications:user_id=eq.' + user.id)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        handleNewNotification
+      )
+      .subscribe();
+
+    // Subscription untuk notifikasi sistem
+    const systemNotificationsChannel = supabase
+      .channel('public:user_notifications:user_id=eq.' + user.id)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'user_notifications', filter: `user_id=eq.${user.id}` },
+        handleNewNotification
+      )
+      .subscribe();
+
+    // Cleanup subscriptions on component unmount
+    return () => {
+      supabase.removeChannel(standardNotificationsChannel);
+      supabase.removeChannel(systemNotificationsChannel);
+    };
+  }, [user, queryClient]);
 
   // 🔹 Mark all as read
   const markAllRead = useMutation({
@@ -92,6 +194,100 @@ export const Notifications = () => {
     },
   });
 
+  // 🔹 Mark a single notification as read
+  const markAsRead = useMutation({
+    mutationFn: async (notification: CombinedNotification) => {
+      if (!user || notification.is_read) return;
+
+      // Tentukan tabel mana yang akan diupdate berdasarkan properti notifikasi
+      const tableName = 'from_user_id' in notification ? 'notifications' : 'user_notifications';
+
+      const { error } = await supabase
+        .from(tableName)
+        .update({ is_read: true })
+        .eq('id', notification.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      // Invalidate query untuk memperbarui UI
+      queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
+    },
+    onError: (error) => {
+      console.error("Failed to mark notification as read:", error);
+    }
+  });
+
+  // 🔹 Fetch post data for modal
+  const fetchPostForModal = useMutation({
+    mutationFn: async (postId: string) => {
+      if (!user) return null;
+      const { data: postData, error } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          profiles!posts_user_id_fkey (
+            username,
+            display_name,
+            avatar_url
+          ),
+          post_media (
+            media_url,
+            media_type
+          ),
+          likes_count,
+          comments_count,
+          user_likes:likes(user_id)
+        `)
+        .eq('id', postId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching post for modal:', error);
+        throw error;
+      }
+
+      // Transform data to match the PostCard/PostForModal type
+      const transformedPost: PostForModal = {
+        ...postData,
+        content: postData.caption || '',
+        user: postData.profiles,
+        likes: postData.likes_count || 0,
+        comments: postData.comments_count || 0,
+        isLiked: postData.user_likes.some((like: { user_id: string }) => like.user_id === user.id),
+        isBookmarked: false, // TODO: Implement bookmark logic if needed
+        image_url: postData.post_media?.[0]?.media_url,
+        media_type: postData.post_media?.[0]?.media_type,
+      };
+
+      return transformedPost;
+    },
+    onSuccess: (data) => {
+      if (data) {
+        setSelectedPost(data);
+      }
+    },
+    onError: (error) => {
+      console.error("Failed to fetch post details:", error);
+    }
+  });
+
+  // 🔹 Handle notification click for navigation
+  const handleNotificationClick = (notification: CombinedNotification) => {
+    // 1. Mark as read
+    markAsRead.mutate(notification);
+
+    // 2. Navigate
+    if ('post_id' in notification && notification.post_id && (notification.type === 'like' || notification.type === 'comment')) {
+      // Jika notifikasi terkait post, ambil data post dan buka modal
+      fetchPostForModal.mutate(notification.post_id);
+    } else if ('from_user_id' in notification && notification.from_user_id) {
+      // Jika tidak ada post_id tapi ada from_user (misal: follow), navigasi ke profil
+      navigate(`/profile/${notification.from_user_id}`);
+    }
+    // Untuk notifikasi sistem tanpa target, tidak melakukan apa-apa
+  };
+
   // 🔹 Icons
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -101,6 +297,8 @@ export const Notifications = () => {
         return <MessageCircle className="h-5 w-5 text-blue-500" />;
       case 'follow':
         return <UserPlus className="h-5 w-5 text-green-500" />;
+      case 'system':
+        return <Info className="h-5 w-5 text-yellow-500" />;
       default:
         return <Bell className="h-5 w-5 text-muted-foreground" />;
     }
@@ -108,6 +306,11 @@ export const Notifications = () => {
 
   // 🔹 Messages
   const getNotificationMessage = (type: string, fromUser: any) => {
+    // Handle notifikasi sistem yang tidak memiliki fromUser
+    if (type === 'system') {
+      return 'System Notification';
+    }
+
     const displayName =
       fromUser?.display_name || fromUser?.username || 'Someone';
 
@@ -163,35 +366,44 @@ export const Notifications = () => {
             {notifications?.map((notification) => (
               <Card
                 key={notification.id}
-                className={`p-4 cursor-pointer hover:bg-muted/50 transition-colors ${
-                  !notification.is_read ? 'border-primary/20 bg-primary/5' : ''
-                }`}
+                className={`p-4 cursor-pointer hover:bg-muted/50 transition-colors ${!notification.is_read ? 'border-primary/20 bg-primary/5' : ''
+                  }`}
+                onClick={() => handleNotificationClick(notification)}
               >
-                <Link
-                  to={`/profile/${notification.from_user?.user_id || notification.from_user?.user_id}`}
-                  className="flex items-start gap-4"
-                >
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage
-                      src={notification.from_user?.avatar_url || undefined}
-                    />
-                    <AvatarFallback>
-                      {notification.from_user?.display_name?.charAt(0) || notification.from_user?.username?.charAt(0) ||
-                        'U'}
-                    </AvatarFallback>
-                  </Avatar>
+                <div className="flex items-start gap-4">
+                  {notification.from_user ? (
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage
+                        src={notification.from_user.avatar_url || undefined}
+                      />
+                      <AvatarFallback>
+                        {notification.from_user.display_name?.charAt(0) ||
+                          notification.from_user.username?.charAt(0) ||
+                          'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                      {getNotificationIcon(notification.type)}
+                    </div>
+                  )}
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      {getNotificationIcon(notification.type)}
-                      <p className="text-sm">
-                        {getNotificationMessage(
-                          notification.type,
-                          notification.from_user
+                      {notification.from_user && getNotificationIcon(notification.type)}
+                      <div className="text-sm">
+                        <p className="font-semibold">
+                          {notification.title || getNotificationMessage(notification.type, notification.from_user)}
+                        </p>
+                        {notification.message && (
+                          <p className="text-muted-foreground">
+                            {notification.message}
+                          </p>
                         )}
-                      </p>
+                      </div>
                       {!notification.is_read && (
-                        <Badge variant="secondary" className="text-xs">
+                        // Gunakan ml-auto untuk mendorong badge ke kanan
+                        <Badge variant="secondary" className="text-xs ml-auto flex-shrink-0">
                           New
                         </Badge>
                       )}
@@ -206,14 +418,7 @@ export const Notifications = () => {
                       </span>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs self-center"
-                  >
-                    View
-                  </Button>
-                </Link>
+                </div>
               </Card>
             ))}
           </div>
@@ -233,6 +438,13 @@ export const Notifications = () => {
           )}
         </div>
       </main>
+
+      {/* Post Detail Modal */}
+      <PostDetailModal
+        post={selectedPost}
+        isOpen={!!selectedPost}
+        onClose={() => setSelectedPost(null)}
+      />
     </div>
   );
 };
