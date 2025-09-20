@@ -11,7 +11,7 @@ import {
   Calendar,
   Lock,
 } from "lucide-react";
-import { useProfile, useUserPosts, useDeletePost, Post, useTogglePostLike } from "@/hooks/useProfile";
+import { useProfile, useUserPosts, useDeletePost, Post, useTogglePostLike, useProfileByUsername } from "@/hooks/useProfile";
 import { useFollowStatus, useToggleFollow } from "@/hooks/useFollow";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigation } from "@/components/layout/Navigation";
@@ -144,29 +144,17 @@ const PostCard = ({ post, authUser }) => {
   );
 };
 
-const Profile = () => {
-  const { username } = useParams<{ username?: string }>();
+const ProfilePageContent = ({ profile, isLoading, error }) => {
   const { user: authUser } = useAuth();
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  // If no username in params, show current user's profile
-  const targetUserId = username ? undefined : authUser?.id; // We'll need to fetch by username
-  const { data: profile, isLoading: profileLoading, error: profileError } = useProfile(targetUserId);
-  const { data: posts, isLoading: postsLoading, error: postsError } = useUserPosts(targetUserId);
-  const { data: isFollowing = false, isLoading: followLoading } = useFollowStatus(targetUserId || '');
+
+  const { data: posts, isLoading: postsLoading } = useUserPosts(profile?.user_id);
+  const { data: isFollowing = false, isLoading: followLoading } = useFollowStatus(profile?.user_id || '');
   const { mutate: toggleFollow } = useToggleFollow();
-  const { mutate: toggleLike } = useTogglePostLike();
 
-  const loading = profileLoading || postsLoading || followLoading;
-  const error = profileError || postsError;
+  const pageLoading = isLoading || postsLoading || followLoading;
 
-  const userPosts: (Post & { timestamp: string })[] = posts
-    ? posts.map((post) => ({
-      ...post,
-      timestamp: format(new Date(post.created_at), "PP"),
-    }))
-    : [];
-
-  if (loading) {
+  if (pageLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>Loading profile...</p>
@@ -183,10 +171,14 @@ const Profile = () => {
     );
   }
 
-  const isOwnProfile = !username || authUser?.id === profile?.user_id;
-  const actualTargetUserId = targetUserId || authUser?.id;
+  const userPosts: (Post & { timestamp: string })[] = posts
+    ? posts.map((post) => ({
+      ...post,
+      timestamp: format(new Date(post.created_at), "PP"),
+    }))
+    : [];
 
-  // Handle privacy settings - hide content if private and not following
+  const isOwnProfile = authUser?.id === profile?.user_id;
   const showContent = !profile.is_private || isOwnProfile || isFollowing;
 
   return (
@@ -232,15 +224,15 @@ const Profile = () => {
               {/* Action Buttons */}
               <div className="flex items-center space-x-3 mt-4 md:mt-0">
                 {isOwnProfile ? (
-                  <Button variant="outline" onClick={() => { /* Navigate to edit profile */ }}>
-                    Edit Profile
+                  <Button variant="outline" asChild>
+                    <Link to="/settings">Edit Profile</Link>
                   </Button>
                 ) : (
                   <>
                     <Button
                       variant={isFollowing ? "outline" : "default"}
                       className={!isFollowing ? "gradient-button" : ""}
-                      onClick={() => toggleFollow({ userId: actualTargetUserId!, isFollowing })}
+                      onClick={() => toggleFollow({ userId: profile.user_id, isFollowing })}
                     >
                       {isFollowing ? "Following" : "Follow"}
                     </Button>
@@ -375,6 +367,21 @@ const Profile = () => {
       />
     </div>
   );
+}
+
+const Profile = () => {
+  const { username } = useParams<{ username?: string }>();
+  const { user: authUser } = useAuth();
+
+  // Fetch profile based on username from URL, or from authenticated user
+  const { data: profileFromUsername, isLoading: pfuLoading, error: pfuError } = useProfileByUsername(username);
+  const { data: profileFromAuth, isLoading: pfaLoading, error: pfaError } = useProfile(authUser?.id);
+
+  const profile = username ? profileFromUsername : profileFromAuth;
+  const isLoading = username ? pfuLoading : pfaLoading;
+  const error = username ? pfuError : pfaError;
+
+  return <ProfilePageContent profile={profile} isLoading={isLoading} error={error} />;
 };
 
 export default Profile;

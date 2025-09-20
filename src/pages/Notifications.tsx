@@ -29,28 +29,48 @@ export const Notifications = () => {
     queryFn: async () => {
       if (!user) return [];
 
-      const { data, error } = await supabase
+      const { data: notificationsData, error: notificationsError } = await supabase
         .from('notifications')
         .select(`
           id,
           type,
           created_at,
           is_read,
-          from_user:from_user_id (
-            username,
-            display_name,
-            avatar_url
-          )
+          from_user_id
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching notifications:', error);
+      if (notificationsError) {
+        console.error('Error fetching notifications:', notificationsError);
         return [];
       }
 
-      return data || [];
+      if (!notificationsData || notificationsData.length === 0) {
+        return [];
+      }
+
+      const fromUserIds = [...new Set(notificationsData.map(n => n.from_user_id).filter(id => id))];
+      
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, username, display_name, avatar_url')
+        .in('user_id', fromUserIds);
+
+      if (profilesError) {
+        console.error('Error fetching profiles for notifications:', profilesError);
+        // Return notifications without profile data
+        return notificationsData.map(n => ({ ...n, from_user: null }));
+      }
+
+      const profilesMap = new Map(profilesData.map(p => [p.user_id, p]));
+
+      const combinedData = notificationsData.map(notification => ({
+        ...notification,
+        from_user: profilesMap.get(notification.from_user_id) || null,
+      }));
+
+      return combinedData;
     },
     enabled: !!user,
   });
@@ -148,7 +168,7 @@ export const Notifications = () => {
                 }`}
               >
                 <Link
-                  to={`/profile/${notification.from_user?.username}`}
+                  to={`/profile/${notification.from_user?.username || notification.from_user?.user_id}`}
                   className="flex items-start gap-4"
                 >
                   <Avatar className="h-10 w-10">

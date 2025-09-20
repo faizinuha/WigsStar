@@ -43,7 +43,7 @@ import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
 import supabase from '@/lib/supabase.ts';
 import { Factor } from '@supabase/supabase-js';
 import { useQuery } from '@tanstack/react-query';
-import { Camera, Loader2, LogOut, Mail, ShieldAlert, Sun, Moon, Laptop } from 'lucide-react';
+import { Camera, Loader2, LogOut, Mail, ShieldAlert, Sun, Moon, Laptop, Github } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 interface UserSettings {
@@ -83,6 +83,9 @@ export const Settings = () => {
   const [bio, setBio] = useState(profile?.bio || '');
   const [uploading, setUploading] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
+  const [linkedProviders, setLinkedProviders] = useState<string[]>([]);
+  const [showLinkEmailDialog, setShowLinkEmailDialog] = useState(false);
+  const [linkEmailValue, setLinkEmailValue] = useState('');
   const [countdown, setCountdown] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -118,6 +121,43 @@ export const Settings = () => {
       setBio(profile.bio || '');
     }
   }, [profile]);
+
+  // Fetch linked providers (email/oauth identities)
+  useEffect(() => {
+    let mounted = true;
+    const fetchProviders = async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        const user = data.user;
+        const providers: string[] = [];
+        if (!user) return;
+        // email
+        if (user.email) providers.push('email');
+        // identities (oauth providers)
+        // Some Supabase setups expose user.identities
+        // Fallback: check user.app_metadata?.provider if available
+        // Prefer identities if present
+        // @ts-ignore
+        const identities = user.identities || [];
+        if (Array.isArray(identities) && identities.length > 0) {
+          // identities items have provider field
+          identities.forEach((id: any) => {
+            if (id.provider && !providers.includes(id.provider)) providers.push(id.provider);
+          });
+        } else if ((user as any)?.app_metadata?.provider) {
+          const p = (user as any).app_metadata.provider;
+          if (p && !providers.includes(p)) providers.push(p);
+        }
+
+        if (mounted) setLinkedProviders(providers);
+      } catch (err) {
+        // ignore
+      }
+    };
+
+    fetchProviders();
+    return () => { mounted = false; };
+  }, [user]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !user) return;
@@ -267,6 +307,51 @@ export const Settings = () => {
       });
     } finally {
       setSendingCode(false);
+    }
+  };
+
+  // --- Linked accounts helpers ---
+  const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+
+  const handleLinkOAuth = async (provider: 'google' | 'github') => {
+    // Initiates OAuth flow. Note: true server-side identity linking requires
+    // a service-role function. This initiates OAuth sign-in which the user can
+    // complete; afterwards they may need to contact support to merge accounts if a new account is created.
+    try {
+      await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: `${siteUrl}/settings?linked_oauth=1` } });
+    } catch (error: any) {
+      toast({ title: 'Error starting OAuth', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleOpenLinkEmail = () => {
+    setLinkEmailValue(user?.email || '');
+    setShowLinkEmailDialog(true);
+  };
+
+  const handleLinkEmail = async () => {
+    if (!linkEmailValue || !user) return;
+    try {
+      // Update current user's email (this keeps the same account) and then send a password reset so user can set a password for email login
+      const { error: updateError } = await supabase.auth.updateUser({ email: linkEmailValue });
+      if (updateError) throw updateError;
+
+      // Send password reset to allow setting password
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(linkEmailValue, { redirectTo: `${siteUrl}/auth?mode=reset` });
+      if (resetError) throw resetError;
+
+      toast({ title: 'Email linked', description: 'Password reset sent to the email. Use it to set a password.' });
+      setShowLinkEmailDialog(false);
+      // Refresh providers list
+      const { data } = await supabase.auth.getUser();
+      // @ts-ignore
+      const ids = data.user?.identities || [];
+      const provs = [] as string[];
+      if (data.user?.email) provs.push('email');
+      if (Array.isArray(ids)) ids.forEach((i: any) => provs.push(i.provider));
+      setLinkedProviders(provs);
+    } catch (err: any) {
+      toast({ title: 'Error linking email', description: err.message, variant: 'destructive' });
     }
   };
 
@@ -621,6 +706,65 @@ export const Settings = () => {
                 "Switch Account" will send a magic link to your email to log in
                 to a different account.
               </p>
+            </CardContent>
+          </Card>
+
+          {/* Linked Accounts */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Akun Tertaut</CardTitle>
+              <CardDescription>
+                Kelola akun tertaut Anda untuk masuk.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Anda saat ini masuk dengan{' '}
+                <span className="font-semibold capitalize text-primary">
+                  {user?.app_metadata.provider || 'email'}
+                </span>
+              .
+            </p>
+              <div className="space-y-2">
+                {[
+                  { provider: 'google', icon: <img src="/assets/icons/google.svg" alt="Google" className="w-5 h-5" /> },
+                  { provider: 'github', icon: <Github className="w-5 h-5" /> },
+                  { provider: 'email', icon: <Mail className="w-5 h-5" /> }
+                ].map(({ provider, icon }) => {
+                  const isLinked = linkedProviders.includes(provider);
+
+                  return (
+                    <div
+                      key={provider}
+                      className="flex items-center justify-between rounded-md border p-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        {icon}
+                        <span className="font-medium capitalize">{provider}</span>
+                      </div>
+                      {isLinked ? (
+                        <Button variant="outline" size="sm" disabled>
+                          Tertaut
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (provider === 'email') {
+                              handleOpenLinkEmail();
+                            } else if (provider === 'google' || provider === 'github') {
+                              handleLinkOAuth(provider as 'google' | 'github');
+                            }
+                          }}
+                        >
+                          Kaitkan Akun
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </CardContent>
           </Card>
 

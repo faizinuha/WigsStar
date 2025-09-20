@@ -14,12 +14,14 @@ import { Settings } from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import PrivateRoute from "./components/PrivateRoute";
+import { ProfileUpdater } from "./components/ProfileUpdater";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <ProfileUpdater />
       <TooltipProvider>
         <Toaster />
         <Sonner />

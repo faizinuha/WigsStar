@@ -54,12 +54,33 @@ export function useProfile(userId?: string) {
         .from("profiles")
         .select("*")
         .eq("user_id", targetUserId)
+        .limit(1)
         .single();
 
       if (error) throw error;
       return data as Profile;
     },
     enabled: !!targetUserId,
+  });
+}
+
+export function useProfileByUsername(username?: string) {
+  return useQuery({
+    queryKey: ["profile", username],
+    queryFn: async () => {
+      if (!username) throw new Error("No username provided");
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("username", username)
+        .limit(1)
+        .single();
+
+      if (error) throw error;
+      return data as Profile;
+    },
+    enabled: !!username,
   });
 }
 
