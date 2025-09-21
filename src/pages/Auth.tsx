@@ -11,6 +11,7 @@ import { DisplayNameField, EmailField, PasswordField, UsernameField } from "../c
 import starMarLogo from "../../assets/Logo/StarMar-.png";
 import { DownloadProofModal } from "../components/DownloadProofModal";
 import { generateAndDownloadProofFile } from "../lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Language Footer Component
 const LanguageFooter = () => {
@@ -40,8 +41,8 @@ const LanguageFooter = () => {
 };
 
 export function Auth() {
-  const { t } = useTranslation(); // Initialize translation hook
-  const { addAccount, signUp, resetPassword, addAccountWithOAuth, user, accounts, switchAccount, signOut } = useAuth();
+  const { t } = useTranslation();
+  const { addAccount, signUp, resetPassword, addAccountWithOAuth, user, accounts, signOut } = useAuth();
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -60,14 +61,25 @@ export function Auth() {
 
   useEffect(() => {
     if (user) {
-      setIsLogin(true);
-      setShowAccountSelection(false);
+      // If user is logged in, don't show account selection, proceed to app.
+      navigate('/');
     } else if (accounts.length > 0) {
+      // If logged out but there are stored accounts, show selection.
       setShowAccountSelection(true);
     } else {
+      // No stored accounts, show the standard login form.
       setShowAccountSelection(false);
     }
-  }, [user, accounts]);
+  }, [user, accounts, navigate]);
+
+  const handleAccountSelect = (account: any) => {
+    setFormData(prev => ({
+      ...prev,
+      email: account.user.email || '',
+      password: '', // Clear password field
+    }));
+    setShowAccountSelection(false);
+  };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -146,11 +158,6 @@ export function Auth() {
     }
   };
 
-  const handleDownloadCancel = () => {
-    setShowDownloadModal(false);
-    navigate("/");
-  };
-
   const getTitle = () => {
     if (showAccountSelection) return t('chooseAccount');
     if (isLogin) {
@@ -183,24 +190,34 @@ export function Auth() {
                   {t('chooseAccountPrompt')}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2">
-                {accounts.map((account) => (
-                  <div key={account.user.id} className="flex items-center justify-between p-2 border rounded-md">
-                    <div className="flex items-center space-x-2">
-                      <span>{account.user.email}</span>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button variant="ghost" onClick={() => switchAccount(account.user.id)}>
-                        {t('continue')}
-                      </Button>
-                      <Button variant="destructive" size="sm" onClick={() => signOut(account.user.id)}>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-3">
+                  {accounts.map((account) => (
+                    <div 
+                      key={account.user.id} 
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-4 cursor-pointer flex-1 min-w-0" onClick={() => handleAccountSelect(account)}>
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={account.user.user_metadata?.avatar_url} alt={account.user.user_metadata?.display_name || account.user.email} />
+                          <AvatarFallback>{account.user.email?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0"> 
+                          <p className="font-semibold truncate">{account.user.user_metadata?.display_name || account.user.username}</p>
+                          <p className="text-sm text-muted-foreground truncate">{account.user.email}</p>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => signOut(account.user.id)}>
                         {t('remove')}
                       </Button>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
                 <Separator />
-                <Button variant="outline" className="w-full" onClick={() => setShowAccountSelection(false)}>
+                <Button variant="secondary" className="w-full" onClick={() => {
+                  setShowAccountSelection(false);
+                  setFormData({ username: "", email: "", password: "", confirmPassword: "", displayName: "" }); // Clear form
+                }}>
                   {t('loginWithAnotherAccount')}
                 </Button>
               </CardContent>

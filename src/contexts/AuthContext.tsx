@@ -182,36 +182,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
   };
 
-  const signOut = async (userIdToSignOut?: string) => {
+  const signOut = async (userIdToSignOut?: string, navigate?: (path: string) => void) => {
     const accounts = getStoredAccounts();
     const activeId = getActiveAccountId();
 
-    if (userIdToSignOut) {
-      // Scenario 1: Remove a specific account
+    // Scenario 1: Remove a specific account from the list (e.g., from the Auth page).
+    if (userIdToSignOut && accounts.some(acc => acc.user.id === userIdToSignOut)) {
       const updatedAccounts = accounts.filter(acc => acc.user.id !== userIdToSignOut);
       setStoredAccounts(updatedAccounts);
       setAccounts(updatedAccounts);
 
+      // If the removed account was the currently active one, clear the session.
       if (activeId === userIdToSignOut) {
-        // If the removed account was active, switch to another or clear session
-        const newActiveAccount = updatedAccounts[0];
-        if (newActiveAccount) {
-          await switchAccount(newActiveAccount.user.id);
-        } else {
-          // No other accounts, clear everything
-          setUser(null);
-          setSession(null);
-          localStorage.removeItem(ACTIVE_ACCOUNT_ID_KEY);
-          await supabase.auth.signOut();
-        }
+        setUser(null);
+        setSession(null);
+        localStorage.removeItem(ACTIVE_ACCOUNT_ID_KEY);
+        await supabase.auth.signOut();
       }
     } else {
-      // Scenario 2: Soft logout of the current active session (keep account in local storage)
-      // This is like Instagram's "Log Out" which keeps the account visible on the login screen.
+      // Scenario 2: Standard logout for the current active user (e.g., from Settings page).
+      // This logs the user out but keeps their account in the list for easy re-login.
       setUser(null);
       setSession(null);
-      // Do NOT remove from stored accounts or active account ID
+      localStorage.removeItem(ACTIVE_ACCOUNT_ID_KEY); // Forget which account was active.
       await supabase.auth.signOut();
+
+      // Redirect to the authentication page.
+      if (navigate) {
+        navigate('/auth');
+      } else {
+        // Fallback to a hard reload if navigate function isn't provided.
+        window.location.href = '/auth';
+      }
     }
   };
 
