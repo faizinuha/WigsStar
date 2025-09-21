@@ -309,7 +309,7 @@ const UserCard = ({ user, currentUser }) => {
         <Avatar className="h-28 w-28 mb-4 ring-4 ring-white shadow">
           <AvatarImage src={user.avatar_url} alt={user.display_name} />
           <AvatarFallback className="text-2xl">
-            {user.display_name?.charAt(0) || user.username.charAt(0)}
+            {user.display_name?.charAt(0) || user.username?.charAt(0) || ''}
           </AvatarFallback>
         </Avatar>
         <div className="space-y-1 mb-4 text-center">

@@ -181,8 +181,8 @@ const AdminContent = () => {
                         <TableCell>
                           <img src={user.avatar_url || '/assets/placeholder/cewek.png'} alt={user.username} className="h-8 w-8 rounded-full" />
                         </TableCell>
-                        <TableCell className="font-medium">{user.username}</TableCell>
-                        <TableCell>{user.display_name}</TableCell>
+                        <TableCell className="font-medium">{user.username || 'Underfine'}</TableCell>
+                        <TableCell>{user.display_name || 'Underfine'}</TableCell>
                         <TableCell>{user.followers_count}</TableCell>
                         <TableCell>{user.following_count}</TableCell>
                         <TableCell>{user.posts_count}</TableCell>

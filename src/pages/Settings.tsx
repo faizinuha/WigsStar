@@ -46,6 +46,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Camera, Loader2, LogOut, Mail, ShieldAlert, Sun, Moon, Laptop, Github } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+
 interface UserSettings {
   notifications_enabled: boolean;
   like_notifications: boolean;
@@ -59,6 +62,7 @@ interface MfaFactor extends Factor {
 
 export const Settings = () => {
   const { user, signOut } = useAuth();
+  const { t } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
   const { data: profile } = useProfile();
@@ -378,19 +382,19 @@ export const Settings = () => {
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
           <div className="mb-8">
             <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Settings
+              {t('settings')}
             </h1>
             <p className="text-muted-foreground mt-2">
-              Manage your account preferences and privacy settings
+              {t('settingsDescription')}
             </p>
           </div>
 
           {/* Profile Settings */}
           <Card>
             <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
+              <CardTitle>{t('profileInfo')}</CardTitle>
               <CardDescription>
-                Update your profile details and photo
+                {t('profileInfoDescription')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -468,12 +472,25 @@ export const Settings = () => {
             </CardContent>
           </Card>
 
+          {/* Language Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('language')}</CardTitle>
+              <CardDescription>
+                {t('languageDescription')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LanguageSwitcher />
+            </CardContent>
+          </Card>
+
           {/* Theme Settings */}
           <Card>
             <CardHeader>
-              <CardTitle>Theme</CardTitle>
+              <CardTitle>{t('theme')}</CardTitle>
               <CardDescription>
-                Select the theme for the application.
+                {t('themeDescription')}
               </CardDescription>
             </CardHeader>
             <CardContent>

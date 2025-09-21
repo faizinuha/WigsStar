@@ -33,6 +33,8 @@ interface PostForModal {
   likes: number;
   comments: number;
   isLiked: boolean;
+  likes_count: number;
+  profiles: { username: string; display_name: string; avatar_url: string };
   isBookmarked: boolean;
   location?: string;
   user: { username: string; displayName: string; avatar: string };

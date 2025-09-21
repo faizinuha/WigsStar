@@ -124,8 +124,11 @@ export function useLikes(entity: LikeableEntity, entityId: string) {
 
           if (error) throw error;
         } else {
-          const payload: Record<string, string> = {
+          const payload: Record<string, string | null> = {
             user_id: user.id,
+            post_id: null,
+            comment_id: null,
+            meme_id: null,
             [column]: entityId,
           };
           const { data, error } = await supabase
