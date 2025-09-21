@@ -41,8 +41,9 @@ export const PostDetailModal = ({ post, isOpen, onClose }: PostDetailModalProps)
   const [newComment, setNewComment] = useState("");
 
   // Hooks for functionality
-  const { isLiked, toggleLike, likesCount } = useLikes('post', post?.id || '');
-  const { data: comments = [], isLoading: areCommentsLoading } = usePostComments(post?.id || '');
+  const postId = post?.id as string | undefined;
+  const { isLiked, toggleLike, likesCount } = useLikes('post', postId);
+  const { data: comments = [], isLoading: areCommentsLoading } = usePostComments(postId);
   const { mutate: createComment, isPending: isCreatingComment } = useCreateComment();
 
   if (!post) return null;
