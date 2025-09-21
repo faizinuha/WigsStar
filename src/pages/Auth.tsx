@@ -12,7 +12,7 @@ import { DownloadProofModal } from "../components/DownloadProofModal";
 import { generateAndDownloadProofFile } from "../lib/utils";
 
 export function Auth() {
-  const { addAccount, signUp, resetPassword, addAccountWithOAuth, user } = useAuth();
+  const { addAccount, signUp, resetPassword, addAccountWithOAuth, user, accounts, switchAccount, signOut } = useAuth();
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -27,14 +27,20 @@ export function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+  const [showAccountSelection, setShowAccountSelection] = useState(false);
 
   // If a user is already logged in when visiting /auth, 
   // ensure the form is set to the login/add account view.
   useEffect(() => {
     if (user) {
       setIsLogin(true);
+      setShowAccountSelection(false); // Hide account selection if user is logged in
+    } else if (accounts.length > 0) {
+      setShowAccountSelection(true); // Show account selection if no user but accounts exist
+    } else {
+      setShowAccountSelection(false); // No user, no accounts, show regular login
     }
-  }, [user]);
+  }, [user, accounts]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -123,6 +129,7 @@ export function Auth() {
   };
 
   const getTitle = () => {
+    if (showAccountSelection) return 'Choose an account';
     if (isLogin) {
       return user ? 'Add Another Account' : 'Sign In';
     }
@@ -144,67 +151,103 @@ export function Auth() {
           <div className="text-center lg:hidden">
             <img src={starMarLogo} alt="StarMar Logo" className="w-24 mx-auto mb-4" />
           </div>
-          <Card className="border-none shadow-none sm:border sm:shadow-sm">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl">{getTitle()}</CardTitle>
-              <CardDescription>
-                {isLogin ? "Enter details to sign in or add an account." : "Join the community to start sharing."}
-              </CardDescription>
-            </CardHeader>
 
-            <CardContent className="space-y-4">
-              {errors.general && (
-                <Alert variant="destructive">
-                  <AlertDescription>{errors.general}</AlertDescription>
-                </Alert>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {!isLogin && (
-                  <>
-                    <DisplayNameField value={formData.displayName} onChange={(e) => handleInputChange("displayName", e.target.value)} error={errors.displayName} />
-                    <UsernameField value={formData.username} onChange={(e) => handleInputChange("username", e.target.value.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase())} error={errors.username} />
-                  </>
-                )}
-                <EmailField value={formData.email} onChange={(e) => handleInputChange("email", e.target.value)} error={errors.email} />
-                <PasswordField id="password" label="Password" value={formData.password} onChange={(e) => handleInputChange("password", e.target.value)} error={errors.password} showPassword={showPassword} toggleShowPassword={() => setShowPassword(!showPassword)} />
-                {!isLogin && <PasswordField id="confirmPassword" label="Confirm Password" value={formData.confirmPassword} onChange={(e) => handleInputChange("confirmPassword", e.target.value)} error={errors.confirmPassword} />}
-                <Button type="submit" className="w-full gradient-button" disabled={isLoading}>
-                  {isLoading ? "Please wait..." : isLogin ? (user ? 'Add Account' : 'Sign In') : 'Create Account'}
+          {showAccountSelection && (
+            <Card className="border-none shadow-none sm:border sm:shadow-sm mb-4">
+              <CardHeader className="text-center">
+                <CardTitle className="text-2xl">Choose an account</CardTitle>
+                <CardDescription>
+                  Select an account to continue or log in with a new one.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {accounts.map((account) => (
+                  <div key={account.user.id} className="flex items-center justify-between p-2 border rounded-md">
+                    <div className="flex items-center space-x-2">
+                      {/* You might want to display user avatar here */}
+                      <span>{account.user.email}</span> {/* Or account.user.user_metadata.display_name */}
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button variant="ghost" onClick={() => switchAccount(account.user.id)}>
+                        Continue
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => signOut(account.user.id)}>
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                <Separator />
+                <Button variant="outline" className="w-full" onClick={() => setShowAccountSelection(false)}>
+                  Log in with another account
                 </Button>
-              </form>
+              </CardContent>
+            </Card>
+          )}
 
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-                </div>
-              </div>
+          {!showAccountSelection && (
+            <Card className="border-none shadow-none sm:border sm:shadow-sm">
+              <CardHeader className="text-center">
+                <CardTitle className="text-2xl">{getTitle()}</CardTitle>
+                <CardDescription>
+                  {isLogin ? "Enter details to sign in or add an account." : "Join the community to start sharing."}
+                </CardDescription>
+              </CardHeader>
 
-              <div className="grid grid-cols-2 gap-4">
-                <Button variant="outline" onClick={() => handleOAuthSignIn('google')} disabled={isLoading}><Chrome className="mr-2 h-4 w-4" />Google</Button>
-                <Button variant="outline" onClick={() => handleOAuthSignIn('github')} disabled={isLoading}><Github className="mr-2 h-4 w-4" />GitHub</Button>
-              </div>
+              <CardContent className="space-y-4">
+                {errors.general && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{errors.general}</AlertDescription>
+                  </Alert>
+                )}
 
-              {/* Do not show Sign Up toggle if a user is already logged in */}
-              {!user && (
-                <p className="text-center text-sm text-muted-foreground">
-                  {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-                  <Button variant="link" onClick={toggleForm} className="p-0 h-auto">
-                    {isLogin ? "Sign up" : "Sign in"}
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {!isLogin && (
+                    <>
+                      <DisplayNameField value={formData.displayName} onChange={(e) => handleInputChange("displayName", e.target.value)} error={errors.displayName} />
+                      <UsernameField value={formData.username} onChange={(e) => handleInputChange("username", e.target.value.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase())} error={errors.username} />
+                    </>
+                  )}
+                  <EmailField value={formData.email} onChange={(e) => handleInputChange("email", e.target.value)} error={errors.email} />
+                  <PasswordField id="password" label="Password" value={formData.password} onChange={(e) => handleInputChange("password", e.target.value)} error={errors.password} showPassword={showPassword} toggleShowPassword={() => setShowPassword(!showPassword)} />
+                  {!isLogin && <PasswordField id="confirmPassword" label="Confirm Password" value={formData.confirmPassword} onChange={(e) => handleInputChange("confirmPassword", e.target.value)} error={errors.confirmPassword} />}
+                  <Button type="submit" className="w-full gradient-button" disabled={isLoading}>
+                    {isLoading ? "Please wait..." : isLogin ? (user ? 'Add Account' : 'Sign In') : 'Create Account'}
                   </Button>
-                </p>
-              )}
+                </form>
 
-              {isLogin && (
-                <div className="text-center">
-                  <Button variant="link" className="text-sm p-0 h-auto" onClick={handleForgotPassword}>
-                    Forgot your password?
-                  </Button>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+                  </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Button variant="outline" onClick={() => handleOAuthSignIn('google')} disabled={isLoading}><Chrome className="mr-2 h-4 w-4" />Google</Button>
+                  <Button variant="outline" onClick={() => handleOAuthSignIn('github')} disabled={isLoading}><Github className="mr-2 h-4 w-4" />GitHub</Button>
+                </div>
+
+                {/* Do not show Sign Up toggle if a user is already logged in */}
+                {!user && (
+                  <p className="text-center text-sm text-muted-foreground">
+                    {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+                    <Button variant="link" onClick={toggleForm} className="p-0 h-auto">
+                      {isLogin ? "Sign up" : "Sign in"}
+                    </Button>
+                  </p>
+                )}
+
+                {isLogin && (
+                  <div className="text-center">
+                    <Button variant="link" className="text-sm p-0 h-auto" onClick={handleForgotPassword}>
+                      Forgot your password?
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
       <DownloadProofModal

@@ -39,7 +39,7 @@ interface AuthContextType {
   addAccount: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signUp: (email: string, password: string, username?: string, displayName?: string) => Promise<{ error: AuthError | null }>;
   addAccountWithOAuth: (provider: Provider) => Promise<void>;
-  signOut: (userIdToSignOut?: string) => Promise<void>;
+  signOut: (userIdToSignOut?: string, navigate?: (path: string) => void) => Promise<void>;
   switchAccount: (userId: string) => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
 }
@@ -186,28 +186,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const accounts = getStoredAccounts();
     const activeId = getActiveAccountId();
 
-    if (!userIdToSignOut || accounts.length <= 1) {
-        setStoredAccounts([]);
-        localStorage.removeItem(ACTIVE_ACCOUNT_ID_KEY);
-        setAccounts([]);
-        setUser(null);
-        setSession(null);
-        await supabase.auth.signOut();
-    } else {
-        const updatedAccounts = accounts.filter(acc => acc.user.id !== userIdToSignOut);
-        setStoredAccounts(updatedAccounts);
-        setAccounts(updatedAccounts);
+    if (userIdToSignOut) {
+      // Scenario 1: Remove a specific account
+      const updatedAccounts = accounts.filter(acc => acc.user.id !== userIdToSignOut);
+      setStoredAccounts(updatedAccounts);
+      setAccounts(updatedAccounts);
 
-        if (activeId === userIdToSignOut) {
-            const newActiveAccount = updatedAccounts[0];
-            if (newActiveAccount) {
-                await switchAccount(newActiveAccount.user.id);
-            } else {
-                setUser(null);
-                setSession(null);
-                await supabase.auth.signOut();
-            }
+      if (activeId === userIdToSignOut) {
+        // If the removed account was active, switch to another or clear session
+        const newActiveAccount = updatedAccounts[0];
+        if (newActiveAccount) {
+          await switchAccount(newActiveAccount.user.id);
+        } else {
+          // No other accounts, clear everything
+          setUser(null);
+          setSession(null);
+          localStorage.removeItem(ACTIVE_ACCOUNT_ID_KEY);
+          await supabase.auth.signOut();
         }
+      }
+    } else {
+      // Scenario 2: Soft logout of the current active session (keep account in local storage)
+      // This is like Instagram's "Log Out" which keeps the account visible on the login screen.
+      setUser(null);
+      setSession(null);
+      // Do NOT remove from stored accounts or active account ID
+      await supabase.auth.signOut();
     }
   };
 
