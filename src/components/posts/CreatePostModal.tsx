@@ -136,6 +136,36 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
         
         const { error: mediaError } = await supabase.from('post_media').insert(mediaInserts);
         if (mediaError) throw mediaError;
+
+        // --- START HASHTAG PROCESSING ---
+        const hashtags = caption.match(/#(\w+)/g)?.map(tag => tag.substring(1).toLowerCase());
+        if (hashtags && hashtags.length > 0) {
+            const uniqueHashtags = [...new Set(hashtags)];
+
+            // 1. Upsert tags and get their IDs
+            const { data: tags, error: tagsError } = await supabase
+            .from('tags')
+            .upsert(uniqueHashtags.map(name => ({ name })), { onConflict: 'name' })
+            .select('id, name');
+
+            if (tagsError) {
+              console.error('Error upserting tags:', tagsError);
+            } else if (tags) {
+              // 2. Link tags to the post
+              const postTags = tags.map(tag => ({ post_id: post.id, tag_id: tag.id }));
+              const { error: postTagsError } = await supabase.from('post_tags').insert(postTags);
+              if (postTagsError) {
+                  console.error('Error creating post tags:', postTagsError);
+              }
+              
+              // 3. Increment tag counts via RPC
+              try {
+                  const { error: rpcError } = await supabase.rpc('increment_tag_counts', { tag_names: uniqueHashtags });
+                  if (rpcError) console.error('Error incrementing tag counts:', rpcError);
+              } catch(e) { console.error('RPC Error:', e) }
+            }
+        }
+        // --- END HASHTAG PROCESSING ---
       }
       
       toast({ title: `${activeTab === "meme" ? "Meme" : "Post"} created successfully!` });

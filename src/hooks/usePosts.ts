@@ -1,29 +1,8 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import supabase from "@/lib/supabase.ts";
 import { useAuth } from "@/contexts/AuthContext";
 import { ReactNode } from "react";
-
-export interface Profile {
-  avatar: string;
-  role: string;
-  avatar_url: string;
-  id: string;
-  user_id: string;
-  username: string;
-  display_name?: string;
-  bio?: string;
-  location?: string;
-  website?: string;
-  join_date?: string;
-  is_verified?: boolean;
-  followers_count: number;
-  following_count: number;
-  posts_count: number;
-  is_private: boolean;
-  created_at: string;
-  updated_at: string;
-  cover_img?: string;
-}
 
 export interface Post {
   likes_count: ReactNode;
@@ -46,142 +25,172 @@ export interface Post {
   };
 }
 
-export function useProfile(userId?: string) {
-  const { user } = useAuth();
-  const targetUserId = userId || user?.id;
-
-  return useQuery({
-    queryKey: ["profile", targetUserId],
-    queryFn: async () => {
-      if (!targetUserId) throw new Error("No user ID provided");
-      
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", targetUserId)
-        .limit(1)
-        .single();
-
-      if (error) throw error;
-      return data as Profile;
-    },
-    enabled: !!targetUserId,
-  });
-}
-
-export function useProfileByUsername(username?: string) {
-  return useQuery({
-    queryKey: ["profile", username],
-    queryFn: async () => {
-      if (!username) throw new Error("No username provided");
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("username", username)
-        .limit(1)
-        .single();
-
-      if (error) throw error;
-      return data as Profile;
-    },
-    enabled: !!username,
-  });
-}
-
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import supabase from "@/lib/supabase.ts";
-import { useAuth } from "@/contexts/AuthContext";
-
-export interface Profile {
-  avatar: string;
-  role: string;
-  avatar_url: string;
-  id: string;
-  user_id: string;
-  username: string;
-  display_name?: string;
-  bio?: string;
-  location?: string;
-  website?: string;
-  join_date?: string;
-  is_verified?: boolean;
-  followers_count: number;
-  following_count: number;
-  posts_count: number;
-  is_private: boolean;
-  created_at: string;
-  updated_at: string;
-  cover_img?: string;
-}
-
-export function useProfile(userId?: string) {
-  const { user } = useAuth();
-  const targetUserId = userId || user?.id;
-
-  return useQuery({
-    queryKey: ["profile", targetUserId],
-    queryFn: async () => {
-      if (!targetUserId) throw new Error("No user ID provided");
-      
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", targetUserId)
-        .limit(1)
-        .single();
-
-      if (error) throw error;
-      return data as Profile;
-    },
-    enabled: !!targetUserId,
-  });
-}
-
-export function useProfileByUsername(username?: string) {
-  return useQuery({
-    queryKey: ["profile", username],
-    queryFn: async () => {
-      if (!username) throw new Error("No username provided");
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("username", username)
-        .limit(1)
-        .single();
-
-      if (error) throw error;
-      return data as Profile;
-    },
-    enabled: !!username,
-  });
-}
-
-export function useUpdateProfile() {
+export function useCreatePost() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: async (updates: Partial<Profile>) => {
-      if (!user) throw new Error("No user found");
+  return useMutation(
+    async ({ content, selectedImage, location }: { content: string; selectedImage: File | null; location: string; }) => {
+      if (!user) {
+        throw new Error("You must be logged in to create a post.");
+      }
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .update(updates)
-        .eq("user_id", user.id)
+      if (!content.trim() && !selectedImage) {
+        throw new Error("Post content or an image is required.");
+      }
+
+      let imageUrl: string | undefined;
+      let mediaType: string | undefined;
+
+      // 1. Upload image if it exists
+      if (selectedImage) {
+        const fileExt = selectedImage.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('posts')
+          .upload(filePath, selectedImage, {
+            cacheControl: '3600',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw new Error(`Image upload failed: ${uploadError.message}`);
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from('posts')
+          .getPublicUrl(filePath);
+        
+        imageUrl = publicUrlData.publicUrl;
+        mediaType = selectedImage.type;
+      }
+
+      // 2. Insert the post to get its ID
+      const { data: post, error: postError } = await supabase
+        .from('posts')
+        .insert({
+          user_id: user.id,
+          caption: content.trim(),
+          location: location || null,
+        })
         .select()
         .single();
 
-      if (error) throw error;
-      return data;
+      if (postError) {
+        throw new Error(`Failed to create post: ${postError.message}`);
+      }
+
+      const postId = post.id;
+
+      // 3. If there was an image, link it in post_media
+      if (imageUrl) {
+        const { error: mediaError } = await supabase.from('post_media').insert({
+          post_id: postId,
+          media_url: imageUrl,
+          media_type: mediaType,
+        });
+        if (mediaError) {
+          console.error('Failed to link media to post:', mediaError);
+          // You might want to handle this more gracefully, e.g., by deleting the post
+        }
+      }
+
+      // 4. Handle hashtags (same logic as useUpdatePost)
+      const hashtags = content.match(/#(\w+)/g)?.map(tag => tag.substring(1).toLowerCase());
+      if (hashtags && hashtags.length > 0) {
+        const uniqueHashtags = [...new Set(hashtags)];
+
+        const { data: tags, error: tagsError } = await supabase
+          .from('tags')
+          .upsert(uniqueHashtags.map(name => ({ name })), { onConflict: 'name' })
+          .select('id, name');
+
+        if (tagsError) {
+          console.error('Error upserting tags:', tagsError);
+        } else if (tags) {
+          const postTags = tags.map(tag => ({ post_id: postId, tag_id: tag.id }));
+          const { error: postTagsError } = await supabase.from('post_tags').insert(postTags);
+          if (postTagsError) console.error('Error creating post tags:', postTagsError);
+
+          try {
+            const { error: rpcError } = await supabase.rpc('increment_tag_counts', { tag_names: uniqueHashtags });
+            if (rpcError) console.error('Error syncing tag counts:', rpcError);
+          } catch (e) {
+            console.error('RPC Error:', e);
+          }
+        }
+      }
+
+      return post;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
-    },
-  });
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['allPosts'] });
+        queryClient.invalidateQueries({ queryKey: ['userPosts', user?.id] });
+      },
+    }
+  );
 }
 
+export function useUserPosts(userId?: string) {
+  const { user } = useAuth();
+  const targetUserId = userId || user?.id;
+
+  return useQuery({
+    queryKey: ["userPosts", targetUserId],
+    queryFn: async () => {
+      if (!targetUserId) throw new Error("No user ID provided");
+
+      const { data, error } = await supabase
+        .from("posts")
+        .select(`
+          id,
+          user_id,
+          caption,
+          location,
+          created_at,
+          likes_count,
+          comments_count,
+          profiles!posts_user_id_fkey (
+            username,
+            display_name,
+            avatar_url
+          ),
+          post_media (
+            media_url,
+            media_type
+          ),
+          user_likes: likes(user_id)
+        `)
+        .eq("user_id", targetUserId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      return data.map((post: any) => ({
+        id: post.id,
+        content: post.caption || '',
+        location: post.location,
+        created_at: post.created_at,
+        likes: post.likes_count || 0,
+        comments: post.comments_count || 0,
+        isLiked: post.user_likes.some((like: { user_id: string }) => like.user_id === user?.id),
+        isBookmarked: false, // TODO: Implement bookmark logic
+        image_url: post.post_media?.[0]?.media_url,
+        media_type: post.post_media?.[0]?.media_type,
+        user: {
+          username: post.profiles?.username || '',
+          displayName: post.profiles?.display_name || post.profiles?.username || '',
+          avatar: post.profiles?.avatar_url || '',
+        },
+        user_id: post.user_id,
+      })) as Post[];
+    },
+    enabled: !!targetUserId,
+  });
+}
 
 export function useAllPosts() {
   const { user } = useAuth();
@@ -283,30 +292,6 @@ export function useTogglePostLike() {
   });
 }
 
-export function useUpdateProfile() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (updates: Partial<Profile>) => {
-      if (!user) throw new Error("No user found");
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .update(updates)
-        .eq("user_id", user.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
-    },
-  });
-}
-
 export function useDeletePost() {
   const queryClient = useQueryClient();
 
@@ -384,5 +369,62 @@ export function useUpdatePost() {
       queryClient.invalidateQueries({ queryKey: ["userPosts"] });
       queryClient.invalidateQueries({ queryKey: ["post", variables.postId] });
     },
+  });
+}
+
+export function usePostById(postId: string) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["post", postId],
+    queryFn: async () => {
+      if (!postId) throw new Error("No post ID provided");
+
+      const { data, error } = await supabase
+        .from("posts")
+        .select(`
+          id,
+          user_id,
+          caption,
+          location,
+          created_at,
+          likes_count,
+          comments_count,
+          profiles!posts_user_id_fkey (
+            username,
+            display_name,
+            avatar_url
+          ),
+          post_media (
+            media_url,
+            media_type
+          ),
+          user_likes: likes(user_id)
+        `)
+        .eq("id", postId)
+        .single();
+
+      if (error) throw error;
+
+      return {
+        id: data.id,
+        content: data.caption || '',
+        location: data.location,
+        created_at: data.created_at,
+        likes: data.likes_count || 0,
+        comments: data.comments_count || 0,
+        isLiked: data.user_likes.some((like: { user_id: string }) => like.user_id === user?.id),
+        isBookmarked: false, // TODO: Implement bookmark logic
+        image_url: data.post_media?.[0]?.media_url,
+        media_type: data.post_media?.[0]?.media_type,
+        user: {
+          username: data.profiles?.username || '',
+          displayName: data.profiles?.display_name || data.profiles?.username || '',
+          avatar: data.profiles?.avatar_url || '',
+        },
+        user_id: data.user_id,
+      } as Post;
+    },
+    enabled: !!postId,
   });
 }

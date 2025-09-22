@@ -7,7 +7,7 @@ import { StoriesSection } from "@/components/posts/StoriesSection";
 import { CreatePost } from "@/components/posts/CreatePost";
 import { Navigation } from "@/components/layout/Navigation";
 import { TrendingTags } from "@/components/posts/TrendingTags";
-import { useAllPosts, Post } from "@/hooks/useProfile";
+import { useAllPosts, Post } from "@/hooks/usePosts";
 import { Loader2, Grid3X3, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 

@@ -17,7 +17,6 @@ import { usePostTags } from '@/hooks/useTags';
 import {
   Bookmark,
   Heart,
-  Laugh,
   MessageCircle,
   MoreHorizontal,
   Repeat,
@@ -25,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { CommentSection } from './CommentSection';
+import { EditPostModal } from './EditPostModal';
 
 interface Post {
   id: string;
@@ -84,11 +84,8 @@ export const PostCard = ({ post }: PostCardProps) => {
   const { toast } = useToast();
   const deletePostMutation = useDeletePost();
 
-  // Comments for preview
-  const { data: commentsForPost = [], isLoading: areCommentsLoading } =
-    usePostComments(post.id);
+  const { data: commentsForPost = [] } = usePostComments(post.id);
 
-  // Prepare comment preview data (latest top-level) — compute early so hooks stay top-level
   const latestComment = commentsForPost.length
     ? commentsForPost[commentsForPost.length - 1]
     : null;
@@ -100,7 +97,6 @@ export const PostCard = ({ post }: PostCardProps) => {
     loading: previewLikesLoading,
   } = useLikes('comment', commentPreviewId);
 
-  // Use shared likes hook for post to keep status accurate across relog
   const {
     likesCount: likesCountPost = 0,
     isLiked: isLikedPost = false,
@@ -112,6 +108,7 @@ export const PostCard = ({ post }: PostCardProps) => {
 
   const [showFullCaption, setShowFullCaption] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const handleLike = () => {
     if (!currentUser) {
@@ -122,7 +119,6 @@ export const PostCard = ({ post }: PostCardProps) => {
       });
       return;
     }
-
     togglePostLike();
   };
 
@@ -149,9 +145,7 @@ export const PostCard = ({ post }: PostCardProps) => {
         url: `${window.location.origin}/post/${post.id}`,
       });
     } else {
-      navigator.clipboard.writeText(
-        `${window.location.origin}/post/${post.id}`
-      );
+      navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);
       toast({ title: 'Link copied to clipboard!' });
     }
   };
@@ -167,9 +161,8 @@ export const PostCard = ({ post }: PostCardProps) => {
 
   const isOwnPost = currentUser?.id === post.user_id;
 
-    const PostContent = () => (
+  const PostContent = () => (
     <Card className="post-card bg-card animate-fade-in border-b-2">
-      {/* Header */}
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center space-x-3">
           <Avatar className="h-10 w-10 ring-2 ring-primary/20">
@@ -200,12 +193,17 @@ export const PostCard = ({ post }: PostCardProps) => {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {isOwnPost ? (
-              <DropdownMenuItem
-                onClick={handleDelete}
-                className="text-destructive"
-              >
-                Delete Post
-              </DropdownMenuItem>
+              <>
+                <DropdownMenuItem onClick={() => setIsEditModalOpen(true)}>
+                  Edit Post
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={handleDelete}
+                  className="text-destructive"
+                >
+                  Delete Post
+                </DropdownMenuItem>
+              </>
             ) : (
               <DropdownMenuItem>Follow @{post.user.username}</DropdownMenuItem>
             )}
@@ -220,7 +218,6 @@ export const PostCard = ({ post }: PostCardProps) => {
         </DropdownMenu>
       </div>
 
-      {/* Content: Media or Text */}
       {post.image_url ? (
         <div className="aspect-square overflow-hidden bg-black">
           {/(mp4|webm|mov)$/i.test(post.image_url) ? (
@@ -239,7 +236,6 @@ export const PostCard = ({ post }: PostCardProps) => {
         </div>
       )}
 
-      {/* Actions & Details */}
       <div className="p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -280,7 +276,6 @@ export const PostCard = ({ post }: PostCardProps) => {
           </Button>
         </div>
 
-        {/* Caption (only for posts with media) */}
         {post.image_url && post.content && (
           <div className="text-sm space-y-1">
             <span className="font-semibold">@{post.user.username}</span>{' '}
@@ -296,7 +291,6 @@ export const PostCard = ({ post }: PostCardProps) => {
           </div>
         )}
 
-        {/* Hashtags */}
         {postTags.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2">
             {postTags.map((tag: string, idx: number) => (
@@ -307,7 +301,6 @@ export const PostCard = ({ post }: PostCardProps) => {
           </div>
         )}
 
-        {/* View Comments Link */}
         {post.comments > 0 && (
           <button
             className="text-sm text-muted-foreground hover:text-foreground mt-2"
@@ -318,7 +311,7 @@ export const PostCard = ({ post }: PostCardProps) => {
         )}
       </div>
     </Card>
-  )
+  );
 
   if (post.repost_by)
     return (
@@ -335,6 +328,13 @@ export const PostCard = ({ post }: PostCardProps) => {
           isOpen={showComments}
           onClose={() => setShowComments(false)}
           postId={post.id}
+        />
+      )}
+      {isEditModalOpen && (
+        <EditPostModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          post={post}
         />
       )}
     </>

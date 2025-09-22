@@ -27,7 +27,7 @@ import {
   Compass,
 } from "lucide-react";
 import supabase from "@/lib/supabase.ts";
-import { Post } from "@/hooks/useProfile";
+import { Post } from "@/hooks/usePosts";
 import { PostDetailModal } from "@/components/posts/PostDetailModal";
 
 type UserProfile = {

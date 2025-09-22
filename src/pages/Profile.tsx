@@ -12,7 +12,8 @@ import {
   Lock,
   Camera,
 } from "lucide-react";
-import { useProfile, useUserPosts, useDeletePost, Post, useTogglePostLike, useUpdateProfile } from "@/hooks/useProfile";
+import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
+import { useUserPosts, useDeletePost, Post, useTogglePostLike } from "@/hooks/usePosts";
 import supabase from "@/lib/supabase.ts";
 import { useFollowStatus, useToggleFollow } from "@/hooks/useFollow";
 import { useAuth } from "@/contexts/AuthContext";
