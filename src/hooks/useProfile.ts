@@ -89,75 +89,6 @@ export function useProfileByUsername(username?: string) {
   });
 }
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import supabase from "@/lib/supabase.ts";
-import { useAuth } from "@/contexts/AuthContext";
-
-export interface Profile {
-  avatar: string;
-  role: string;
-  avatar_url: string;
-  id: string;
-  user_id: string;
-  username: string;
-  display_name?: string;
-  bio?: string;
-  location?: string;
-  website?: string;
-  join_date?: string;
-  is_verified?: boolean;
-  followers_count: number;
-  following_count: number;
-  posts_count: number;
-  is_private: boolean;
-  created_at: string;
-  updated_at: string;
-  cover_img?: string;
-}
-
-export function useProfile(userId?: string) {
-  const { user } = useAuth();
-  const targetUserId = userId || user?.id;
-
-  return useQuery({
-    queryKey: ["profile", targetUserId],
-    queryFn: async () => {
-      if (!targetUserId) throw new Error("No user ID provided");
-      
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", targetUserId)
-        .limit(1)
-        .single();
-
-      if (error) throw error;
-      return data as Profile;
-    },
-    enabled: !!targetUserId,
-  });
-}
-
-export function useProfileByUsername(username?: string) {
-  return useQuery({
-    queryKey: ["profile", username],
-    queryFn: async () => {
-      if (!username) throw new Error("No username provided");
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("username", username)
-        .limit(1)
-        .single();
-
-      if (error) throw error;
-      return data as Profile;
-    },
-    enabled: !!username,
-  });
-}
-
 export function useUpdateProfile() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -279,30 +210,6 @@ export function useTogglePostLike() {
       queryClient.invalidateQueries({ queryKey: ["allPosts"] });
       queryClient.invalidateQueries({ queryKey: ["userPosts"] });
       queryClient.invalidateQueries({ queryKey: ["post", variables.postId] }); // Invalidate single post query if exists
-    },
-  });
-}
-
-export function useUpdateProfile() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (updates: Partial<Profile>) => {
-      if (!user) throw new Error("No user found");
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .update(updates)
-        .eq("user_id", user.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
     },
   });
 }

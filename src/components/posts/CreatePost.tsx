@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -6,21 +6,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  ImageIcon,
-  Video,
-  MapPin,
-  Hash,
-  AtSign,
-  X,
-  Upload
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import supabase from "@/lib/supabase";
+import { ImageIcon, Video, MapPin, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
-import { profile } from "console";
 import { useProfile } from "@/hooks/useProfile";
+import { useCreatePost } from "@/hooks/usePosts";
+
 export const CreatePost = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -29,10 +20,33 @@ export const CreatePost = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [location, setLocation] = useState("");
-  const [hashtags, setHashtags] = useState<string[]>([]);
-  const [mentions, setMentions] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  
   const { data: userProfile } = useProfile();
+  const createPostMutation = useCreatePost();
+
+  useEffect(() => {
+    if (createPostMutation.isSuccess) {
+      toast({
+        title: "Success",
+        description: "Your post has been created!",
+      });
+      // Reset form
+      setContent("");
+      setSelectedImage(null);
+      setImagePreview(null);
+      setLocation("");
+      setIsOpen(false);
+      createPostMutation.reset();
+    }
+
+    if (createPostMutation.isError) {
+      toast({
+        title: "Error creating post",
+        description: createPostMutation.error.message,
+        variant: "destructive",
+      });
+    }
+  }, [createPostMutation.isSuccess, createPostMutation.isError, createPostMutation.error, toast, createPostMutation]);
 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -51,113 +65,21 @@ export const CreatePost = () => {
     setImagePreview(null);
   };
 
-  const addHashtag = (tag: string) => {
-    if (tag && !hashtags.includes(tag)) {
-      setHashtags([...hashtags, tag]);
-    }
-  };
-
-  const removeHashtag = (tag: string) => {
-    setHashtags(hashtags.filter(t => t !== tag));
-  };
-
-  const handlePost = async () => {
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to create a post.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!content.trim() && !selectedImage) {
-      toast({
-        title: "Error",
-        description: "Post content or an image is required.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    let imageUrl: string | undefined;
-
-    try {
-      if (selectedImage) {
-        const fileExt = selectedImage.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`;
-
-        const { error: uploadError, data: uploadData } = await supabase.storage
-          .from('posts')
-          .upload(filePath, selectedImage, {
-            cacheControl: '3600',
-            upsert: false,
-          });
-
-        if (uploadError) {
-          throw uploadError;
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('posts')
-          .getPublicUrl(filePath);
-
-        imageUrl = publicUrlData.publicUrl;
-      }
-
-      // Gabungkan hashtag ke dalam caption
-      let captionWithTags = content.trim();
-      if (hashtags.length > 0) {
-        const tagsString = hashtags.map(tag => tag.startsWith('#') ? tag : `#${tag}`).join(' ');
-        captionWithTags = `${captionWithTags} ${tagsString}`.trim();
-      }
-      const { error: postError } = await supabase
-        .from('posts')
-        .insert({
-          user_id: user.id,
-          caption: captionWithTags,
-          image_url: imageUrl,
-          location: location || null,
-        });
-
-      if (postError) {
-        throw postError;
-      }
-
-      toast({
-        title: "Success",
-        description: "Your post has been created!",
-      });
-
-      // Reset form
-      setContent("");
-      setSelectedImage(null);
-      setImagePreview(null);
-      setLocation("");
-      setHashtags([]);
-      setMentions([]);
-      setIsOpen(false);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const handleSubmit = () => {
+    createPostMutation.mutate({
+      content,
+      selectedImage,
+      location,
+    });
   };
 
   return (
     <>
-      {/* Quick Create */}
       <Card className="p-4 animate-fade-in">
-        <div className="flex items-center space-x-https://discord.gg/SQG3hrjCqS3">
+        <div className="flex items-center space-x-3">
           <Avatar className="h-10 w-10"> 
             <AvatarImage src={userProfile?.avatar_url || '/assets/placeholder/cewek.png'} />
-            <AvatarFallback>{user?.user_metadata?.display_name?.charAt(0) || user?.email?.charAt(0) || 'U'}</AvatarFallback>
+            <AvatarFallback>{userProfile?.username?.charAt(0) || 'U'}</AvatarFallback>
           </Avatar>
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
@@ -170,27 +92,25 @@ export const CreatePost = () => {
                 <DialogTitle className="flex items-center space-x-3">
                   <Avatar className="h-10 w-10">
                    <AvatarImage src={userProfile?.avatar_url || '/assets/placeholder/cewek.png'} />
-                    <AvatarFallback>{user?.user_metadata?.display_name?.charAt(0) || user?.email?.charAt(0) || "U"}</AvatarFallback>
+                    <AvatarFallback>{userProfile?.username?.charAt(0) || 'U'}</AvatarFallback>
                   </Avatar>
                   <div>
                     <p className="font-semibold">Create New Post</p>
-                    <p className="text-sm text-muted-foreground font-normal">@{user?.user_metadata?.display_name || user?.email?.split('@')[0] || "yourname"}</p>
+                    <p className="text-sm text-muted-foreground font-normal">@{userProfile?.username || 'yourname'}</p>
                   </div>
                 </DialogTitle>
               </DialogHeader>
 
               <div className="space-y-6">
-                {/* Content Input */}
                 <div>
                   <Textarea
-                    placeholder="What's happening?"
+                    placeholder="What's happening? Use #hashtags to categorize your post."
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     className="min-h-32 text-lg border-none resize-none focus-visible:ring-0 p-0"
                   />
                 </div>
 
-                {/* Image Preview */}
                 {imagePreview && (
                   <div className="relative">
                     <img
@@ -209,7 +129,6 @@ export const CreatePost = () => {
                   </div>
                 )}
 
-                {/* Location */}
                 <div className="space-y-2">
                   <Label htmlFor="location" className="flex items-center space-x-2">
                     <MapPin className="h-4 w-4" />
@@ -223,45 +142,6 @@ export const CreatePost = () => {
                   />
                 </div>
 
-                {/* Hashtags */}
-                <div className="space-y-2">
-                  <Label className="flex items-center space-x-2">
-                    <Hash className="h-4 w-4" />
-                    <span>Hashtags</span>
-                  </Label>
-                  <div className="flex flex-wrap gap-2">
-                    {hashtags.map((tag, index) => (
-                      <Badge
-                        key={index}
-                        variant="secondary"
-                        className="flex items-center space-x-1"
-                      >
-                        <span>#{tag}</span>
-                        <button
-                          onClick={() => removeHashtag(tag)}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                  <Input
-                    placeholder="Add hashtags..."
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        const value = e.currentTarget.value.replace('#', '').trim();
-                        if (value) {
-                          addHashtag(value);
-                          e.currentTarget.value = '';
-                        }
-                      }
-                    }}
-                  />
-                </div>
-
-                {/* Media Upload Options */}
                 <div className="flex items-center justify-between pt-4 border-t border-border">
                   <div className="flex items-center space-x-4">
                     <label className="cursor-pointer">
@@ -277,7 +157,6 @@ export const CreatePost = () => {
                         className="hidden"
                       />
                     </label>
-
                     <label className="cursor-pointer">
                       <Button variant="ghost" size="icon" className="h-10 w-10" asChild>
                         <span>
@@ -287,6 +166,7 @@ export const CreatePost = () => {
                       <input
                         type="file"
                         accept="video/*"
+                        // onChange={handleVideoSelect} // Add a handler for video
                         className="hidden"
                       />
                     </label>
@@ -297,11 +177,11 @@ export const CreatePost = () => {
                       {content.length}/500
                     </span>
                     <Button
-                      onClick={handlePost}
-                      disabled={(!content.trim() && !selectedImage) || isLoading}
+                      onClick={handleSubmit}
+                      disabled={(!content.trim() && !selectedImage) || createPostMutation.isPending}
                       className="gradient-button"
                     >
-                      {isLoading ? "Posting..." : "Post"}
+                      {createPostMutation.isPending ? "Posting..." : "Post"}
                     </Button>
                   </div>
                 </div>
