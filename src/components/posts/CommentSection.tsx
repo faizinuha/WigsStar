@@ -118,16 +118,17 @@ export const CommentSection = ({
         <div className="flex h-full flex-col md:flex-row">
           {/* Kolom Kiri: Gambar Postingan */}
           {post?.image_url && (
-            <div className="w-full md:w-2/3 bg-black flex items-center justify-center h-1/2 md:h-full relative group">
+            <div className="w-full md:w-2/3 bg-black flex items-center justify-center h-64 md:h-full relative group">
               {post.media_type === 'video' ? (
                 <>
                   <video
                     ref={videoRef}
                     src={post.image_url}
-                    className="max-h-full max-w-full object-contain cursor-pointer"
+                    className="w-auto h-auto max-w-full max-h-full object-contain cursor-pointer"
                     autoPlay
                     loop
                     muted
+                    playsInline
                     onClick={() => {
                       if (videoRef.current?.paused) {
                         videoRef.current?.play();
@@ -138,9 +139,15 @@ export const CommentSection = ({
                       }
                     }}
                   />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all pointer-events-none">
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all">
                     {!isPlaying && (
-                      <div className="bg-black/50 rounded-full p-4">
+                      <div
+                        className="bg-black/50 rounded-full p-4 cursor-pointer"
+                        onClick={() => {
+                          videoRef.current?.play();
+                          setIsPlaying(true);
+                        }}
+                      >
                         <Play className="h-12 w-12 text-white fill-white" />
                       </div>
                     )}
@@ -149,8 +156,10 @@ export const CommentSection = ({
               ) : (
                 <img
                   src={post.image_url}
-                  className="max-h-full max-w-full object-contain"
+                  className="w-auto h-auto max-w-full max-h-full object-contain"
                   alt="Post content"
+                  loading="lazy"
+                  decoding="async"
                 />
               )}
             </div>
@@ -166,6 +175,7 @@ export const CommentSection = ({
               <DialogTitle>Comments</DialogTitle>
             </DialogHeader>
 
+            {/* Keep comments scrollable while input is pinned */}
             <ScrollArea className="flex-1 min-h-0">
               <div className="space-y-6 p-4">
                 {isLoading ? (

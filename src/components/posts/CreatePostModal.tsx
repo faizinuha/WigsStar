@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBadges } from '@/hooks/useMemes';
+import { useTrendingTags } from '@/hooks/useTags';
 import supabase from '@/lib/supabase.ts';
 import { Image, Laugh, Loader2, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -35,6 +36,11 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
 
   const [selectedBadges, setSelectedBadges] = useState<number[]>([]);
   const { data: availableBadges, isLoading: isLoadingBadges } = useBadges();
+
+  // Hashtag suggest
+  const { data: trendingTags = [] } = useTrendingTags(10);
+  const [showTagSuggest, setShowTagSuggest] = useState(false);
+  const [tagQuery, setTagQuery] = useState('');
 
   // Reset state when tab changes
   useEffect(() => {
@@ -279,16 +285,102 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
                     </div>
                   </Button>
                 </div>
+                {/* Preview appears directly below select button */}
+                {previews.length > 0 && (
+                  <div className="space-y-2 mt-2">
+                    <Label>
+                      Preview ({files.length}/{activeTab === 'meme' ? 1 : 10})
+                    </Label>
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 max-h-40 overflow-y-auto p-2 bg-muted/50 rounded-lg">
+                      {previews.map((preview, index) => (
+                        <Card key={index} className="relative group">
+                          <div className="aspect-square overflow-hidden rounded-md">
+                            {files[index]?.type.startsWith('image/') ? (
+                              <img
+                                src={preview}
+                                alt="Preview"
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <video
+                                src={preview}
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                          </div>
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            onClick={() => removeFile(index)}
+                            className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <Label htmlFor="caption">Caption</Label>
-                <Textarea
-                  id="caption"
-                  placeholder="Write a caption..."
-                  value={caption}
-                  onChange={(e) => setCaption(e.target.value)}
-                  className="mt-2"
-                />
+                <div className="relative">
+                  <Textarea
+                    id="caption"
+                    placeholder="Write a caption..."
+                    value={caption}
+                    onChange={(e) => {
+                      setCaption(e.target.value);
+                      // Detect if user is typing hashtag
+                      const match = e.target.value.match(/#(\w*)$/);
+                      if (match) {
+                        setTagQuery(match[1].toLowerCase());
+                        setShowTagSuggest(true);
+                      } else {
+                        setShowTagSuggest(false);
+                        setTagQuery('');
+                      }
+                    }}
+                    className="mt-2"
+                  />
+                  {/* Hashtag suggest dropdown */}
+                  {showTagSuggest && tagQuery.length > 0 && (
+                    <div className="absolute left-0 right-0 z-10 bg-white border rounded shadow mt-1 max-h-40 overflow-y-auto">
+                      {trendingTags
+                        .filter((tag) =>
+                          tag.hashtag.toLowerCase().includes(tagQuery)
+                        )
+                        .map((tag) => (
+                          <button
+                            key={tag.hashtag}
+                            type="button"
+                            className="block w-full text-left px-3 py-2 hover:bg-muted"
+                            onClick={() => {
+                              // Replace last hashtag in caption with selected
+                              setCaption((prev) =>
+                                prev.replace(/#(\w*)$/, `#${tag.hashtag} `)
+                              );
+                              setShowTagSuggest(false);
+                              setTagQuery('');
+                            }}
+                          >
+                            #{tag.hashtag}
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              {tag.post_count} posts
+                            </span>
+                          </button>
+                        ))}
+                      {/* If no match, show info */}
+                      {trendingTags.filter((tag) =>
+                        tag.hashtag.toLowerCase().includes(tagQuery)
+                      ).length === 0 && (
+                        <div className="px-3 py-2 text-muted-foreground text-xs">
+                          No trending hashtag found
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <Label htmlFor="location">Location (Optional)</Label>
@@ -331,6 +423,42 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
                     </div>
                   </Button>
                 </div>
+                {/* Preview appears directly below select button */}
+                {previews.length > 0 && (
+                  <div className="space-y-2 mt-2">
+                    <Label>
+                      Preview ({files.length}/{activeTab === 'meme' ? 1 : 10})
+                    </Label>
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 max-h-40 overflow-y-auto p-2 bg-muted/50 rounded-lg">
+                      {previews.map((preview, index) => (
+                        <Card key={index} className="relative group">
+                          <div className="aspect-square overflow-hidden rounded-md">
+                            {files[index]?.type.startsWith('image/') ? (
+                              <img
+                                src={preview}
+                                alt="Preview"
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <video
+                                src={preview}
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                          </div>
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            onClick={() => removeFile(index)}
+                            className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <Label htmlFor="meme-caption">Caption</Label>
