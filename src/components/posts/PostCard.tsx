@@ -178,6 +178,10 @@ export const PostCard = ({ post }: PostCardProps) => {
               <p className="font-semibold text-sm">{post.user.displayName}</p>
               <Laugh className="h-4 w-4 text-primary" />
             </div>
+            <div className="flex items-center gap-2">
+              <p className="font-semibold text-sm">{post.user.displayName}</p>
+              <Laugh className="h-4 w-4 text-primary" />
+            </div>
             <div className="flex items-center space-x-1 text-xs text-muted-foreground">
               <span>@{post.user.username}</span>
               <span>•</span>
@@ -215,6 +219,12 @@ export const PostCard = ({ post }: PostCardProps) => {
             <DropdownMenuItem onClick={handleShare}>
               Share to...
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleCopyLink}>
+              Copy link
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleShare}>
+              Share to...
+            </DropdownMenuItem>
             <DropdownMenuItem>Repost</DropdownMenuItem>
             {!isOwnPost && (
               <DropdownMenuItem className="text-destructive">
@@ -225,14 +235,11 @@ export const PostCard = ({ post }: PostCardProps) => {
         </DropdownMenu>
       </div>
 
+      {/* Content: Media or Text */}
       {post.image_url ? (
         <div className="aspect-square overflow-hidden bg-black">
           {/(mp4|webm|mov)$/i.test(post.image_url) ? (
-            <video
-              src={post.image_url}
-              controls
-              className="w-full h-full object-contain"
-            />
+            <video src={post.image_url} controls className="w-full h-full object-contain" />
           ) : (
             <img
               src={post.image_url}
@@ -247,7 +254,8 @@ export const PostCard = ({ post }: PostCardProps) => {
         </div>
       )}
 
-      <div className="p-4 space-y-4">
+      {/* Actions & Details */}
+      <div className="p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
@@ -259,12 +267,8 @@ export const PostCard = ({ post }: PostCardProps) => {
                   : 'text-muted-foreground hover:text-red-500'
               }`}
             >
-              <Heart
-                className={`h-6 w-6 ${isLikedPost ? 'fill-red-500' : ''}`}
-              />
-              <span className="font-semibold">
-                {likesCountPost.toLocaleString()}
-              </span>
+              <Heart className={`h-6 w-6 ${isLikedPost ? 'fill-red-500' : ''}`} />
+              <span className="font-semibold">{likesCountPost.toLocaleString()}</span>
             </button>
 
             <button
@@ -272,27 +276,15 @@ export const PostCard = ({ post }: PostCardProps) => {
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-blue-500 transition-colors"
             >
               <MessageCircle className="h-6 w-6" />
-              <span className="font-semibold">
-                {post.comments?.toLocaleString() ?? 0}
-              </span>
+              <span className="font-semibold">{post.comments?.toLocaleString() ?? 0}</span>
             </button>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10"
-              onClick={handleShare}
-            >
+            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={handleShare}>
               <Share className="h-6 w-6 hover:text-green-500 transition-colors" />
             </Button>
           </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10"
-            onClick={handleBookmark}
-          >
+          <Button variant="ghost" size="icon" className="h-10 w-10" onClick={handleBookmark}>
             <Bookmark
               className={`h-6 w-6 transition-colors ${
                 post.isBookmarked
@@ -303,6 +295,7 @@ export const PostCard = ({ post }: PostCardProps) => {
           </Button>
         </div>
 
+        {/* Caption (only for posts with media) */}
         {post.image_url && post.content && (
           <div className="text-sm space-y-1">
             <span className="font-semibold">@{post.user.username}</span>{' '}
@@ -318,6 +311,7 @@ export const PostCard = ({ post }: PostCardProps) => {
           </div>
         )}
 
+        {/* Hashtags */}
         {postTags.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-2">
             {postTags.map((tag: string, idx: number) => (
@@ -330,44 +324,8 @@ export const PostCard = ({ post }: PostCardProps) => {
             ))}
           </div>
         )}
-        {/* Comment preview (latest) */}
-        {areCommentsLoading && (
-          <div className="mt-3 border-t pt-3 animate-pulse">
-            <div className="flex items-start gap-3">
-              <div className="h-8 w-8 bg-muted rounded-full" />
-              <div className="flex-1 space-y-2">
-                <div className="h-3 bg-muted rounded w-1/3" />
-                <div className="h-3 bg-muted rounded w-3/4" />
-              </div>
-            </div>
-          </div>
-        )}
-        {latestComment && (
-          <div className="mt-3 border-t pt-3 w-full flex items-start gap-3">
-            <button
-              onClick={() => setShowComments(true)}
-              className="flex items-start gap-3 flex-1 text-left"
-            >
-              <Avatar className="h-8 w-8">
-                <AvatarImage
-                  src={latestComment.user.avatar}
-                  alt={latestComment.user.displayName}
-                />
-                <AvatarFallback>
-                  {latestComment.user.displayName?.charAt(0) || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <p className="text-sm">
-                  <span className="font-semibold">
-                    {latestComment.user.displayName}
-                  </span>
-                  <span className="ml-2">{latestComment.content}</span>
-                </p>
-              </div>
-            </button>
-          </div>
-        )}
+
+        {/* View Comments Link */}
         {post.comments > 0 && (
           <button
             className="text-sm text-muted-foreground hover:text-foreground mt-2"
