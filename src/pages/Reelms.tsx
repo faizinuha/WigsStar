@@ -1,30 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
+import { useAllPosts } from "@/hooks/useProfile";
 import { PostCard } from "@/components/posts/PostCard";
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import supabase from "@/lib/supabase";
-import { type PostgrestError } from "@supabase/supabase-js";
-import { type Tables } from "@/integrations/supabase/types";
-
-// Definisikan tipe data yang lebih spesifik untuk post
-type VideoPost = Tables<'posts'> & {
-    profiles: Pick<Tables<'profiles'>, 'username' | 'display_name' | 'avatar_url'>;
-    post_media: { media_url: string; media_type: string }[];
-    // Tambahkan properti lain yang dibutuhkan oleh PostCard
-};
 
 const Reelms = () => {
-    // Ambil data video langsung dari Supabase, bukan dari useAllPosts
-    const { data: videoPosts = [], isLoading, error } = useQuery<VideoPost[], PostgrestError>({
-        queryKey: ['video_posts'],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from('posts_with_media') // Asumsi Anda punya view/RPC untuk ini
-                .select('*, profiles(username, display_name, avatar_url), post_media(media_url, media_type)')
-                .eq('post_media.media_type', 'video'); // Filter di level database
-            if (error) throw error;
-            // @ts-ignore - Supabase type inference might need adjustment for views
-            return data.filter(post => post.post_media.some(media => media.media_type === 'video'));
-        }
+    const { data: posts = [], isLoading } = useAllPosts();
+    const [selectedPost, setSelectedPost] = useState(null);
+
+    // Filter hanya post yang punya media_type video
+    const videoPosts = posts.filter((post: any) => {
+        // post.image_url = url media pertama (bisa gambar/video),
+        // post.post_media[0].media_type = "video" jika video
+        // Tapi di useAllPosts, post_media tidak di-include, jadi perlu modifikasi jika ingin info media_type
+        // Untuk sekarang, asumsikan image_url video mengandung .mp4/.webm/.mov
+        return post.image_url && /\.(mp4|webm|mov)$/i.test(post.image_url);
     });
 
     return (
@@ -33,11 +22,6 @@ const Reelms = () => {
             {isLoading && (
                 <div className="flex justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-            )}
-            {error && (
-                <div className="text-center py-12 text-red-500">
-                    <p>Failed to load videos: {error.message}</p>
                 </div>
             )}
             {videoPosts.length === 0 && !isLoading && (
@@ -50,18 +34,17 @@ const Reelms = () => {
                 </div>
             )}
             <div className="space-y-8">
-                {videoPosts.map((post) => (
+                {videoPosts.map((post: any) => (
                     <div key={post.id} className="rounded-lg overflow-hidden bg-card">
                         <div className="aspect-video bg-black flex items-center justify-center">
                             <video
-                                // Ambil URL video dari relasi post_media
-                                src={post.post_media.find(m => m.media_type === 'video')?.media_url}
+                                src={post.image_url}
                                 controls
                                 className="w-full h-full object-contain"
-                            // Anda bisa menambahkan field thumbnail_url di tabel post_media
+                                poster={post.thumbnail_url || undefined}
                             />
                         </div>
-                        <PostCard post={post as any} /> {/* Cast as any for now if PostCard expects a different type */}
+                        <PostCard post={post} />
                     </div>
                 ))}
             </div>

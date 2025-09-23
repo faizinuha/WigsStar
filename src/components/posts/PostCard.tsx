@@ -162,7 +162,12 @@ export const PostCard = ({ post }: PostCardProps) => {
   const isOwnPost = currentUser?.id === post.user_id;
 
   const PostContent = () => (
+<<<<<<< HEAD
     <Card className="post-card bg-card animate-fade-in border-b-2">
+=======
+    <Card className="post-card bg-card animate-fade-in">
+      {/* Header */}
+>>>>>>> parent of 4be0fd5 (Update)
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center space-x-3">
           <Avatar className="h-10 w-10 ring-2 ring-primary/20">
@@ -170,17 +175,14 @@ export const PostCard = ({ post }: PostCardProps) => {
             <AvatarFallback>{post.user.displayName?.charAt(0)}</AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-semibold text-sm">{post.user.displayName}</p>
+            <div className="flex items-center gap-2">
+              <p className="font-semibold text-sm">{post.user.displayName}</p>
+              <Laugh className="h-4 w-4 text-primary" />
+            </div>
             <div className="flex items-center space-x-1 text-xs text-muted-foreground">
               <span>@{post.user.username}</span>
               <span>•</span>
               <span>{formatTimeAgo(post.created_at)}</span>
-              {post.location && (
-                <>
-                  <span>•</span>
-                  <span>{post.location}</span>
-                </>
-              )}
             </div>
           </div>
         </div>
@@ -208,16 +210,23 @@ export const PostCard = ({ post }: PostCardProps) => {
               <DropdownMenuItem>Follow @{post.user.username}</DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleCopyLink}>Copy link</DropdownMenuItem>
-            <DropdownMenuItem onClick={handleShare}>Share to...</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleCopyLink}>
+              Copy link
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleShare}>
+              Share to...
+            </DropdownMenuItem>
             <DropdownMenuItem>Repost</DropdownMenuItem>
             {!isOwnPost && (
-              <DropdownMenuItem className="text-destructive">Report</DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive">
+                Report
+              </DropdownMenuItem>
             )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
+<<<<<<< HEAD
       {post.image_url ? (
         <div className="aspect-square overflow-hidden bg-black">
           {/(mp4|webm|mov)$/i.test(post.image_url) ? (
@@ -287,20 +296,156 @@ export const PostCard = ({ post }: PostCardProps) => {
               >
                 more
               </button>
+=======
+      {/* Caption */}
+      <div className="text-sm space-y-1">
+        <span className="font-semibold">@{post.user.username}</span>{' '}
+        <span className="whitespace-pre-wrap">{displayContent}</span>
+        {isLongCaption && !showFullCaption && (
+          <button
+            className="text-muted-foreground hover:text-foreground ml-1"
+            onClick={() => setShowFullCaption(true)}
+          >
+            more
+          </button>
+        )}
+        {/* Media (Image/Video) */}
+        {post.image_url && (
+          <div className="aspect-square overflow-hidden bg-black flex items-center justify-center mt-2">
+            {/(mp4|webm|mov)$/i.test(post.image_url) ? (
+              <video
+                src={post.image_url}
+                controls
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <img
+                src={post.image_url}
+                alt={post.content || 'Post image'}
+                loading="lazy"
+                className="w-full h-full object-cover"
+              />
+>>>>>>> parent of 4be0fd5 (Update)
             )}
           </div>
         )}
+        {/* Actions */}
+        <div className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setShowComments(true)}
+                aria-label="Open comments"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-blue-500 transition-colors"
+              >
+                <MessageCircle className="h-6 w-6" />
+                <span className="text-sm">
+                  {post.comments?.toLocaleString?.() ?? 0}
+                </span>
+              </button>
 
+<<<<<<< HEAD
+=======
+              <button
+                aria-label="Repost"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Repeat className="h-6 w-6" />
+              </button>
+
+              <button
+                onClick={handleLike}
+                aria-label="Like post"
+                disabled={likesLoading}
+                className={`flex items-center gap-2 text-sm transition-colors ${
+                  isLikedPost
+                    ? 'text-red-500'
+                    : 'text-muted-foreground hover:text-red-500'
+                }`}
+              >
+                <Heart
+                  className={`h-6 w-6 ${isLikedPost ? 'fill-red-500' : ''}`}
+                />
+                <span className="text-sm">
+                  {likesCountPost?.toLocaleString?.() ?? (post.likes || 0)}
+                </span>
+              </button>
+
+              <button
+                onClick={handleShare}
+                aria-label="Share post"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-green-500 transition-colors"
+              >
+                <Share className="h-6 w-6" />
+              </button>
+            </div>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10"
+              onClick={handleBookmark}
+            >
+              <Bookmark
+                className={`h-6 w-6 transition-colors ${
+                  post.isBookmarked
+                    ? 'fill-yellow-500 text-yellow-500'
+                    : 'hover:text-yellow-500'
+                }`}
+              />
+            </Button>
+          </div>
+
+          {/* Likes Count */}
+          <div className="text-sm font-semibold">
+            {likesCountPost?.toLocaleString?.() ??
+              (post.likes || 0).toLocaleString()}{' '}
+            likes
+          </div>
+        </div>
+        {/* Hashtags */}
+>>>>>>> parent of 4be0fd5 (Update)
         {postTags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-2">
+          <div className="flex flex-wrap gap-2 mt-2">
             {postTags.map((tag: string, idx: number) => (
-              <span key={idx} className="text-sm text-primary font-semibold">
-                #{tag}
+              <span
+                key={idx}
+                className="text-xs text-primary bg-primary/10 rounded px-2 py-1 font-mono"
+              >
+                {tag}
               </span>
             ))}
           </div>
         )}
+        {/* Comment preview (latest) */}
+        {areCommentsLoading && (
+          <div className="mt-3 border-t pt-3 animate-pulse">
+            <div className="flex items-start gap-3">
+              <div className="h-8 w-8 bg-muted rounded-full" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 bg-muted rounded w-1/3" />
+                <div className="h-3 bg-muted rounded w-3/4" />
+              </div>
+            </div>
+          </div>
+        )}
+        {latestComment && (
+          <div className="mt-3 border-t pt-3 w-full flex items-start gap-3">
+            <button
+              onClick={() => setShowComments(true)}
+              className="flex items-start gap-3 flex-1 text-left"
+            >
+              <Avatar className="h-8 w-8">
+                <AvatarImage
+                  src={latestComment.user.avatar}
+                  alt={latestComment.user.displayName}
+                />
+                <AvatarFallback>
+                  {latestComment.user.displayName?.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
 
+<<<<<<< HEAD
         {post.comments > 0 && (
           <button
             className="text-sm text-muted-foreground hover:text-foreground mt-2"
@@ -308,6 +453,41 @@ export const PostCard = ({ post }: PostCardProps) => {
           >
             View all {post.comments} comments
           </button>
+=======
+              <div className="flex-1">
+                <div className="text-sm">
+                  <span className="font-semibold mr-2">
+                    {latestComment.user.displayName}
+                  </span>
+                  <span className="text-muted-foreground">
+                    @{latestComment.user.username}
+                  </span>
+                </div>
+                <div className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                  {latestComment.content}
+                </div>
+              </div>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!commentPreviewId) return;
+                  togglePreviewLike();
+                }}
+                className={`flex items-center gap-1 text-xs hover:text-foreground transition-colors ${
+                  previewIsLiked ? 'text-red-500' : 'text-muted-foreground'
+                }`}
+              >
+                <Heart
+                  className={`h-4 w-4 ${previewIsLiked ? 'fill-red-500' : ''}`}
+                />
+                <span className="text-xs">{previewLikesCount}</span>
+              </button>
+            </div>
+          </div>
+>>>>>>> parent of 4be0fd5 (Update)
         )}
       </div>
     </Card>

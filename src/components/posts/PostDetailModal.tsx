@@ -95,7 +95,7 @@ export const PostDetailModal = ({ post, isOpen, onClose }: PostDetailModalProps)
             <ScrollArea className="flex-1">
               <div className="p-4 space-y-4">
                 {/* Post Caption */}
-                <CommentItem comment={{ ...post, user: { ...post.profiles, displayName: post.profiles?.display_name || '' }, updated_at: post.created_at }} />
+                <CommentItem comment={{ ...post, user: { ...post.profiles, displayName: post.profiles?.display_name || '' } }} />
                 
                 {areCommentsLoading ? (
                   <div className="flex justify-center py-8">

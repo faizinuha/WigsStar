@@ -69,35 +69,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(true);
       const storedAccounts = getStoredAccounts();
       const activeId = getActiveAccountId();
-      let activeAccount = storedAccounts.find(acc => acc.user.id === activeId);
-
-      if (!activeAccount && storedAccounts.length > 0) {
-        activeAccount = storedAccounts[0];
-        setActiveAccountId(activeAccount.user.id);
-      }
+      const activeAccount = storedAccounts.find(acc => acc.user.id === activeId);
 
       if (activeAccount) {
         await supabase.auth.setSession(activeAccount.session);
-        const { data: { session: refreshedSession } } = await supabase.auth.getSession();
-
-        if (refreshedSession) {
-          setUser(refreshedSession.user);
-          setSession(refreshedSession);
-          const updatedAccounts = storedAccounts.map(acc => 
-            acc.user.id === refreshedSession.user.id ? { ...acc, session: refreshedSession } : acc
-          );
-          setStoredAccounts(updatedAccounts);
-          setAccounts(updatedAccounts);
-        } else {
-          await signOut(activeAccount.user.id);
-        }
+        setUser(activeAccount.user);
+        setSession(activeAccount.session);
+      } else if (storedAccounts.length > 0) {
+        const defaultAccount = storedAccounts[0];
+        setActiveAccountId(defaultAccount.user.id);
+        await supabase.auth.setSession(defaultAccount.session);
+        setUser(defaultAccount.user);
+        setSession(defaultAccount.session);
       } else {
         await supabase.auth.signOut();
         setUser(null);
         setSession(null);
       }
       
-      setAccounts(getStoredAccounts());
+      setAccounts(storedAccounts);
       setLoading(false);
     }
 
@@ -127,6 +117,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
             if (isNewLogin && session.refresh_token) {
                 console.log('Invoking log-session function (fire-and-forget)...');
+                // Fire-and-forget the function call, but handle potential errors in the background.
                 supabase.functions.invoke('log-session', {
                   body: { refreshToken: session.refresh_token },
                 }).then(({ error }) => {
@@ -195,11 +186,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const accounts = getStoredAccounts();
     const activeId = getActiveAccountId();
 
+    // Scenario 1: Remove a specific account from the list (e.g., from the Auth page).
     if (userIdToSignOut && accounts.some(acc => acc.user.id === userIdToSignOut)) {
       const updatedAccounts = accounts.filter(acc => acc.user.id !== userIdToSignOut);
       setStoredAccounts(updatedAccounts);
       setAccounts(updatedAccounts);
 
+      // If the removed account was the currently active one, clear the session.
       if (activeId === userIdToSignOut) {
         setUser(null);
         setSession(null);
@@ -207,14 +200,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
         await supabase.auth.signOut();
       }
     } else {
+      // Scenario 2: Standard logout for the current active user (e.g., from Settings page).
+      // This logs the user out but keeps their account in the list for easy re-login.
       setUser(null);
       setSession(null);
-      localStorage.removeItem(ACTIVE_ACCOUNT_ID_KEY);
+      localStorage.removeItem(ACTIVE_ACCOUNT_ID_KEY); // Forget which account was active.
       await supabase.auth.signOut();
 
+      // Redirect to the authentication page.
       if (navigate) {
         navigate('/auth');
       } else {
+        // Fallback to a hard reload if navigate function isn't provided.
         window.location.href = '/auth';
       }
     }
@@ -227,20 +224,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (targetAccount) {
         setLoading(true);
         setActiveAccountId(userId);
-        await supabase.auth.setSession(targetAccount.session);
-        const { data: { session: refreshedSession } } = await supabase.auth.getSession();
-
-        if (refreshedSession) {
-            setUser(refreshedSession.user);
-            setSession(refreshedSession);
-            const updatedAccounts = accounts.map(acc => 
-                acc.user.id === refreshedSession.user.id ? { ...acc, session: refreshedSession } : acc
-            );
-            setStoredAccounts(updatedAccounts);
-            setAccounts(updatedAccounts);
-        } else {
-            await signOut(userId);
+        const { error } = await supabase.auth.setSession(targetAccount.session);
+        if (error) {
+            console.error("Failed to switch session:", error);
         }
+        setUser(targetAccount.user);
+        setSession(targetAccount.session);
         setLoading(false);
     }
   };
