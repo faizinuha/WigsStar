@@ -10,7 +10,7 @@ import { formatDistanceToNow } from 'date-fns';
 
 // Import hooks and components needed for functionality
 import { useLikes } from "@/hooks/useLikes";
-import { usePostComments, useCreateComment, Comment } from "@/hooks/useComments";
+import { usePostComments as useComments, useCreateComment, Comment } from "@/hooks/useComments";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface PostDetailModalProps {
@@ -43,7 +43,7 @@ export const PostDetailModal = ({ post, isOpen, onClose }: PostDetailModalProps)
   // Hooks for functionality
   const postId = post?.id as string | undefined;
   const { isLiked, toggleLike, likesCount } = useLikes('post', postId);
-  const { data: comments = [], isLoading: areCommentsLoading } = usePostComments(postId);
+  const { data: comments = [], isLoading: areCommentsLoading } = useComments(postId);
   const { mutate: createComment, isPending: isCreatingComment } = useCreateComment();
 
   if (!post) return null;
@@ -70,7 +70,7 @@ export const PostDetailModal = ({ post, isOpen, onClose }: PostDetailModalProps)
           <div className="w-1/2 md:w-2/3 bg-black flex items-center justify-center h-full">
             <img 
               src={post.image_url} 
-              alt={`Post by ${post.profiles?.username}`}
+              alt={`Post by ${post.user.username}`}
               className="max-h-full max-w-full object-contain"
             />
           </div>
@@ -81,12 +81,12 @@ export const PostDetailModal = ({ post, isOpen, onClose }: PostDetailModalProps)
             <div className="p-4 border-b">
               <div className="flex items-center space-x-3">
                 <Avatar>
-                  <AvatarImage src={post.profiles?.avatar_url} />
-                  <AvatarFallback>{getInitials(post.profiles?.display_name || post.profiles?.username)}</AvatarFallback>
+                  <AvatarImage src={post.user.avatar} />
+                  <AvatarFallback>{getInitials(post.user.displayName || post.user.username)}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-semibold text-sm">{post.profiles?.display_name || post.profiles?.username}</p>
-                  <p className="text-xs text-muted-foreground">@{post.profiles?.username}</p>
+                  <p className="font-semibold text-sm">{post.user.displayName || post.user.username}</p>
+                  <p className="text-xs text-muted-foreground">@{post.user.username}</p>
                 </div>
               </div>
             </div>
@@ -95,7 +95,7 @@ export const PostDetailModal = ({ post, isOpen, onClose }: PostDetailModalProps)
             <ScrollArea className="flex-1">
               <div className="p-4 space-y-4">
                 {/* Post Caption */}
-                <CommentItem comment={{ ...post, user: { ...post.profiles, displayName: post.profiles?.display_name || '' } }} />
+                <CommentItem comment={{ ...post, user: post.user, content: post.content, created_at: post.created_at, id: `caption-${post.id}`, likes_count: 0 }} />
                 
                 {areCommentsLoading ? (
                   <div className="flex justify-center py-8">

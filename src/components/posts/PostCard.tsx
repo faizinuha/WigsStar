@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePostComments } from '@/hooks/useComments';
+import { usePostComments as useComments } from '@/hooks/useComments';
 import { useLikes } from '@/hooks/useLikes';
 import { useDeletePost } from '@/hooks/useProfile';
 import { usePostTags } from '@/hooks/useTags';
@@ -86,7 +86,7 @@ export const PostCard = ({ post }: PostCardProps) => {
   const deletePostMutation = useDeletePost();
 
   const { data: commentsForPost = [], isLoading: areCommentsLoading } =
-    usePostComments(post.id);
+    useComments(post.id);
 
   const latestComment = commentsForPost.length
     ? commentsForPost[commentsForPost.length - 1]
@@ -99,10 +99,7 @@ export const PostCard = ({ post }: PostCardProps) => {
     isLiked: isLikedPost = false,
     toggleLike: togglePostLike,
     loading: likesLoading,
-  } = useLikes('post', post.id, {
-    likesCount: post.likes,
-    isLiked: post.isLiked,
-  });
+  } = useLikes('post', post.id);
 
   const { data: postTags = [] } = usePostTags(post.id);
 
@@ -225,20 +222,26 @@ export const PostCard = ({ post }: PostCardProps) => {
 
       {/* Content: Media or Text */}
       {post.image_url ? (
-        <div className="aspect-square overflow-hidden bg-black">
-          {/(mp4|webm|mov)$/i.test(post.image_url) ? (
-            <video src={post.image_url} controls className="w-full h-full object-contain" />
+        <div className="aspect-square overflow-hidden bg-black flex items-center justify-center">
+          {post.media_type === 'video' ? (
+            <video
+              src={post.image_url}
+              controls
+              className="w-full h-full object-contain"
+            />
           ) : (
             <img
               src={post.image_url}
-              alt={post.content || 'Post image'}
-              className="w-full h-full object-cover"
+              alt={post.content || 'Post content'}
+              className="w-full h-full object-contain"
             />
           )}
         </div>
       ) : (
-        <div className="px-4 pb-2">
-          <p className="text-base whitespace-pre-wrap">{post.content}</p>
+        <div className="px-4 pb-2 min-h-[150px] flex items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10">
+          <p className="text-base text-center whitespace-pre-wrap p-4">
+            {post.content}
+          </p>
         </div>
       )}
 
@@ -255,8 +258,12 @@ export const PostCard = ({ post }: PostCardProps) => {
                   : 'text-muted-foreground hover:text-red-500'
               }`}
             >
-              <Heart className={`h-6 w-6 ${isLikedPost ? 'fill-red-500' : ''}`} />
-              <span className="font-semibold">{likesCountPost.toLocaleString()}</span>
+              <Heart
+                className={`h-6 w-6 ${isLikedPost ? 'fill-red-500' : ''}`}
+              />
+              <span className="font-semibold">
+                {likesCountPost.toLocaleString()}
+              </span>
             </button>
 
             <button
@@ -264,15 +271,27 @@ export const PostCard = ({ post }: PostCardProps) => {
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-blue-500 transition-colors"
             >
               <MessageCircle className="h-6 w-6" />
-              <span className="font-semibold">{post.comments?.toLocaleString() ?? 0}</span>
+              <span className="font-semibold">
+                {commentsForPost.length.toLocaleString()}
+              </span>
             </button>
 
-            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={handleShare}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10"
+              onClick={handleShare}
+            >
               <Share className="h-6 w-6 hover:text-green-500 transition-colors" />
             </Button>
           </div>
 
-          <Button variant="ghost" size="icon" className="h-10 w-10" onClick={handleBookmark}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10"
+            onClick={handleBookmark}
+          >
             <Bookmark
               className={`h-6 w-6 transition-colors ${
                 post.isBookmarked
@@ -314,15 +333,23 @@ export const PostCard = ({ post }: PostCardProps) => {
         )}
 
         {/* View Comments Link */}
-        {post.comments > 0 && (
+        {commentsForPost.length > 0 && (
           <button
             className="text-sm text-muted-foreground hover:text-foreground mt-2"
             onClick={() => setShowComments(true)}
           >
-            View all {post.comments} comments
+            View all {commentsForPost.length} comments
           </button>
         )}
       </div>
+      {showComments && (
+        <CommentSection
+          postId={post.id}
+          post={post}
+          onClose={() => setShowComments(false)}
+          isOpen={showComments}
+        />
+      )}
     </Card>
   );
 
@@ -336,13 +363,6 @@ export const PostCard = ({ post }: PostCardProps) => {
   return (
     <>
       <PostContent />
-      {post.id && (
-        <CommentSection
-          isOpen={showComments}
-          onClose={() => setShowComments(false)}
-          postId={post.id}
-        />
-      )}
       {isEditModalOpen && (
         <EditPostModal
           isOpen={isEditModalOpen}

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 type LikeableEntity = 'post' | 'comment' | 'meme';
 
-export function useLikes(entity: LikeableEntity, entityId: string) {
+export function useLikes(entity: LikeableEntity, entityId: string | undefined) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 

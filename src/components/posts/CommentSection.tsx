@@ -1,31 +1,81 @@
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2 } from "lucide-react";
-import { usePostComments, useMemeComments, useCreateComment } from "@/hooks/useComments";
-import { useAuth } from "@/contexts/AuthContext";
-import { CommentItem } from "./CommentItem";
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  useCreateComment,
+  useMemeComments,
+  usePostComments,
+} from '@/hooks/useComments';
+import { Loader2, Play, Send } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { CommentItem } from './CommentItem';
 
+interface Post {
+  id: string;
+  user_id: string;
+  content: string;
+  image_url?: string;
+  created_at: string;
+  likes: number;
+  comments: number;
+  isLiked: boolean;
+  isBookmarked: boolean;
+  location?: string;
+  user: {
+    username: string;
+    displayName: string;
+    avatar: string;
+  };
+  media_type?: string; // Tambahkan media_type
+}
 interface CommentSectionProps {
   isOpen: boolean;
   onClose: () => void;
   postId?: string;
   memeId?: string;
+  post?: Post; // Tambahkan prop post
 }
 
-export const CommentSection = ({ isOpen, onClose, postId, memeId }: CommentSectionProps) => {
+export const CommentSection = ({
+  isOpen,
+  onClose,
+  postId,
+  memeId,
+  post,
+}: CommentSectionProps) => {
   const { user } = useAuth();
-  const [newComment, setNewComment] = useState("");
-  
-  const { data: postComments = [], isLoading: isLoadingPostComments } = usePostComments(postId || "");
-  const { data: memeComments = [], isLoading: isLoadingMemeComments } = useMemeComments(memeId || "");
-  const { mutate: createComment, isPending: isCreatingComment } = useCreateComment();
+  const [newComment, setNewComment] = useState('');
+  const [isPlaying, setIsPlaying] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const { data: postComments = [], isLoading: isLoadingPostComments } =
+    usePostComments(postId || '');
+  const { data: memeComments = [], isLoading: isLoadingMemeComments } =
+    useMemeComments(memeId || '');
+  const { mutate: createComment, isPending: isCreatingComment } =
+    useCreateComment();
 
   const comments = postId ? postComments : memeComments;
   const isLoading = postId ? isLoadingPostComments : isLoadingMemeComments;
+
+  // Reset video state when dialog closes or post changes
+  useEffect(() => {
+    if (isOpen) {
+      setIsPlaying(true); // Auto-play when opened
+    } else {
+      // When dialog closes, pause the video
+      videoRef.current?.pause();
+      setIsPlaying(false);
+    }
+  }, [isOpen, post]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +89,7 @@ export const CommentSection = ({ isOpen, onClose, postId, memeId }: CommentSecti
       },
       {
         onSuccess: () => {
-          setNewComment("");
+          setNewComment('');
         },
       }
     );
@@ -53,7 +103,9 @@ export const CommentSection = ({ isOpen, onClose, postId, memeId }: CommentSecti
             <DialogTitle>Comments</DialogTitle>
           </DialogHeader>
           <div className="text-center py-8">
-            <p className="text-muted-foreground">Please log in to view and add comments.</p>
+            <p className="text-muted-foreground">
+              Please log in to view and add comments.
+            </p>
           </div>
         </DialogContent>
       </Dialog>
@@ -62,63 +114,116 @@ export const CommentSection = ({ isOpen, onClose, postId, memeId }: CommentSecti
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Comments</DialogTitle>
-        </DialogHeader>
-
-        <ScrollArea className="flex-1 max-h-96">
-          <div className="space-y-6 pr-4">
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
-              </div>
-            ) : comments.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No comments yet. Be the first to comment!</p>
-              </div>
-            ) : (
-              comments.map((comment) => (
-                <CommentItem
-                  key={comment.id}
-                  comment={comment}
-                  postId={postId}
-                  memeId={memeId}
-                />
-              ))
-            )}
-          </div>
-        </ScrollArea>
-
-        {/* Add Comment Form */}
-        <form onSubmit={handleSubmit} className="flex gap-3 pt-4 border-t">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={user?.user_metadata?.avatar_url} />
-            <AvatarFallback className="text-sm">
-              {user?.user_metadata?.display_name?.[0] || user?.email?.[0] || "U"}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 flex gap-2">
-            <Input
-              placeholder="Write a comment..."
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              className="flex-1"
-              disabled={isCreatingComment}
-            />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={!newComment.trim() || isCreatingComment}
-            >
-              {isCreatingComment ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+      <DialogContent className="max-w-4xl md:max-w-5xl lg:max-w-6xl h-[90vh] p-0 gap-0">
+        <div className="flex h-full flex-col md:flex-row">
+          {/* Kolom Kiri: Gambar Postingan */}
+          {post?.image_url && (
+            <div className="w-full md:w-2/3 bg-black flex items-center justify-center h-1/2 md:h-full relative group">
+              {post.media_type === 'video' ? (
+                <>
+                  <video
+                    ref={videoRef}
+                    src={post.image_url}
+                    className="max-h-full max-w-full object-contain cursor-pointer"
+                    autoPlay
+                    loop
+                    muted
+                    onClick={() => {
+                      if (videoRef.current?.paused) {
+                        videoRef.current?.play();
+                        setIsPlaying(true);
+                      } else {
+                        videoRef.current?.pause();
+                        setIsPlaying(false);
+                      }
+                    }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all pointer-events-none">
+                    {!isPlaying && (
+                      <div className="bg-black/50 rounded-full p-4">
+                        <Play className="h-12 w-12 text-white fill-white" />
+                      </div>
+                    )}
+                  </div>
+                </>
               ) : (
-                <Send className="h-4 w-4" />
+                <img
+                  src={post.image_url}
+                  className="max-h-full max-w-full object-contain"
+                  alt="Post content"
+                />
               )}
-            </Button>
+            </div>
+          )}
+
+          {/* Kolom Kanan: Komentar dan Detail */}
+          <div
+            className={`flex flex-col h-full min-h-0 ${
+              post?.image_url ? 'w-full md:w-1/3' : 'w-full'
+            }`}
+          >
+            <DialogHeader className="p-4 border-b">
+              <DialogTitle>Comments</DialogTitle>
+            </DialogHeader>
+
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="space-y-6 p-4">
+                {isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : comments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">
+                      No comments yet. Be the first to comment!
+                    </p>
+                  </div>
+                ) : (
+                  comments.map((comment) => (
+                    <CommentItem
+                      key={comment.id}
+                      comment={comment}
+                      postId={postId}
+                      memeId={memeId}
+                    />
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+
+            {/* Form Tambah Komentar */}
+            <form onSubmit={handleSubmit} className="flex gap-3 p-4 border-t">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user?.user_metadata?.avatar_url} />
+                <AvatarFallback className="text-sm">
+                  {user?.user_metadata?.display_name?.[0] ||
+                    user?.email?.[0] ||
+                    'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 flex gap-2">
+                <Input
+                  placeholder="Write a comment..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  className="flex-1"
+                  disabled={isCreatingComment}
+                />
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={!newComment.trim() || isCreatingComment}
+                >
+                  {isCreatingComment ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </form>
           </div>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

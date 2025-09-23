@@ -43,7 +43,7 @@ export const EditPostModal = ({
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      content: post.content,
+      content: post?.content || '',
     },
   });
 
