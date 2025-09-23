@@ -92,19 +92,17 @@ export const PostCard = ({ post }: PostCardProps) => {
     ? commentsForPost[commentsForPost.length - 1]
     : null;
   const commentPreviewId = latestComment?.id as string | undefined;
-  const {
-    likesCount: previewLikesCount = 0,
-    isLiked: previewIsLiked = false,
-    toggleLike: togglePreviewLike,
-    loading: previewLikesLoading,
-  } = useLikes('comment', commentPreviewId);
+  useLikes('comment', commentPreviewId);
 
   const {
     likesCount: likesCountPost = 0,
     isLiked: isLikedPost = false,
     toggleLike: togglePostLike,
     loading: likesLoading,
-  } = useLikes('post', post.id);
+  } = useLikes('post', post.id, {
+    likesCount: post.likes,
+    isLiked: post.isLiked,
+  });
 
   const { data: postTags = [] } = usePostTags(post.id);
 
@@ -166,7 +164,7 @@ export const PostCard = ({ post }: PostCardProps) => {
   const isOwnPost = currentUser?.id === post.user_id;
 
   const PostContent = () => (
-    <Card className="post-card bg-card animate-fade-in border-b-2">
+    <Card className="post-card bg-card border-b-2">
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center space-x-3">
           <Avatar className="h-10 w-10 ring-2 ring-primary/20">
@@ -174,10 +172,6 @@ export const PostCard = ({ post }: PostCardProps) => {
             <AvatarFallback>{post.user.displayName?.charAt(0)}</AvatarFallback>
           </Avatar>
           <div>
-            <div className="flex items-center gap-2">
-              <p className="font-semibold text-sm">{post.user.displayName}</p>
-              <Laugh className="h-4 w-4 text-primary" />
-            </div>
             <div className="flex items-center gap-2">
               <p className="font-semibold text-sm">{post.user.displayName}</p>
               <Laugh className="h-4 w-4 text-primary" />
@@ -213,12 +207,6 @@ export const PostCard = ({ post }: PostCardProps) => {
               <DropdownMenuItem>Follow @{post.user.username}</DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleCopyLink}>
-              Copy link
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleShare}>
-              Share to...
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={handleCopyLink}>
               Copy link
             </DropdownMenuItem>

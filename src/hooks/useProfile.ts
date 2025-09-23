@@ -63,6 +63,43 @@ export function useProfile(userId?: string) {
         .single();
 
       if (error) throw error;
+
+      if (data) {
+        const processUrl = async (url: string | undefined | null): Promise<string | undefined | null> => {
+            if (!url) return null;
+
+            // If it's an external URL (e.g., Google), not a Supabase storage URL, leave it as is.
+            if (url.startsWith('http') && !url.includes('ogbzhbwfucgjiafhsxab.supabase.co')) {
+                return url;
+            }
+
+            // It's either a path or a Supabase URL. Let's get the path.
+            let path = url;
+            if (url.startsWith('http')) {
+                try {
+                    const urlObject = new URL(url);
+                    const pathParts = urlObject.pathname.split('/avatars/');
+                    if (pathParts.length > 1) {
+                        path = pathParts[1];
+                    } else {
+                        return url; // Cannot extract path
+                    }
+                } catch (e) {
+                    return url; // Not a valid URL
+                }
+            }
+
+            const { data: signedUrlData } = await supabase.storage
+                .from('avatars')
+                .createSignedUrl(path, 99999999); // 1 year
+            
+            return signedUrlData ? signedUrlData.signedUrl : url;
+        };
+
+        data.avatar_url = await processUrl(data.avatar_url) || data.avatar_url;
+        data.cover_img = await processUrl(data.cover_img) || data.cover_img;
+      }
+
       return data as Profile;
     },
     enabled: !!targetUserId,
@@ -83,6 +120,43 @@ export function useProfileByUsername(username?: string) {
         .single();
 
       if (error) throw error;
+
+      if (data) {
+        const processUrl = async (url: string | undefined | null): Promise<string | undefined | null> => {
+            if (!url) return null;
+
+            // If it's an external URL (e.g., Google), not a Supabase storage URL, leave it as is.
+            if (url.startsWith('http') && !url.includes('ogbzhbwfucgjiafhsxab.supabase.co')) {
+                return url;
+            }
+
+            // It's either a path or a Supabase URL. Let's get the path.
+            let path = url;
+            if (url.startsWith('http')) {
+                try {
+                    const urlObject = new URL(url);
+                    const pathParts = urlObject.pathname.split('/avatars/');
+                    if (pathParts.length > 1) {
+                        path = pathParts[1];
+                    } else {
+                        return url; // Cannot extract path
+                    }
+                } catch (e) {
+                    return url; // Not a valid URL
+                }
+            }
+
+            const { data: signedUrlData } = await supabase.storage
+                .from('avatars')
+                .createSignedUrl(path, 99999999); // 1 year
+            
+            return signedUrlData ? signedUrlData.signedUrl : url;
+        };
+
+        data.avatar_url = await processUrl(data.avatar_url) || data.avatar_url;
+        data.cover_img = await processUrl(data.cover_img) || data.cover_img;
+      }
+
       return data as Profile;
     },
     enabled: !!username,
@@ -145,24 +219,54 @@ export function useAllPosts() {
 
       if (error) throw error;
 
-      return data.map((post: any) => ({
-        id: post.id,
-        content: post.caption || '',
-        location: post.location,
-        created_at: post.created_at,
-        likes: post.likes_count || 0,
-        comments: post.comments_count || 0,
-        isLiked: post.user_likes.some((like: { user_id: string }) => like.user_id === user?.id),
-        isBookmarked: false, // TODO: Implement bookmark logic
-        image_url: post.post_media?.[0]?.media_url,
-        media_type: post.post_media?.[0]?.media_type,
-        user: {
-          username: post.profiles?.username || '',
-          displayName: post.profiles?.display_name || post.profiles?.username || '',
-          avatar: post.profiles?.avatar_url || '',
-        },
-        user_id: post.user_id,
-      })) as Post[];
+      const processUrl = async (url: string | undefined | null): Promise<string | undefined | null> => {
+        if (!url) return null;
+        if (url.startsWith('http') && !url.includes('ogbzhbwfucgjiafhsxab.supabase.co')) {
+            return url;
+        }
+        let path = url;
+        if (url.startsWith('http')) {
+            try {
+                const urlObject = new URL(url);
+                const pathParts = urlObject.pathname.split('/avatars/');
+                if (pathParts.length > 1) {
+                    path = pathParts[1];
+                } else {
+                    return url;
+                }
+            } catch (e) {
+                return url;
+            }
+        }
+        const { data: signedUrlData } = await supabase.storage
+            .from('avatars')
+            .createSignedUrl(path, 99999999);
+        return signedUrlData ? signedUrlData.signedUrl : url;
+      };
+
+      const processedData = await Promise.all(data.map(async (post: any) => {
+        const avatarUrl = await processUrl(post.profiles?.avatar_url);
+        return {
+          id: post.id,
+          content: post.caption || '',
+          location: post.location,
+          created_at: post.created_at,
+          likes: post.likes_count || 0,
+          comments: post.comments_count || 0,
+          isLiked: post.user_likes.some((like: { user_id: string }) => like.user_id === user?.id),
+          isBookmarked: false, // TODO: Implement bookmark logic
+          image_url: post.post_media?.[0]?.media_url,
+          media_type: post.post_media?.[0]?.media_type,
+          user: {
+            username: post.profiles?.username || '',
+            displayName: post.profiles?.display_name || post.profiles?.username || '',
+            avatar: avatarUrl || '',
+          },
+          user_id: post.user_id,
+        }
+      }));
+
+      return processedData as Post[];
     },
   });
 }
