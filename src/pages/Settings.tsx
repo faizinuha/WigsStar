@@ -1,3 +1,4 @@
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { Navigation } from '@/components/layout/Navigation';
 import {
   AlertDialog,
@@ -35,19 +36,27 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useMfa } from './useMfa';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
 import supabase from '@/lib/supabase.ts';
 import { Factor } from '@supabase/supabase-js';
 import { useQuery } from '@tanstack/react-query';
-import { Camera, Loader2, LogOut, Mail, ShieldAlert, Sun, Moon, Laptop, Github } from 'lucide-react';
+import {
+  Camera,
+  Github,
+  Laptop,
+  Loader2,
+  Mail,
+  Moon,
+  ShieldAlert,
+  Sun,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { useNavigate } from 'react-router-dom';
+import { useMfa } from './useMfa';
 
 interface UserSettings {
   notifications_enabled: boolean;
@@ -146,7 +155,8 @@ export const Settings = () => {
         if (Array.isArray(identities) && identities.length > 0) {
           // identities items have provider field
           identities.forEach((id: any) => {
-            if (id.provider && !providers.includes(id.provider)) providers.push(id.provider);
+            if (id.provider && !providers.includes(id.provider))
+              providers.push(id.provider);
           });
         } else if ((user as any)?.app_metadata?.provider) {
           const p = (user as any).app_metadata.provider;
@@ -160,7 +170,9 @@ export const Settings = () => {
     };
 
     fetchProviders();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [user]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -305,9 +317,16 @@ export const Settings = () => {
     // a service-role function. This initiates OAuth sign-in which the user can
     // complete; afterwards they may need to contact support to merge accounts if a new account is created.
     try {
-      await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: `${siteUrl}/settings?linked_oauth=1` } });
+      await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: `${siteUrl}/settings?linked_oauth=1` },
+      });
     } catch (error: any) {
-      toast({ title: 'Error starting OAuth', description: error.message, variant: 'destructive' });
+      toast({
+        title: 'Error starting OAuth',
+        description: error.message,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -320,14 +339,23 @@ export const Settings = () => {
     if (!linkEmailValue || !user) return;
     try {
       // Update current user's email (this keeps the same account) and then send a password reset so user can set a password for email login
-      const { error: updateError } = await supabase.auth.updateUser({ email: linkEmailValue });
+      const { error: updateError } = await supabase.auth.updateUser({
+        email: linkEmailValue,
+      });
       if (updateError) throw updateError;
 
       // Send password reset to allow setting password
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(linkEmailValue, { redirectTo: `${siteUrl}/auth?mode=reset` });
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        linkEmailValue,
+        { redirectTo: `${siteUrl}/auth?mode=reset` }
+      );
       if (resetError) throw resetError;
 
-      toast({ title: 'Email linked', description: 'Password reset sent to the email. Use it to set a password.' });
+      toast({
+        title: 'Email linked',
+        description:
+          'Password reset sent to the email. Use it to set a password.',
+      });
       setShowLinkEmailDialog(false);
       // Refresh providers list
       const { data } = await supabase.auth.getUser();
@@ -338,7 +366,11 @@ export const Settings = () => {
       if (Array.isArray(ids)) ids.forEach((i: any) => provs.push(i.provider));
       setLinkedProviders(provs);
     } catch (err: any) {
-      toast({ title: 'Error linking email', description: err.message, variant: 'destructive' });
+      toast({
+        title: 'Error linking email',
+        description: err.message,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -393,9 +425,7 @@ export const Settings = () => {
           <Card>
             <CardHeader>
               <CardTitle>{t('profileInfo')}</CardTitle>
-              <CardDescription>
-                {t('profileInfoDescription')}
-              </CardDescription>
+              <CardDescription>{t('profileInfoDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center gap-4">
@@ -476,9 +506,7 @@ export const Settings = () => {
           <Card>
             <CardHeader>
               <CardTitle>{t('language')}</CardTitle>
-              <CardDescription>
-                {t('languageDescription')}
-              </CardDescription>
+              <CardDescription>{t('languageDescription')}</CardDescription>
             </CardHeader>
             <CardContent>
               <LanguageSwitcher />
@@ -489,9 +517,7 @@ export const Settings = () => {
           <Card>
             <CardHeader>
               <CardTitle>{t('theme')}</CardTitle>
-              <CardDescription>
-                {t('themeDescription')}
-              </CardDescription>
+              <CardDescription>{t('themeDescription')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
@@ -715,18 +741,27 @@ export const Settings = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Anda saat ini masuk dengan{' '}
+              <p className="text-sm text-muted-foreground">
+                Anda saat ini masuk dengan{' '}
                 <span className="font-semibold capitalize text-primary">
                   {user?.app_metadata.provider || 'email'}
                 </span>
-              .
-            </p>
+                .
+              </p>
               <div className="space-y-2">
                 {[
-                  { provider: 'google', icon: <img src="/assets/icons/google.svg" alt="Google" className="w-5 h-5" /> },
+                  {
+                    provider: 'google',
+                    icon: (
+                      <img
+                        src="/assets/icons/google.svg"
+                        alt="Google"
+                        className="w-5 h-5"
+                      />
+                    ),
+                  },
                   { provider: 'github', icon: <Github className="w-5 h-5" /> },
-                  { provider: 'email', icon: <Mail className="w-5 h-5" /> }
+                  { provider: 'email', icon: <Mail className="w-5 h-5" /> },
                 ].map(({ provider, icon }) => {
                   const isLinked = linkedProviders.includes(provider);
 
@@ -737,7 +772,9 @@ export const Settings = () => {
                     >
                       <div className="flex items-center gap-3">
                         {icon}
-                        <span className="font-medium capitalize">{provider}</span>
+                        <span className="font-medium capitalize">
+                          {provider}
+                        </span>
                       </div>
                       {isLinked ? (
                         <Button variant="outline" size="sm" disabled>
@@ -750,7 +787,10 @@ export const Settings = () => {
                           onClick={() => {
                             if (provider === 'email') {
                               handleOpenLinkEmail();
-                            } else if (provider === 'google' || provider === 'github') {
+                            } else if (
+                              provider === 'google' ||
+                              provider === 'github'
+                            ) {
                               handleLinkOAuth(provider as 'google' | 'github');
                             }
                           }}

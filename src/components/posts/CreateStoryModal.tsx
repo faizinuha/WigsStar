@@ -1,17 +1,25 @@
-import { useState, useRef } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useCreateStory } from "@/hooks/useStories";
-import { Camera, Upload, X } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/use-toast';
+import { useCreateStory } from '@/hooks/useStories';
+import { Camera, Loader2, Upload, X } from 'lucide-react';
+import { useRef, useState } from 'react';
 
 interface CreateStoryModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export const CreateStoryModal = ({ isOpen, onClose }: CreateStoryModalProps) => {
+export const CreateStoryModal = ({
+  isOpen,
+  onClose,
+}: CreateStoryModalProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -21,18 +29,19 @@ export const CreateStoryModal = ({ isOpen, onClose }: CreateStoryModalProps) => 
   const handleFileSelect = (file: File) => {
     if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
       toast({
-        title: "Invalid file type",
-        description: "Please select an image or video file",
-        variant: "destructive",
+        title: 'Invalid file type',
+        description: 'Please select an image or video file',
+        variant: 'destructive',
       });
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+    if (file.size > 10 * 1024 * 1024) {
+      // 10MB limit
       toast({
-        title: "File too large",
-        description: "Please select a file smaller than 10MB",
-        variant: "destructive",
+        title: 'File too large',
+        description: 'Please select a file smaller than 10MB',
+        variant: 'destructive',
       });
       return;
     }
@@ -53,16 +62,16 @@ export const CreateStoryModal = ({ isOpen, onClose }: CreateStoryModalProps) => 
       {
         onSuccess: () => {
           toast({
-            title: "Story created!",
-            description: "Your story has been shared successfully",
+            title: 'Story created!',
+            description: 'Your story has been shared successfully',
           });
           handleClose();
         },
         onError: (error) => {
           toast({
-            title: "Error creating story",
+            title: 'Error creating story',
             description: error.message,
-            variant: "destructive",
+            variant: 'destructive',
           });
         },
       }
@@ -163,7 +172,14 @@ export const CreateStoryModal = ({ isOpen, onClose }: CreateStoryModalProps) => 
                   onClick={handleSubmit}
                   disabled={isPending}
                 >
-                  {isPending ? "Posting..." : "Share Story"}
+                  {isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />{' '}
+                      Posting...
+                    </>
+                  ) : (
+                    'Share Story'
+                  )}
                 </Button>
               </div>
             </div>

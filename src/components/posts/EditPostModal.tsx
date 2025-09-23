@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -6,9 +6,21 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { useUpdatePost, Post } from "@/hooks/usePosts";
+} from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/components/ui/use-toast';
+import { Post, useUpdatePost } from '@/hooks/usePosts';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
 interface EditPostModalProps {
   post: Post;
@@ -17,10 +29,14 @@ interface EditPostModalProps {
 }
 
 const formSchema = z.object({
-  content: z.string().min(1, "Post content cannot be empty.").max(1000),
+  content: z.string().min(1, 'Post content cannot be empty.').max(1000),
 });
 
-export const EditPostModal = ({ post, isOpen, onClose }: EditPostModalProps) => {
+export const EditPostModal = ({
+  post,
+  isOpen,
+  onClose,
+}: EditPostModalProps) => {
   const { toast } = useToast();
   const updatePostMutation = useUpdatePost();
 
@@ -37,13 +53,13 @@ export const EditPostModal = ({ post, isOpen, onClose }: EditPostModalProps) => 
         postId: post.id,
         content: values.content,
       });
-      toast({ title: "Success", description: "Post updated successfully." });
+      toast({ title: 'Success', description: 'Post updated successfully.' });
       onClose();
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to update post. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to update post. Please try again.',
+        variant: 'destructive',
       });
     }
   };
@@ -58,7 +74,10 @@ export const EditPostModal = ({ post, isOpen, onClose }: EditPostModalProps) => 
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-4 py-4"
+          >
             <FormField
               control={form.control}
               name="content"
@@ -79,9 +98,9 @@ export const EditPostModal = ({ post, isOpen, onClose }: EditPostModalProps) => 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
-              </Button>
-              <Button type="submit" disabled={updatePostMutation.isLoading}>
-                {updatePostMutation.isLoading ? "Saving..." : "Save Changes"}
+              </Button>{' '}
+              <Button type="submit" disabled={updatePostMutation.isPending}>
+                {updatePostMutation.isPending ? 'Saving...' : 'Save Changes'}
               </Button>
             </DialogFooter>
           </form>
