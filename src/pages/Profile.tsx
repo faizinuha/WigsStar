@@ -1,42 +1,6 @@
-import { useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import {
-  MoreHorizontal,
-  Grid3X3,
-  Bookmark,
-  Heart,
-  MessageCircle,
-  MapPin,
-  Link as LinkIcon,
-  Calendar,
-  Lock,
-  Camera,
-} from 'lucide-react';
-import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
-import {
-  useUserPosts,
-  useDeletePost,
-  Post,
-  useTogglePostLike,
-} from '@/hooks/usePosts';
-import supabase from '@/lib/supabase.ts';
-import { useFollowStatus, useToggleFollow } from '@/hooks/useFollow';
-import { useAuth } from '@/contexts/AuthContext';
 import { Navigation } from '@/components/layout/Navigation';
-import { PostGrid } from '@/components/posts/PostGrid';
 import { PostDetailModal } from '@/components/posts/PostDetailModal';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { format } from 'date-fns';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { PostGrid } from '@/components/posts/PostGrid';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,7 +11,44 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/contexts/AuthContext';
+import { useFollowStatus, useToggleFollow } from '@/hooks/useFollow';
+import {
+  Post,
+  useDeletePost,
+  useTogglePostLike,
+  useUserPosts,
+} from '@/hooks/usePosts';
+import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
+import supabase from '@/lib/supabase.ts';
 import { useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
+import {
+  Bookmark,
+  Calendar,
+  Camera,
+  Grid3X3,
+  Heart,
+  Link as LinkIcon,
+  Lock,
+  MapPin,
+  MessageCircle,
+  MoreHorizontal,
+} from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { useBookmarks } from '../hooks/useBookmarks';
 
 const PostCard = ({ post, authUser }) => {
   const [isLiked, setIsLiked] = useState(post.isLiked);
@@ -180,6 +181,7 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
   const { data: isFollowing = false, isLoading: followLoading } =
     useFollowStatus(profile?.user_id || '');
   const { mutate: toggleFollow } = useToggleFollow();
+  const { bookmarks, isLoading: bookmarksLoading } = useBookmarks();
 
   const pageLoading = isLoading || postsLoading || followLoading;
 
@@ -208,6 +210,10 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
         timestamp: format(new Date(post.created_at), 'PP'),
       }))
     : [];
+
+  const bookmarkedPosts = userPosts.filter((post) =>
+    bookmarks?.some((bookmark) => bookmark.post_id === post.id)
+  );
 
   const isOwnProfile = authUser?.id === profile?.user_id;
   const showContent = !profile.is_private || isOwnProfile || isFollowing;
@@ -254,7 +260,13 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
                       if (!file || !authUser) return;
 
                       const localImageUrl = URL.createObjectURL(file);
-                      queryClient.setQueryData(['profile', authUser.id], (oldData: any) => oldData ? { ...oldData, cover_img: localImageUrl } : oldData);
+                      queryClient.setQueryData(
+                        ['profile', authUser.id],
+                        (oldData: any) =>
+                          oldData
+                            ? { ...oldData, cover_img: localImageUrl }
+                            : oldData
+                      );
 
                       try {
                         const ext = file.name.split('.').pop();
@@ -268,11 +280,13 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
                         await updateProfile({ cover_img: filePath });
                       } catch (err) {
                         console.error('Cover upload failed', err);
-                        queryClient.invalidateQueries({ queryKey: ['profile', authUser.id] });
+                        queryClient.invalidateQueries({
+                          queryKey: ['profile', authUser.id],
+                        });
                       } finally {
                         URL.revokeObjectURL(localImageUrl);
                         if (e.target) {
-                            (e.target as HTMLInputElement).value = '';
+                          (e.target as HTMLInputElement).value = '';
                         }
                       }
                     }}
@@ -320,7 +334,13 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
                             if (!file || !authUser) return;
 
                             const localImageUrl = URL.createObjectURL(file);
-                            queryClient.setQueryData(['profile', authUser.id], (oldData: any) => oldData ? { ...oldData, avatar_url: localImageUrl } : oldData);
+                            queryClient.setQueryData(
+                              ['profile', authUser.id],
+                              (oldData: any) =>
+                                oldData
+                                  ? { ...oldData, avatar_url: localImageUrl }
+                                  : oldData
+                            );
 
                             try {
                               const ext = file.name.split('.').pop();
@@ -335,7 +355,9 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
                               await updateProfile({ avatar_url: filePath });
                             } catch (err) {
                               console.error('Avatar upload failed', err);
-                              queryClient.invalidateQueries({ queryKey: ['profile', authUser.id] });
+                              queryClient.invalidateQueries({
+                                queryKey: ['profile', authUser.id],
+                              });
                             } finally {
                               URL.revokeObjectURL(localImageUrl);
                               if (e.target) {
@@ -519,15 +541,22 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
             </TabsContent>
 
             <TabsContent value="saved" className="space-y-6">
-              <div className="text-center py-12">
-                <Bookmark className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">
-                  No saved posts yet
-                </h3>
-                <p className="text-muted-foreground">
-                  Posts you save will appear here for easy access later.
-                </p>
-              </div>
+              {bookmarkedPosts.length > 0 ? (
+                <PostGrid
+                  posts={bookmarkedPosts}
+                  onPostClick={(post) => setSelectedPost(post)}
+                />
+              ) : (
+                <div className="text-center py-12">
+                  <Bookmark className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">
+                    No saved posts yet
+                  </h3>
+                  <p className="text-muted-foreground">
+                    Posts you save will appear here for easy access later.
+                  </p>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="liked" className="space-y-6">

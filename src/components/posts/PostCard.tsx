@@ -7,11 +7,14 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useToast } from '@/components/ui/use-toast';
+} from '@/components/ui/dropdown-menu';// src/hooks/useBookmarks.ts
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import supabase from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/components/ui/use-toast';
 import { usePostComments as useComments } from '@/hooks/useComments';
 import { useLikes } from '@/hooks/useLikes';
+import { useBookmarks } from '@/hooks/useBookmarks';
 import { useDeletePost } from '@/hooks/useProfile';
 import { usePostTags } from '@/hooks/useTags';
 import {
@@ -20,10 +23,11 @@ import {
   Laugh,
   MessageCircle,
   MoreHorizontal,
+  Play,
   Repeat,
   Share,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { CommentSection } from './CommentSection';
 import { EditPostModal } from './EditPostModal';
 
@@ -43,6 +47,7 @@ interface Post {
     displayName: string;
     avatar: string;
   };
+  media_type?: string;
   repost_by?: {
     username: string;
     displayName: string;
@@ -101,11 +106,43 @@ export const PostCard = ({ post }: PostCardProps) => {
     loading: likesLoading,
   } = useLikes('post', post.id);
 
+  const {
+    bookmarks,
+    isLoading: bookmarksLoading,
+    createBookmark,
+    deleteBookmark,
+  } = useBookmarks();
+  const isBookmarked = bookmarks?.some((bookmark) => bookmark.post_id === post.id) || false;
+
   const { data: postTags = [] } = usePostTags(post.id);
 
   const [showFullCaption, setShowFullCaption] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Efek untuk memastikan video di-pause saat tidak terlihat (misal: scroll)
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) {
+          videoRef.current?.pause();
+          setIsVideoPlaying(false);
+        }
+      }, { threshold: 0.5 }
+    );
+
+    if (videoRef.current) {
+      observer.observe(videoRef.current);
+    }
+
+    return () => {
+      if (videoRef.current) {
+        observer.unobserve(videoRef.current);
+      }
+    };
+  }, []);
 
   const handleLike = () => {
     if (!currentUser) {
@@ -119,8 +156,23 @@ export const PostCard = ({ post }: PostCardProps) => {
     togglePostLike();
   };
 
-  const handleBookmark = () => {
-    // bookmark persistence TODO
+  const handleBookmark = async () => {
+    if (!currentUser) {
+      toast({
+        title: 'Login required',
+        description: 'You need to be logged in to bookmark posts.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (isBookmarked) {
+      await deleteBookmark.mutateAsync(post.id);
+      toast({ title: 'Bookmark removed' });
+    } else {
+      await createBookmark.mutateAsync(post.id);
+      toast({ title: 'Post saved to bookmarks' });
+    }
   };
 
   const handleDelete = async () => {
@@ -222,13 +274,35 @@ export const PostCard = ({ post }: PostCardProps) => {
 
       {/* Content: Media or Text */}
       {post.image_url ? (
-        <div className="aspect-square overflow-hidden bg-black flex items-center justify-center">
+        <div className="aspect-square overflow-hidden bg-black flex items-center justify-center relative group">
           {post.media_type === 'video' ? (
-            <video
-              src={post.image_url}
-              controls
-              className="w-full h-full object-contain"
-            />
+            <>
+              <video
+                ref={videoRef}
+                src={post.image_url}
+                loop
+                muted
+                autoPlay
+                playsInline
+                className="w-full h-full object-contain cursor-pointer"
+                onClick={() => {
+                  if (videoRef.current?.paused) {
+                    videoRef.current?.play();
+                    setIsVideoPlaying(true);
+                  } else {
+                    videoRef.current?.pause();
+                    setIsVideoPlaying(false);
+                  }
+                }}
+              />
+              {!isVideoPlaying && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40 pointer-events-none">
+                  <div className="bg-black/50 rounded-full p-3">
+                    <Play className="h-10 w-10 text-white fill-white" />
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <img
               src={post.image_url}
@@ -291,10 +365,11 @@ export const PostCard = ({ post }: PostCardProps) => {
             size="icon"
             className="h-10 w-10"
             onClick={handleBookmark}
+            disabled={bookmarksLoading}
           >
             <Bookmark
               className={`h-6 w-6 transition-colors ${
-                post.isBookmarked
+                isBookmarked
                   ? 'fill-yellow-500 text-yellow-500'
                   : 'hover:text-yellow-500'
               }`}
