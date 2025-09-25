@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Github, Chrome } from "lucide-react";
+import { DiscordIcon } from "../components/ui/icons/DiscordIcon";
+import { SpotifyIcon } from "../components/ui/icons/SpotifyIcon";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "../contexts/AuthContext";
 import { DisplayNameField, EmailField, PasswordField, UsernameField } from "../contexts/AuthFormFields";
@@ -139,7 +141,7 @@ export function Auth() {
     else alert("Password reset email sent. Check your inbox!");
   };
 
-  const handleOAuthSignIn = async (provider: 'google' | 'github') => {
+  const handleOAuthSignIn = async (provider: 'google' | 'github' | 'discord' | 'spotify') => {
     setIsLoading(true);
     await addAccountWithOAuth(provider);
   };
@@ -265,6 +267,8 @@ export function Auth() {
                 <div className="grid grid-cols-2 gap-4">
                   <Button variant="outline" onClick={() => handleOAuthSignIn('google')} disabled={isLoading}><Chrome className="mr-2 h-4 w-4" />{t('google')}</Button>
                   <Button variant="outline" onClick={() => handleOAuthSignIn('github')} disabled={isLoading}><Github className="mr-2 h-4 w-4" />{t('github')}</Button>
+                  <Button variant="outline" onClick={() => handleOAuthSignIn('discord')} disabled={isLoading}><DiscordIcon className="mr-2 h-4 w-4" />{t('discord', 'Discord')}</Button>
+                  <Button variant="outline" onClick={() => handleOAuthSignIn('spotify')} disabled={isLoading}><SpotifyIcon className="mr-2 h-4 w-4" />{t('spotify', 'Spotify')}</Button>
                 </div>
 
                 {!user && (
