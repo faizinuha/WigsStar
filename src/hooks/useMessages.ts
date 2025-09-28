@@ -59,8 +59,8 @@ export const useMessages = ({ conversationId, isGroup }: UseMessagesProps) => {
 
     const query = `
       *,
-      profiles(username, avatar_url),
-      replied_to_message:messages!reply_to(content, profiles(username))
+      profiles:messages_sender_id_fkey(username, avatar_url),
+      replied_to_message:messages!reply_to(content, profiles:messages_sender_id_fkey(username))
     `;
 
     setLoading(true);
