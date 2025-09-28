@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next"; // Import useTranslation
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -15,35 +14,7 @@ import { DownloadProofModal } from "../components/DownloadProofModal";
 import { generateAndDownloadProofFile } from "../lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-// Language Footer Component
-const LanguageFooter = () => {
-  const { i18n } = useTranslation();
-  const languages = [
-    { code: 'en', name: 'English' },
-    { code: 'id', name: 'Indonesia' },
-    { code: 'ja', name: '日本語' },
-  ];
-
-  return (
-    <footer className="absolute bottom-4 text-center w-full">
-      <div className="flex justify-center space-x-4">
-        {languages.map((lang) => (
-          <Button
-            key={lang.code}
-            variant="link"
-            className={`text-sm p-0 h-auto ${i18n.language === lang.code ? 'font-bold text-primary' : 'text-muted-foreground'}`}
-            onClick={() => i18n.changeLanguage(lang.code)}
-          >
-            {lang.name}
-          </Button>
-        ))}
-      </div>
-    </footer>
-  );
-};
-
 export function Auth() {
-  const { t } = useTranslation();
   const { addAccount, signUp, resetPassword, addAccountWithOAuth, user, accounts, signOut } = useAuth();
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
@@ -161,20 +132,20 @@ export function Auth() {
   };
 
   const getTitle = () => {
-    if (showAccountSelection) return t('chooseAccount');
+    if (showAccountSelection) return 'Choose an account';
     if (isLogin) {
-      return user ? t('addAnotherAccount') : t('signIn');
+      return user ? 'Add another account' : 'Sign In';
     }
-    return t('createAccount');
+    return 'Create an account';
   }
 
   return (
     <div className="min-h-screen w-full lg:grid lg:grid-cols-2 bg-background">
       <div className="hidden bg-primary/5 lg:flex flex-col items-center justify-center p-12 text-center">
         <img src={starMarLogo} alt="StarMar Logo" className="w-48 mb-6" />
-        <h1 className="text-4xl font-bold text-primary">{t('welcomeMessage')}</h1>
+        <h1 className="text-4xl font-bold text-primary">Welcome to StarMar</h1>
         <p className="mt-4 text-lg text-muted-foreground">
-          {t('welcomeDescription')}
+          A new way to connect with the world.
         </p>
       </div>
 
@@ -187,9 +158,9 @@ export function Auth() {
           {showAccountSelection && (
             <Card className="border-none shadow-none sm:border sm:shadow-sm mb-4">
               <CardHeader className="text-center">
-                <CardTitle className="text-2xl">{t('chooseAccount')}</CardTitle>
+                <CardTitle className="text-2xl">Choose an account</CardTitle>
                 <CardDescription>
-                  {t('chooseAccountPrompt')}
+                  Select an account to continue.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -210,7 +181,7 @@ export function Auth() {
                         </div>
                       </div>
                       <Button variant="ghost" size="sm" onClick={() => signOut(account.user.id)}>
-                        {t('remove')}
+                        Remove
                       </Button>
                     </div>
                   ))}
@@ -220,7 +191,7 @@ export function Auth() {
                   setShowAccountSelection(false);
                   setFormData({ username: "", email: "", password: "", confirmPassword: "", displayName: "" }); // Clear form
                 }}>
-                  {t('loginWithAnotherAccount')}
+                  Login with another account
                 </Button>
               </CardContent>
             </Card>
@@ -231,7 +202,7 @@ export function Auth() {
               <CardHeader className="text-center">
                 <CardTitle className="text-2xl">{getTitle()}</CardTitle>
                 <CardDescription>
-                  {isLogin ? t('signInPrompt') : t('signUpPrompt')}
+                  {isLogin ? "Enter your credentials to sign in." : "Fill in the details to create your account."}
                 </CardDescription>
               </CardHeader>
 
@@ -250,32 +221,32 @@ export function Auth() {
                     </>
                   )}
                   <EmailField value={formData.email} onChange={(e) => handleInputChange("email", e.target.value)} error={errors.email} />
-                  <PasswordField id="password" label={t('password')} value={formData.password} onChange={(e) => handleInputChange("password", e.target.value)} error={errors.password} showPassword={showPassword} toggleShowPassword={() => setShowPassword(!showPassword)} />
-                  {!isLogin && <PasswordField id="confirmPassword" label={t('confirmPassword', 'Confirm Password')} value={formData.confirmPassword} onChange={(e) => handleInputChange("confirmPassword", e.target.value)} error={errors.confirmPassword} />}
+                  <PasswordField id="password" label="Password" value={formData.password} onChange={(e) => handleInputChange("password", e.target.value)} error={errors.password} showPassword={showPassword} toggleShowPassword={() => setShowPassword(!showPassword)} />
+                  {!isLogin && <PasswordField id="confirmPassword" label="Confirm Password" value={formData.confirmPassword} onChange={(e) => handleInputChange("confirmPassword", e.target.value)} error={errors.confirmPassword} />}
                   <Button type="submit" className="w-full gradient-button" disabled={isLoading}>
-                    {isLoading ? t('pleaseWait') : isLogin ? (user ? t('addAccount') : t('signIn')) : t('createAccount')}
+                    {isLoading ? "Please wait..." : isLogin ? (user ? "Add Account" : "Sign In") : "Create Account"}
                   </Button>
                 </form>
 
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">{t('orContinueWith')}</span>
+                    <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <Button variant="outline" onClick={() => handleOAuthSignIn('google')} disabled={isLoading}><Chrome className="mr-2 h-4 w-4" />{t('google')}</Button>
-                  <Button variant="outline" onClick={() => handleOAuthSignIn('github')} disabled={isLoading}><Github className="mr-2 h-4 w-4" />{t('github')}</Button>
-                  <Button variant="outline" onClick={() => handleOAuthSignIn('discord')} disabled={isLoading}><DiscordIcon className="mr-2 h-4 w-4" />{t('discord', 'Discord')}</Button>
-                  <Button variant="outline" onClick={() => handleOAuthSignIn('spotify')} disabled={isLoading}><SpotifyIcon className="mr-2 h-4 w-4" />{t('spotify', 'Spotify')}</Button>
+                  <Button variant="outline" onClick={() => handleOAuthSignIn('google')} disabled={isLoading}><Chrome className="mr-2 h-4 w-4" />Google</Button>
+                  <Button variant="outline" onClick={() => handleOAuthSignIn('github')} disabled={isLoading}><Github className="mr-2 h-4 w-4" />Github</Button>
+                  <Button variant="outline" onClick={() => handleOAuthSignIn('discord')} disabled={isLoading}><DiscordIcon className="mr-2 h-4 w-4" />Discord</Button>
+                  <Button variant="outline" onClick={() => handleOAuthSignIn('spotify')} disabled={isLoading}><SpotifyIcon className="mr-2 h-4 w-4" />Spotify</Button>
                 </div>
 
                 {!user && (
                   <p className="text-center text-sm text-muted-foreground">
-                    {isLogin ? t('noAccount') : t('hasAccount')}{" "}
+                    {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
                     <Button variant="link" onClick={toggleForm} className="p-0 h-auto">
-                      {isLogin ? t('signUp') : t('signIn')}
+                      {isLogin ? "Sign up" : "Sign in"}
                     </Button>
                   </p>
                 )}
@@ -283,7 +254,7 @@ export function Auth() {
                 {isLogin && (
                   <div className="text-center">
                     <Button variant="link" className="text-sm p-0 h-auto" onClick={handleForgotPassword}>
-                      {t('forgotPassword')}
+                      Forgot password?
                     </Button>
                   </div>
                 )}
@@ -291,7 +262,6 @@ export function Auth() {
             </Card>
           )}
         </div>
-        <LanguageFooter />
       </div>
       <DownloadProofModal
         isOpen={showDownloadModal}

@@ -1,4 +1,3 @@
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { Navigation } from '@/components/layout/Navigation';
 import {
   AlertDialog,
@@ -40,7 +39,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
-import supabase from '@/lib/supabase.ts';
+import supabase from '@/lib/supabase';
 import { Factor } from '@supabase/supabase-js';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -54,7 +53,6 @@ import {
   Sun,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useMfa } from './useMfa';
 
@@ -71,7 +69,6 @@ interface MfaFactor extends Factor {
 
 export const Settings = () => {
   const { user, signOut } = useAuth();
-  const { t } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
   const { data: profile } = useProfile();
@@ -414,18 +411,20 @@ export const Settings = () => {
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
           <div className="mb-8">
             <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              {t('settings')}
+              Settings
             </h1>
             <p className="text-muted-foreground mt-2">
-              {t('settingsDescription')}
+              Manage your account settings and preferences.
             </p>
           </div>
 
           {/* Profile Settings */}
           <Card>
             <CardHeader>
-              <CardTitle>{t('profileInfo')}</CardTitle>
-              <CardDescription>{t('profileInfoDescription')}</CardDescription>
+              <CardTitle>Profile Information</CardTitle>
+              <CardDescription>
+                Update your public profile information.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center gap-4">
@@ -502,22 +501,11 @@ export const Settings = () => {
             </CardContent>
           </Card>
 
-          {/* Language Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('language')}</CardTitle>
-              <CardDescription>{t('languageDescription')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <LanguageSwitcher />
-            </CardContent>
-          </Card>
-
           {/* Theme Settings */}
           <Card>
             <CardHeader>
-              <CardTitle>{t('theme')}</CardTitle>
-              <CardDescription>{t('themeDescription')}</CardDescription>
+              <CardTitle>Theme</CardTitle>
+              <CardDescription>Choose your preferred theme.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
@@ -735,14 +723,14 @@ export const Settings = () => {
           {/* Linked Accounts */}
           <Card>
             <CardHeader>
-              <CardTitle>Akun Tertaut</CardTitle>
+              <CardTitle>Linked Accounts</CardTitle>
               <CardDescription>
-                Kelola akun tertaut Anda untuk masuk.
+                Manage your linked accounts for signing in.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Anda saat ini masuk dengan{' '}
+                You are currently signed in with{' '}
                 <span className="font-semibold capitalize text-primary">
                   {user?.app_metadata.provider || 'email'}
                 </span>
@@ -778,7 +766,7 @@ export const Settings = () => {
                       </div>
                       {isLinked ? (
                         <Button variant="outline" size="sm" disabled>
-                          Tertaut
+                          Linked
                         </Button>
                       ) : (
                         <Button
@@ -795,7 +783,7 @@ export const Settings = () => {
                             }
                           }}
                         >
-                          Kaitkan Akun
+                          Link Account
                         </Button>
                       )}
                     </div>
@@ -879,8 +867,8 @@ export const Settings = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tindakan ini tidak dapat dibatalkan. Ini akan menghapus akun Anda
-              secara permanen dan menghapus data Anda dari server kami.
+              This action cannot be undone. This will permanently delete your
+              account and remove your data from our servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

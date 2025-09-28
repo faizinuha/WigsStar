@@ -14,7 +14,8 @@ import { Settings } from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import PrivateRoute from "./components/PrivateRoute";
-import { ProfileUpdater } from "./components/ProfileUpdater";
+import ChatPage from "./pages/ChatPage";
+import ChatDetailPage from "./pages/ChatDetail";
 
 const queryClient = new QueryClient();
 
@@ -25,7 +26,6 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider> {/* Moved AuthProvider inside BrowserRouter */}
-          <ProfileUpdater />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
@@ -35,6 +35,22 @@ const App = () => (
             <Route path="/memes" element={<Memes />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/settings" element={<Settings />} />
+            <Route
+              path="/chat"
+              element={
+                <PrivateRoute>
+                  <ChatPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/chat/:chatId"
+              element={
+                <PrivateRoute>
+                  <ChatDetailPage />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="/Admin_Dashbord"
               element={

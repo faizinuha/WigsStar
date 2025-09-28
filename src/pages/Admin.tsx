@@ -1,5 +1,5 @@
 import { useEffect, useState, ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import supabase from "@/lib/supabase";
 import { EditUserModal } from "@/components/admin/EditUserModal";
 import UserActivityChart from "@/components/admin/UserActivityChart";
 import { Button } from "@/components/ui/button";

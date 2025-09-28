@@ -6,7 +6,8 @@ import {
   ReactNode,
 } from 'react';
 import { User, Session, AuthError, Provider } from '@supabase/supabase-js';
-import supabase from '@/lib/supabase.ts';
+import supabase from '@/lib/supabase';
+import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
 
 // --- Helper Functions for Local Storage ---
 
@@ -34,6 +35,40 @@ function getActiveAccountId(): string | null {
 function setActiveAccountId(userId: string) {
   localStorage.setItem(ACTIVE_ACCOUNT_ID_KEY, userId);
 }
+
+// --- Internal Profile Updater Component ---
+
+const ProfileSync = () => {
+  const { user } = useAuth();
+  const { data: profile } = useProfile(user?.id);
+  const { mutate: updateProfile } = useUpdateProfile();
+
+  useEffect(() => {
+    if (user && profile && !profile.display_name) {
+      const provider = user.app_metadata.provider;
+      const rawMetaData = user.user_metadata as any;
+
+      let updates: Partial<{ display_name: string; username?: string }> = {};
+
+      if (provider === 'google' && rawMetaData?.full_name) {
+        updates.display_name = rawMetaData.full_name;
+      } else if (provider === 'github' && rawMetaData?.name) {
+        updates.display_name = rawMetaData.name;
+        // Also update username if it's not set, using the github username
+        if (!profile.username && rawMetaData.user_name) {
+          updates.username = rawMetaData.user_name;
+        }
+      }
+
+      if (updates.display_name) {
+        updateProfile(updates);
+      }
+    }
+  }, [user, profile, updateProfile]);
+
+  return null; // This component doesn't render anything
+};
+
 
 // --- Auth Context ---
 
@@ -86,33 +121,47 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     async function initializeAuth() {
       setLoading(true);
-      const storedAccounts = getStoredAccounts();
-      const activeId = getActiveAccountId();
-      const activeAccount = storedAccounts.find(
-        (acc) => acc.user.id === activeId
-      );
+      try {
+        const storedAccounts = getStoredAccounts();
+        const activeId = getActiveAccountId();
+        const activeAccount = storedAccounts.find(
+          (acc) => acc.user.id === activeId
+        );
 
-      if (activeAccount) {
-        await supabase.auth.setSession(activeAccount.session);
-        setUser(activeAccount.user);
-        setSession(activeAccount.session);
-        setProvider(activeAccount.user.app_metadata.provider || null);
-      } else if (storedAccounts.length > 0) {
-        const defaultAccount = storedAccounts[0];
-        setActiveAccountId(defaultAccount.user.id);
-        await supabase.auth.setSession(defaultAccount.session);
-        setUser(defaultAccount.user);
-        setSession(defaultAccount.session);
-        setProvider(defaultAccount.user.app_metadata.provider || null);
-      } else {
+        if (activeAccount) {
+          await supabase.auth.setSession(activeAccount.session);
+          setUser(activeAccount.user);
+          setSession(activeAccount.session);
+          setProvider(activeAccount.user.app_metadata.provider || null);
+        } else if (storedAccounts.length > 0) {
+          const defaultAccount = storedAccounts[0];
+          setActiveAccountId(defaultAccount.user.id);
+          await supabase.auth.setSession(defaultAccount.session);
+          setUser(defaultAccount.user);
+          setSession(defaultAccount.session);
+          setProvider(defaultAccount.user.app_metadata.provider || null);
+        } else {
+          // No accounts, ensure user is signed out
+          await supabase.auth.signOut();
+          setUser(null);
+          setSession(null);
+          setProvider(null);
+        }
+        setAccounts(storedAccounts);
+      } catch (error) {
+        console.error("Failed to initialize auth, clearing state:", error);
+        // Clear potentially corrupted storage
+        localStorage.removeItem(ACCOUNTS_STORAGE_KEY);
+        localStorage.removeItem(ACTIVE_ACCOUNT_ID_KEY);
+        // Reset state
         await supabase.auth.signOut();
         setUser(null);
         setSession(null);
+        setAccounts([]);
         setProvider(null);
+      } finally {
+        setLoading(false);
       }
-
-      setAccounts(storedAccounts);
-      setLoading(false);
     }
 
     initializeAuth();
@@ -149,8 +198,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const { user } = session;
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('id')
-            .eq('id', user.id)
+            .select('user_id')
+            .eq('user_id', user.id)
             .single();
 
           if (profileError && profileError.code !== 'PGRST116') {
@@ -178,7 +227,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           supabase.functions
             .invoke('log-session', {
               body: {
-                user_id: user.id,
+                user_id: session.user.id,
                 event: 'login',
                 timestamp: new Date().toISOString(),
               },
@@ -343,7 +392,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           Loading...
         </div>
       ) : (
-        children
+        <>
+          {children}
+          <ProfileSync />
+        </>
       )}
     </AuthContext.Provider>
   );

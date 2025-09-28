@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import { supabase } from "@/integrations/supabase/client";
+import supabase from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 // Helper to generate the last N days
