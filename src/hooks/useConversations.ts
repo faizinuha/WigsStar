@@ -67,5 +67,5 @@ export const useConversations = () => {
     };
   }, [profile]);
 
-  return { conversations, loading: loading || isProfileLoading, error, totalUnread };
+  return { conversations, loading: loading || isProfileLoading, error, totalUnread, fetchConversations };
 };

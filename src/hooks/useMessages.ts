@@ -2,13 +2,15 @@ import supabase from '@/lib/supabase';
 import { useCallback, useEffect, useState } from 'react';
 import { useProfile } from './useProfile';
 
+// Exporting for use in components
 export interface Message {
   id: string;
   content: string;
   created_at: string;
-  sender_id: string; // uuid from DB
+  sender_id: string;
+  group_id?: string;
+  receiver_id?: string;
   profiles: {
-    // sender profile
     username: string;
     avatar_url: string;
   } | null;
@@ -16,7 +18,7 @@ export interface Message {
   replied_to_message?: {
     content: string;
     profiles: {
-        username: string;
+      username: string;
     } | null;
   } | null;
 }
@@ -40,27 +42,13 @@ export const useMessages = ({ conversationId, isGroup }: UseMessagesProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<any>(null);
 
-  const markMessagesAsRead = useCallback(
-    async (messageIds: string[]) => {
-      if (!currentUserProfile || messageIds.length === 0) return;
-      const receipts = messageIds.map((id) => ({
-        message_id: id,
-        user_id: currentUserProfile.id,
-      }));
-      await supabase
-        .from('read_receipts')
-        .upsert(receipts, { onConflict: 'message_id,user_id' });
-    },
-    [currentUserProfile]
-  );
-
   const fetchMessages = useCallback(async () => {
     if (!conversationId || !currentUserProfile) return;
 
     const query = `
-      *,
-      profiles:messages_sender_id_fkey(username, avatar_url),
-      replied_to_message:messages!reply_to(content, profiles:messages_sender_id_fkey(username))
+      id, content, created_at, sender_id, group_id, receiver_id, reply_to,
+      profiles:sender_id(username, avatar_url),
+      replied_to_message:reply_to(content, profiles:sender_id(username))
     `;
 
     setLoading(true);
@@ -72,72 +60,42 @@ export const useMessages = ({ conversationId, isGroup }: UseMessagesProps) => {
           .select(query)
           .eq('group_id', conversationId);
       } else {
-        const otherUserId = conversationId;
         messageQuery = supabase
           .from('messages')
           .select(query)
           .or(
-            `(sender_id.eq.${currentUserProfile.id},receiver_id.eq.${otherUserId}),(sender_id.eq.${otherUserId},receiver_id.eq.${currentUserProfile.id})`
-          );
+            `and(sender_id.eq.${currentUserProfile.id},receiver_id.eq.${conversationId}),and(sender_id.eq.${conversationId},receiver_id.eq.${currentUserProfile.id})`
+          )
+          .is('group_id', null);
       }
 
       const { data: messagesData, error: messagesError } =
         await messageQuery.order('created_at', { ascending: true });
 
       if (messagesError) throw messagesError;
-      setMessages(messagesData as any[] as Message[]);
-
-      // Mark fetched messages as read
-      const unreadMessageIds = messagesData
-        .filter((msg) => msg.sender_id !== currentUserProfile.id) // Only mark messages from others
-        .map((msg) => msg.id);
-      if (unreadMessageIds.length > 0) {
-        markMessagesAsRead(unreadMessageIds);
-      }
+      setMessages(messagesData as Message[]);
 
       // Fetch conversation info
-      let infoData = null;
-      let infoError = null;
-
+      let infoData: any = null;
       if (isGroup) {
-        const { data, error } = await supabase
-          .from('groups')
-          .select('id, name')
-          .eq('id', conversationId);
-        if (data && data.length > 0) {
-          infoData = data[0];
-        }
-        infoError = error;
+        const { data } = await supabase.from('groups').select('id, name').eq('id', conversationId).single();
+        infoData = data;
       } else {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, username, avatar_url')
-          .eq('id', conversationId);
-        if (data && data.length > 0) {
-          infoData = data[0];
-        }
-        infoError = error;
+        const { data } = await supabase.from('profiles').select('id, username, avatar_url').eq('id', conversationId).single();
+        if(data) infoData = { ...data, name: data.username };
       }
-
-      if (infoError) throw infoError;
 
       if (infoData) {
-        setInfo({
-          id: infoData.id,
-          name: isGroup ? infoData.name : infoData.username,
-          avatar_url: isGroup ? null : infoData.avatar_url,
-        });
-      } else {
-        // Handle case where no info was found, maybe set an error state or default info
-        console.warn(`Could not find info for conversation ${conversationId}`);
+        setInfo(infoData);
       }
+
     } catch (err) {
       setError(err);
       console.error('Error fetching messages:', err);
     } finally {
       setLoading(false);
     }
-  }, [conversationId, isGroup, currentUserProfile, markMessagesAsRead]);
+  }, [conversationId, isGroup, currentUserProfile]);
 
   useEffect(() => {
     if (!isProfileLoading) {
@@ -145,39 +103,40 @@ export const useMessages = ({ conversationId, isGroup }: UseMessagesProps) => {
     }
   }, [isProfileLoading, fetchMessages]);
 
+  // Real-time subscriptions
   useEffect(() => {
-    if (!conversationId || !currentUserProfile) return;
+    if (!conversationId) return;
 
     const handleNewMessage = (payload: any) => {
-      // Check if the message belongs to the current conversation
-      const newMessage = payload.new;
-      const isForThisConversation = isGroup
-        ? newMessage.group_id === conversationId
-        : (newMessage.sender_id === currentUserProfile.id &&
-            newMessage.receiver_id === conversationId) ||
-          (newMessage.sender_id === conversationId &&
-            newMessage.receiver_id === currentUserProfile.id);
+      // Simple refetch to get all relations correctly
+      fetchMessages();
+    };
 
-      if (isForThisConversation) {
-        // Since the subscription doesn't fetch the nested reply, we might need to refetch
-        // or handle this more gracefully later. For now, just add the new message.
-        fetchMessages(); // Simple solution: refetch all messages to get reply info
-      }
+    const handleUpdatedMessage = (payload: any) => {
+        const updatedMessage = payload.new as Message;
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) =>
+            msg.id === updatedMessage.id ? { ...msg, content: updatedMessage.content, /* any other editable fields */ } : msg
+          )
+        );
+    };
+
+    const handleDeletedMessage = (payload: any) => {
+        const deletedMessage = payload.old;
+        setMessages((prevMessages) => prevMessages.filter(msg => msg.id !== deletedMessage.id));
     };
 
     const channel = supabase
       .channel(`messages-${conversationId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        handleNewMessage
-      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, handleNewMessage)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, handleUpdatedMessage)
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, handleDeletedMessage)
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId, isGroup, currentUserProfile, markMessagesAsRead, fetchMessages]);
+  }, [conversationId, fetchMessages]);
 
   const sendMessage = useCallback(
     async (content: string, replyToId?: string) => {
@@ -196,13 +155,24 @@ export const useMessages = ({ conversationId, isGroup }: UseMessagesProps) => {
       }
 
       const { error } = await supabase.from('messages').insert(messageData);
-
-      if (error) {
-        console.error('Error sending message:', error);
-      }
+      if (error) console.error('Error sending message:', error);
     },
     [conversationId, isGroup, currentUserProfile]
   );
+
+  const editMessage = useCallback(async (messageId: string, content: string) => {
+    const { error } = await supabase
+      .from('messages')
+      .update({ content })
+      .eq('id', messageId);
+    if (error) console.error('Error editing message:', error);
+  }, []);
+
+  const deleteMessage = useCallback(async (messageId: string) => {
+    if (!window.confirm('Yakin ingin menghapus pesan ini?')) return;
+    const { error } = await supabase.from('messages').delete().eq('id', messageId);
+    if (error) console.error('Error deleting message:', error);
+  }, []);
 
   return {
     messages,
@@ -210,6 +180,8 @@ export const useMessages = ({ conversationId, isGroup }: UseMessagesProps) => {
     loading: loading || isProfileLoading,
     error,
     sendMessage,
+    editMessage,
+    deleteMessage,
     currentUserProfile,
   };
 };

@@ -1,11 +1,25 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useMessages } from '@/hooks/useMessages';
-import supabase from '@/lib/supabase';
-import { ArrowLeft, Mic, Paperclip, Send } from 'lucide-react';
+import { Message, useMessages } from '@/hooks/useMessages';
+import {
+  ArrowLeft,
+  MessageSquareReply,
+  Mic,
+  MoreHorizontal,
+  Paperclip,
+  Pencil,
+  Send,
+  Trash2,
+} from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
@@ -15,18 +29,23 @@ const ChatDetailPage: React.FC = () => {
   const location = useLocation();
   const { isGroup } = location.state || { isGroup: false };
 
-  const { messages, info, loading, sendMessage, currentUserProfile } =
-    useMessages({
-      conversationId: chatId || '',
-      isGroup: isGroup,
-    });
+  const {
+    messages,
+    info,
+    loading,
+    sendMessage,
+    currentUserProfile,
+    editMessage,
+    deleteMessage,
+  } = useMessages({
+    conversationId: chatId || '',
+    isGroup: isGroup,
+  });
 
   const [newMessage, setNewMessage] = useState('');
-  const [editMessageId, setEditMessageId] = useState<string | null>(null);
-  const [editMessageContent, setEditMessageContent] = useState('');
-  const [replyToId, setReplyToId] = useState<string | null>(null);
-  const [loadingAction, setLoadingAction] = useState(false);
-  const [errorAction, setErrorAction] = useState('');
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -37,30 +56,27 @@ const ChatDetailPage: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
-    if (editMessageId) {
-      // Edit pesan
-      setLoadingAction(true);
-      supabase
-        .from('messages')
-        .update({ content: newMessage.trim() })
-        .eq('id', editMessageId)
-        .then(({ error }) => {
-          setLoadingAction(false);
-          if (error) setErrorAction(error.message || 'Gagal edit pesan');
-          else {
-            setEditMessageId(null);
-            setNewMessage('');
-          }
-        });
+
+    if (editingMessage) {
+      await editMessage(editingMessage.id, newMessage.trim());
+      setEditingMessage(null);
     } else {
-      // Kirim pesan baru / reply
-      sendMessage(newMessage, replyToId || undefined);
-      setNewMessage('');
-      setReplyToId(null);
+      await sendMessage(newMessage.trim(), replyingTo?.id);
+      setReplyingTo(null);
     }
+    setNewMessage('');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessage(null);
+    setNewMessage('');
+  };
+
+  const handleCancelReply = () => {
+    setReplyingTo(null);
   };
 
   if (loading) {
@@ -71,15 +87,21 @@ const ChatDetailPage: React.FC = () => {
           <Skeleton className="h-10 w-10 rounded-full" />
           <div className="space-y-2">
             <Skeleton className="h-4 w-[150px]" />
-            <Skeleton className="h-3 w-[100px]" />
           </div>
         </header>
         {/* Body Skeleton */}
-        <main className="flex-grow p-4 space-y-4">
-          <Skeleton className="h-16 w-3/4 rounded-lg" />
-          <Skeleton className="h-16 w-3/4 rounded-lg self-end ml-auto" />
-          <Skeleton className="h-10 w-1/2 rounded-lg" />
-          <Skeleton className="h-16 w-3/4 rounded-lg self-end ml-auto" />
+        <main className="flex-grow p-4 space-y-6">
+          {[...Array(5)].map((_, i) => (
+            <div
+              key={i}
+              className={`flex items-start gap-3 ${
+                i % 2 === 0 ? 'flex-row' : 'flex-row-reverse'
+              }`}
+            >
+              <Skeleton className="h-8 w-8 rounded-full" />
+              <Skeleton className="h-16 w-3/4 rounded-lg" />
+            </div>
+          ))}
         </main>
         {/* Footer Skeleton */}
         <footer className="p-3 border-t dark:border-gray-800">
@@ -101,17 +123,10 @@ const ChatDetailPage: React.FC = () => {
             to={!isGroup ? `/profile/${info.id}` : '#'}
             className="flex items-center gap-3"
           >
-            <div className="relative">
-              <Avatar>
-                <AvatarImage
-                  src={info.avatar_url || undefined}
-                  alt={info.name}
-                />
-                <AvatarFallback>
-                  {info.name?.substring(0, 2) || '??'}
-                </AvatarFallback>
-              </Avatar>
-            </div>
+            <Avatar>
+              <AvatarImage src={info.avatar_url} alt={info.name} />
+              <AvatarFallback>{info.name?.substring(0, 2) || '??'}</AvatarFallback>
+            </Avatar>
             <div>
               <h2 className="font-semibold text-lg">{info.name}</h2>
             </div>
@@ -123,93 +138,17 @@ const ChatDetailPage: React.FC = () => {
       <main className="flex-grow p-4 overflow-y-auto">
         <div className="flex flex-col gap-4">
           {messages.map((msg) => (
-            <div
+            <MessageBubble
               key={msg.id}
-              className={`flex flex-col ${
-                msg.sender_id === currentUserProfile?.id
-                  ? 'items-end'
-                  : 'items-start'
-              }`}
-            >
-              <div
-                className={`flex items-center gap-2 ${
-                  msg.sender_id === currentUserProfile?.id
-                    ? 'flex-row-reverse'
-                    : 'flex-row'
-                }`}
-              >
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={msg.profiles?.avatar_url || undefined} />
-                  <AvatarFallback>
-                    {msg.profiles?.username?.substring(0, 2) || '??'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="relative">
-                  <Card
-                    className={`max-w-xs md:max-w-lg p-3 rounded-2xl ${
-                      msg.sender_id === currentUserProfile?.id
-                        ? 'bg-blue-500 text-white rounded-br-none'
-                        : 'bg-gray-200 dark:bg-gray-800 rounded-bl-none'
-                    }`}
-                  >
-                    <p>{msg.content}</p>
-                    {msg.reply_to && msg.replied_to_message && (
-                      <div className="text-xs text-gray-500 mt-2 border-l-2 pl-2">
-                        Reply: {msg.replied_to_message.content}
-                      </div>
-                    )}
-                  </Card>
-                  {/* Context menu pesan */}
-                  {msg.sender_id === currentUserProfile?.id && (
-                    <div className="absolute top-2 right-2 flex gap-1">
-                      <button
-                        className="text-xs px-2 py-1 bg-yellow-200 rounded"
-                        onClick={() => {
-                          setEditMessageId(msg.id);
-                          setNewMessage(msg.content);
-                        }}
-                        disabled={loadingAction}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="text-xs px-2 py-1 bg-red-200 rounded"
-                        onClick={async () => {
-                          if (!window.confirm('Hapus pesan ini?')) return;
-                          setLoadingAction(true);
-                          await supabase
-                            .from('messages')
-                            .delete()
-                            .eq('id', msg.id);
-                          setLoadingAction(false);
-                        }}
-                        disabled={loadingAction}
-                      >
-                        Hapus
-                      </button>
-                    </div>
-                  )}
-                  <div className="absolute top-2 left-2 flex gap-1">
-                    <button
-                      className="text-xs px-2 py-1 bg-blue-200 rounded"
-                      onClick={() => {
-                        setReplyToId(msg.id);
-                        setNewMessage('');
-                      }}
-                      disabled={loadingAction}
-                    >
-                      Reply
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <span className="text-xs text-gray-400 mt-1 px-2">
-                {new Date(msg.created_at).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
-            </div>
+              message={msg}
+              isOwnMessage={msg.sender_id === currentUserProfile?.id}
+              onReply={() => setReplyingTo(msg)}
+              onEdit={() => {
+                setEditingMessage(msg);
+                setNewMessage(msg.content);
+              }}
+              onDelete={() => deleteMessage(msg.id)}
+            />
           ))}
           <div ref={messagesEndRef} />
         </div>
@@ -217,54 +156,111 @@ const ChatDetailPage: React.FC = () => {
 
       {/* Message Input */}
       <footer className="p-3 border-t dark:border-gray-800 bg-white dark:bg-gray-900/50 backdrop-blur-lg sticky bottom-0">
+        {replyingTo && (
+          <div className="text-sm text-muted-foreground bg-muted p-2 rounded-t-md flex justify-between items-center">
+            <div>
+              <p className="font-bold">Membalas kepada {replyingTo.profiles?.username}</p>
+              <p className="truncate">{replyingTo.content}</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={handleCancelReply}>Batal</Button>
+          </div>
+        )}
+        {editingMessage && (
+          <div className="text-sm text-muted-foreground bg-muted p-2 rounded-t-md flex justify-between items-center">
+            <p className="font-bold">Mengedit pesan...</p>
+            <Button variant="ghost" size="sm" onClick={handleCancelEdit}>Batal</Button>
+          </div>
+        )}
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
           <Button type="button" variant="ghost" size="icon">
             <Paperclip className="h-5 w-5" />
           </Button>
           <Input
             type="text"
-            placeholder={
-              editMessageId
-                ? 'Edit pesan...'
-                : replyToId
-                ? 'Reply pesan...'
-                : 'Type a message...'
-            }
+            placeholder="Ketik pesan..."
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            className="flex-grow bg-gray-100 dark:bg-gray-800 border-none focus-visible:ring-0 focus-visible:ring-offset-0"
-            disabled={loadingAction}
+            className="flex-grow bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0"
           />
           <Button type="button" variant="ghost" size="icon">
             <Mic className="h-5 w-5" />
           </Button>
-          <Button
-            type="submit"
-            size="icon"
-            disabled={!newMessage.trim() || loadingAction}
-          >
+          <Button type="submit" size="icon" disabled={!newMessage.trim()}>
             <Send className="h-5 w-5" />
           </Button>
-          {(editMessageId || replyToId) && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setEditMessageId(null);
-                setReplyToId(null);
-                setNewMessage('');
-              }}
-              disabled={loadingAction}
-            >
-              Batal
-            </Button>
-          )}
         </form>
-        {errorAction && (
-          <div className="text-red-500 mt-2 text-sm">{errorAction}</div>
-        )}
       </footer>
+    </div>
+  );
+};
+
+interface MessageBubbleProps {
+  message: any;
+  isOwnMessage: boolean;
+  onReply: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwnMessage, onReply, onEdit, onDelete }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <div
+      className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className={`flex items-center gap-2 ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'}`}>
+        <Avatar className="h-8 w-8">
+          <AvatarImage src={message.profiles?.avatar_url} />
+          <AvatarFallback>{message.profiles?.username?.substring(0, 2) || '??'}</AvatarFallback>
+        </Avatar>
+        <div className="relative">
+          <Card
+            className={`max-w-xs md:max-w-md p-3 rounded-2xl ${isOwnMessage ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'}`}>
+            {message.reply_to && message.replied_to_message && (
+              <div className="text-xs opacity-80 border-l-2 pl-2 mb-2">
+                <p className="font-bold">{message.replied_to_message.profiles?.username}</p>
+                <p>{message.replied_to_message.content}</p>
+              </div>
+            )}
+            <p>{message.content}</p>
+          </Card>
+          {isHovered && (
+            <div className={`absolute top-1/2 -translate-y-1/2 ${isOwnMessage ? 'left-[-40px]' : 'right-[-40px]'}`}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={onReply}>
+                    <MessageSquareReply className="mr-2 h-4 w-4" />
+                    <span>Balas</span>
+                  </DropdownMenuItem>
+                  {isOwnMessage && (
+                    <>
+                      <DropdownMenuItem onClick={onEdit}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        <span>Edit</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={onDelete} className="text-red-500 focus:text-red-500">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>Hapus</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+        </div>
+      </div>
+      <span className="text-xs text-muted-foreground mt-1 px-10">
+        {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      </span>
     </div>
   );
 };
