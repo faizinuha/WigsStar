@@ -4,6 +4,7 @@ import  supabase  from '@/lib/supabase';
 import { useProfile } from './useProfile';
 
 export interface Conversation {
+  description: string;
   id: string; // This will be group_id or other user's profile_id
   is_group: boolean;
   name: string;

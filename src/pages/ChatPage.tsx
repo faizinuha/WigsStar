@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useConversations } from '@/hooks/useConversations';
 import { useProfile } from '@/hooks/useProfile';
 import supabase from '@/lib/supabase';
-import { BellOff, CheckCircle, Trash2 } from 'lucide-react';
+import { CheckCircle, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -27,6 +27,13 @@ const ChatPage: React.FC = () => {
   const [groupDesc, setGroupDesc] = useState('');
   const [loadingCreate, setLoadingCreate] = useState(false);
   const [errorCreate, setErrorCreate] = useState('');
+  const [showEditGroup, setShowEditGroup] = useState(false);
+  const [editGroupId, setEditGroupId] = useState<string | null>(null);
+  const [editGroupName, setEditGroupName] = useState('');
+  const [editGroupDesc, setEditGroupDesc] = useState('');
+  const [loadingEdit, setLoadingEdit] = useState(false);
+  const [errorEdit, setErrorEdit] = useState('');
+  const [loadingDelete, setLoadingDelete] = useState(false);
   const { data: currentUserProfile } = useProfile();
 
   const handleConversationClick = (
@@ -241,21 +248,113 @@ const ChatPage: React.FC = () => {
                         </div>
                       </ContextMenuTrigger>
                       <ContextMenuContent className="w-64">
-                        <ContextMenuItem inset>
+                        <ContextMenuItem
+                          inset
+                          onClick={() => {
+                            setEditGroupId(convo.id);
+                            setEditGroupName(convo.name || '');
+                            setEditGroupDesc(convo.description || '');
+                            setShowEditGroup(true);
+                          }}
+                        >
                           <CheckCircle className="mr-2 h-4 w-4" />
-                          Mark as Read
+                          Edit Grup
                         </ContextMenuItem>
-                        <ContextMenuItem inset>
-                          <BellOff className="mr-2 h-4 w-4" />
-                          Mute Notifications
-                        </ContextMenuItem>
-                        <ContextMenuItem inset className="text-red-600">
+                        <ContextMenuItem
+                          inset
+                          onClick={async () => {
+                            if (!window.confirm('Yakin hapus grup ini?'))
+                              return;
+                            setLoadingDelete(true);
+                            await supabase
+                              .from('groups')
+                              .delete()
+                              .eq('id', convo.id);
+                            setLoadingDelete(false);
+                            // TODO: refresh list
+                          }}
+                          className="text-red-600"
+                        >
                           <Trash2 className="mr-2 h-4 w-4" />
-                          Delete Chat
+                          Hapus Grup
                         </ContextMenuItem>
                       </ContextMenuContent>
                     </ContextMenu>
                   ))}
+                  {/* Modal Edit Grup */}
+                  {showEditGroup && (
+                    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                      <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-lg w-full max-w-md">
+                        <h2 className="text-lg font-bold mb-4">Edit Grup</h2>
+                        <input
+                          className="w-full mb-2 p-2 border rounded"
+                          placeholder="Nama Grup"
+                          value={editGroupName}
+                          onChange={(e) => setEditGroupName(e.target.value)}
+                          disabled={loadingEdit}
+                        />
+                        <textarea
+                          className="w-full mb-2 p-2 border rounded"
+                          placeholder="Deskripsi Grup"
+                          value={editGroupDesc}
+                          onChange={(e) => setEditGroupDesc(e.target.value)}
+                          disabled={loadingEdit}
+                        />
+                        {errorEdit && (
+                          <div className="text-red-500 mb-2 text-sm">
+                            {errorEdit}
+                          </div>
+                        )}
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            className="px-4 py-2 bg-gray-300 rounded"
+                            onClick={() => {
+                              setShowEditGroup(false);
+                              setEditGroupId(null);
+                              setEditGroupName('');
+                              setEditGroupDesc('');
+                              setErrorEdit('');
+                            }}
+                            disabled={loadingEdit}
+                          >
+                            Batal
+                          </button>
+                          <button
+                            className="px-4 py-2 bg-blue-500 text-white rounded"
+                            disabled={loadingEdit || !editGroupName.trim()}
+                            onClick={async () => {
+                              setErrorEdit('');
+                              if (!editGroupName.trim()) {
+                                setErrorEdit('Nama grup wajib diisi');
+                                return;
+                              }
+                              setLoadingEdit(true);
+                              const { error } = await supabase
+                                .from('groups')
+                                .update({
+                                  name: editGroupName.trim(),
+                                  description: editGroupDesc.trim(),
+                                })
+                                .eq('id', editGroupId);
+                              setLoadingEdit(false);
+                              if (error) {
+                                setErrorEdit(
+                                  error.message || 'Gagal edit grup'
+                                );
+                                return;
+                              }
+                              setShowEditGroup(false);
+                              setEditGroupId(null);
+                              setEditGroupName('');
+                              setEditGroupDesc('');
+                            }}
+                          >
+                            {loadingEdit ? 'Menyimpan...' : 'Simpan'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
