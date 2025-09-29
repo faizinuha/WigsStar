@@ -96,28 +96,41 @@ export const useMessages = ({ conversationId, isGroup }: UseMessagesProps) => {
       }
 
       // Fetch conversation info
-      let infoQuery;
+      let infoData = null;
+      let infoError = null;
+
       if (isGroup) {
-        infoQuery = supabase
+        const { data, error } = await supabase
           .from('groups')
           .select('id, name')
-          .eq('id', conversationId)
-          .single();
+          .eq('id', conversationId);
+        if (data && data.length > 0) {
+          infoData = data[0];
+        }
+        infoError = error;
       } else {
-        infoQuery = supabase
+        const { data, error } = await supabase
           .from('profiles')
           .select('id, username, avatar_url')
-          .eq('id', conversationId)
-          .single();
+          .eq('id', conversationId);
+        if (data && data.length > 0) {
+          infoData = data[0];
+        }
+        infoError = error;
       }
-      const { data: infoData, error: infoError } = await infoQuery;
+
       if (infoError) throw infoError;
 
-      setInfo({
-        id: infoData.id,
-        name: isGroup ? infoData.name : infoData.username,
-        avatar_url: isGroup ? null : infoData.avatar_url,
-      });
+      if (infoData) {
+        setInfo({
+          id: infoData.id,
+          name: isGroup ? infoData.name : infoData.username,
+          avatar_url: isGroup ? null : infoData.avatar_url,
+        });
+      } else {
+        // Handle case where no info was found, maybe set an error state or default info
+        console.warn(`Could not find info for conversation ${conversationId}`);
+      }
     } catch (err) {
       setError(err);
       console.error('Error fetching messages:', err);

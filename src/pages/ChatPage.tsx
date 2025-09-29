@@ -5,19 +5,34 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
-  ContextMenuTrigger
-} from "@/components/ui/context-menu";
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConversations } from '@/hooks/useConversations';
+import { useProfile } from '@/hooks/useProfile';
+import supabase from '@/lib/supabase';
 import { BellOff, CheckCircle, Trash2 } from 'lucide-react';
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const ChatPage: React.FC = () => {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<
+    'group' | 'public' | 'private' | 'nonprivate'
+  >('group');
   const { conversations, loading } = useConversations();
+  // Modal & input state
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [groupDesc, setGroupDesc] = useState('');
+  const [loadingCreate, setLoadingCreate] = useState(false);
+  const [errorCreate, setErrorCreate] = useState('');
+  const { data: currentUserProfile } = useProfile();
 
-  const handleConversationClick = (conversationId: string, isGroup: boolean) => {
+  const handleConversationClick = (
+    conversationId: string,
+    isGroup: boolean
+  ) => {
     navigate(`/chat/${conversationId}`, { state: { isGroup } });
   };
 
@@ -26,6 +41,126 @@ const ChatPage: React.FC = () => {
       <Navigation />
       <div className="flex-grow flex flex-col">
         <div className="container mx-auto p-4 flex-grow">
+          {/* Navigation Tabs */}
+          <div className="flex gap-2 mb-4">
+            <button
+              className={`px-4 py-2 rounded-lg ${
+                activeTab === 'group'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 dark:bg-gray-800'
+              }`}
+              onClick={() => setActiveTab('group')}
+            >
+              Grup
+            </button>
+            <button
+              className={`px-4 py-2 rounded-lg ${
+                activeTab === 'public'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 dark:bg-gray-800'
+              }`}
+              onClick={() => setActiveTab('public')}
+            >
+              Grup Publik
+            </button>
+            <button
+              className={`px-4 py-2 rounded-lg ${
+                activeTab === 'private'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 dark:bg-gray-800'
+              }`}
+              onClick={() => setActiveTab('private')}
+            >
+              Pesan Pribadi
+            </button>
+            <button
+              className={`px-4 py-2 rounded-lg ${
+                activeTab === 'nonprivate'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 dark:bg-gray-800'
+              }`}
+              onClick={() => setActiveTab('nonprivate')}
+            >
+              Pesan Non-Pribadi
+            </button>
+            <button
+              className="ml-auto px-4 py-2 bg-green-500 text-white rounded-lg"
+              onClick={() => setShowCreateGroup(true)}
+            >
+              + Buat Grup
+            </button>
+          </div>
+          {/* Modal Buat Grup (integrasi database) */}
+          {showCreateGroup && (
+            <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-lg w-full max-w-md">
+                <h2 className="text-lg font-bold mb-4">Buat Grup Baru</h2>
+                <input
+                  className="w-full mb-2 p-2 border rounded"
+                  placeholder="Nama Grup"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  disabled={loadingCreate}
+                />
+                <textarea
+                  className="w-full mb-2 p-2 border rounded"
+                  placeholder="Deskripsi Grup"
+                  value={groupDesc}
+                  onChange={(e) => setGroupDesc(e.target.value)}
+                  disabled={loadingCreate}
+                />
+                {errorCreate && (
+                  <div className="text-red-500 mb-2 text-sm">{errorCreate}</div>
+                )}
+                <div className="flex gap-2 justify-end">
+                  <button
+                    className="px-4 py-2 bg-gray-300 rounded"
+                    onClick={() => {
+                      setShowCreateGroup(false);
+                      setGroupName('');
+                      setGroupDesc('');
+                      setErrorCreate('');
+                    }}
+                    disabled={loadingCreate}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    className="px-4 py-2 bg-blue-500 text-white rounded"
+                    disabled={loadingCreate || !groupName.trim()}
+                    onClick={async () => {
+                      setErrorCreate('');
+                      if (!groupName.trim()) {
+                        setErrorCreate('Nama grup wajib diisi');
+                        return;
+                      }
+                      if (!currentUserProfile?.id) {
+                        setErrorCreate('User belum login');
+                        return;
+                      }
+                      setLoadingCreate(true);
+                      const { error } = await supabase.from('groups').insert({
+                        name: groupName.trim(),
+                        description: groupDesc.trim(),
+                        creator_id: currentUserProfile.id,
+                        is_private: false,
+                      });
+                      setLoadingCreate(false);
+                      if (error) {
+                        setErrorCreate(error.message || 'Gagal membuat grup');
+                        return;
+                      }
+                      setShowCreateGroup(false);
+                      setGroupName('');
+                      setGroupDesc('');
+                    }}
+                  >
+                    {loadingCreate ? 'Menyimpan...' : 'Buat'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           <Card className="h-full flex flex-col">
             <CardHeader>
               <CardTitle>Chats</CardTitle>
@@ -50,20 +185,53 @@ const ChatPage: React.FC = () => {
                       <ContextMenuTrigger>
                         <div
                           className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
-                          onClick={() => handleConversationClick(convo.id, convo.is_group || false)}
+                          onClick={() =>
+                            handleConversationClick(
+                              convo.id,
+                              convo.is_group || false
+                            )
+                          }
                         >
                           <Avatar className="h-12 w-12">
-                            <AvatarImage src={convo.avatar_url || undefined} alt={convo.name} />
-                            <AvatarFallback>{convo.name?.substring(0, 2)}</AvatarFallback>
+                            <AvatarImage
+                              src={convo.avatar_url || undefined}
+                              alt={convo.name}
+                            />
+                            <AvatarFallback>
+                              {convo.name?.substring(0, 2)}
+                            </AvatarFallback>
                           </Avatar>
                           <div className="flex-grow overflow-hidden">
-                            <p className="font-semibold truncate">{convo.name}</p>
-                            <p className={`text-sm ${convo.unread_count > 0 ? 'text-black dark:text-white font-bold' : 'text-gray-500 dark:text-gray-400'} truncate`}>
+                            <p className="font-semibold truncate">
+                              {convo.name}
+                            </p>
+                            <p
+                              className={`text-sm ${
+                                convo.unread_count > 0
+                                  ? 'text-black dark:text-white font-bold'
+                                  : 'text-gray-500 dark:text-gray-400'
+                              } truncate`}
+                            >
                               {convo.last_message}
                             </p>
                           </div>
                           <div className="flex flex-col items-end self-start min-w-max">
-                            <p className={`text-xs mb-1 ${convo.unread_count > 0 ? 'text-blue-500' : 'text-gray-400'}`}>{convo.last_message_at ? new Date(convo.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</p>
+                            <p
+                              className={`text-xs mb-1 ${
+                                convo.unread_count > 0
+                                  ? 'text-blue-500'
+                                  : 'text-gray-400'
+                              }`}
+                            >
+                              {convo.last_message_at
+                                ? new Date(
+                                    convo.last_message_at
+                                  ).toLocaleTimeString([], {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })
+                                : ''}
+                            </p>
                             {convo.unread_count > 0 && (
                               <span className="bg-blue-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
                                 {convo.unread_count}
@@ -78,12 +246,12 @@ const ChatPage: React.FC = () => {
                           Mark as Read
                         </ContextMenuItem>
                         <ContextMenuItem inset>
-                           <BellOff className="mr-2 h-4 w-4" />
-                           Mute Notifications
+                          <BellOff className="mr-2 h-4 w-4" />
+                          Mute Notifications
                         </ContextMenuItem>
                         <ContextMenuItem inset className="text-red-600">
-                           <Trash2 className="mr-2 h-4 w-4" />
-                           Delete Chat
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Chat
                         </ContextMenuItem>
                       </ContextMenuContent>
                     </ContextMenu>
