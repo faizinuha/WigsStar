@@ -81,8 +81,8 @@ export const useMessages = ({ conversationId, isGroup }: UseMessagesProps) => {
         const { data } = await supabase.from('groups').select('id, name').eq('id', conversationId).single();
         infoData = data;
       } else {
-        const { data } = await supabase.from('profiles').select('id, username, avatar_url').eq('id', conversationId).single();
-        if(data) infoData = { ...data, name: data.username };
+        const { data } = await supabase.from('profiles').select('user_id, username, avatar_url').eq('user_id', conversationId).single();
+        if(data) infoData = { id: data.user_id, name: data.username, avatar_url: data.avatar_url };
       }
 
       if (infoData) {

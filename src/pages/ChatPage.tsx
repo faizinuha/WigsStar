@@ -299,7 +299,7 @@ const ChatPage: React.FC = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           {convo.is_group && (
-                            <DropdownMenu onOpenChange={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
                                   <MoreHorizontal className="h-4 w-4" />

@@ -3,16 +3,16 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ImageCarousel } from './ImageCarousel';
 import { formatDistanceToNow } from 'date-fns';
 import {
   Bookmark,
   Heart,
   Loader2,
   MessageCircle,
-  Play,
   Send,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
 // Import hooks and components needed for functionality
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,7 +23,7 @@ import {
 } from '@/hooks/useComments';
 import { useLikes } from '@/hooks/useLikes';
 
-import { Post } from '@/hooks/usePosts'; // Pastikan tipe Post diimpor
+import { Post } from '@/hooks/usePosts';
 
 interface PostDetailModalProps {
   post: Post | null;
@@ -79,8 +79,6 @@ export const PostDetailModal = ({
 }: PostDetailModalProps) => {
   const { user } = useAuth();
   const [newComment, setNewComment] = useState('');
-  const [isPlaying, setIsPlaying] = useState(true);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   // Hooks for functionality
   const postId = post?.id as string | undefined;
@@ -90,18 +88,10 @@ export const PostDetailModal = ({
   const { mutate: createComment, isPending: isCreatingComment } =
     useCreateComment();
 
-  // Reset video state when dialog closes or post changes
-  useEffect(() => {
-    if (isOpen) {
-      setIsPlaying(true); // Auto-play when opened
-    } else {
-      // When dialog closes, pause the video
-      videoRef.current?.pause();
-      setIsPlaying(false);
-    }
-  }, [isOpen, post]);
-
   if (!post) return null;
+
+  // Get all media for this post
+  const postMedia = post.media || (post.image_url ? [{ media_url: post.image_url, media_type: post.media_type || 'image' }] : []);
 
   const handleCommentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,52 +112,13 @@ export const PostDetailModal = ({
       <DialogContent className="max-w-4xl md:max-w-5xl lg:max-w-6xl h-[90vh] p-0 gap-0 overflow-hidden">
         <div className="flex h-full flex-col md:flex-row">
           {/* Left Column: Media */}
-          {post.image_url ? (
-            /* Media column: fixed reasonable height on small screens, full height on md+ */
-            <div className="w-full md:w-2/3 bg-black flex items-center justify-center h-64 md:h-full relative group">
-              {post.media_type === 'video' ? (
-                <>
-                  <video
-                    ref={videoRef}
-                    src={post.image_url}
-                    className="w-auto h-auto max-w-full max-h-full object-contain cursor-pointer"
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    // clicking video toggles play/pause
-                    onClick={() => {
-                      if (videoRef.current?.paused) {
-                        videoRef.current?.play();
-                        setIsPlaying(true);
-                      } else {
-                        videoRef.current?.pause();
-                        setIsPlaying(false);
-                      }
-                    }}
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all">
-                    {/* overlay uses pointer-events-none removed so play button can receive clicks if needed */}
-                    {!isPlaying && (
-                      <div className="bg-black/50 rounded-full p-4 cursor-pointer" onClick={() => { videoRef.current?.play(); setIsPlaying(true); }}>
-                        <Play className="h-12 w-12 text-white fill-white" />
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <img
-                  src={post.image_url}
-                  alt={post.content ? post.content.slice(0, 120) : `Post by ${post.user.username}`}
-                  className="w-auto h-auto max-w-full max-h-full object-contain"
-                  loading="lazy"
-                  decoding="async"
-                />
-              )}
+          {postMedia.length > 0 ? (
+            <div className="w-full md:w-2/3 bg-black flex items-center justify-center h-[50vh] md:h-full">
+              <ImageCarousel images={postMedia} />
             </div>
           ) : (
             /* Text-only posts: show centered caption with padding and smaller height on mobile */
-            <div className="w-full md:w-2/3 bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center h-64 md:h-full">
+            <div className="w-full md:w-2/3 bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center h-[50vh] md:h-full">
               <p className="text-lg md:text-xl text-center whitespace-pre-wrap px-6 py-8 max-w-prose">
                 {post.content}
               </p>
@@ -200,17 +151,24 @@ export const PostDetailModal = ({
             <ScrollArea className="flex-1 min-h-0 fixed-top border-b">
               <div className="p-4 space-y-4">
                 {/* Post Caption (only if there's media) */}
-                {post.content && post.image_url ? (
-                  <CommentItem
-                    comment={{
-                      ...post,
-                      user: post.user,
-                      content: post.content,
-                      created_at: post.created_at,
-                    }}
-                    isCaption={true}
-                  />
-                ) : null}
+                {post.content && postMedia.length > 0 && (
+                  <div className="pb-4 border-b mb-4">
+                    <div className="flex items-start space-x-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={post.user.avatar} />
+                        <AvatarFallback>
+                          {getInitials(post.user.displayName || post.user.username)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="text-sm">
+                        <p>
+                          <span className="font-semibold">{post.user.username}</span>
+                          <span className="ml-2 whitespace-pre-wrap">{post.content}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {areCommentsLoading ? (
                   <div className="flex justify-center py-8">
