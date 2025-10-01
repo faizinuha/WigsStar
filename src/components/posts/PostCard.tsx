@@ -38,6 +38,7 @@ interface Post {
   image_url?: string;
   created_at: string;
   likes: number;
+  likes_count: number;
   comments: number;
   isLiked: boolean;
   isBookmarked: boolean;

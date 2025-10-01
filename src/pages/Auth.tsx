@@ -176,7 +176,7 @@ export function Auth() {
                           <AvatarFallback>{account.user.email?.substring(0, 2).toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0"> 
-                          <p className="font-semibold truncate">{account.user.user_metadata?.display_name || account.user.username}</p>
+                          <p className="font-semibold truncate">{account.user.user_metadata?.display_name || account.user.email}</p>
                           <p className="text-sm text-muted-foreground truncate">{account.user.email}</p>
                         </div>
                       </div>
