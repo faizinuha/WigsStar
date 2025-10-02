@@ -120,17 +120,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     let isMounted = true;
-    let timeoutId: NodeJS.Timeout;
 
     async function initializeAuth() {
-      // Set a timeout to prevent infinite loading
-      timeoutId = setTimeout(() => {
-        if (isMounted && loading) {
-          console.warn("Auth initialization timeout, forcing loading to false");
-          setLoading(false);
-        }
-      }, 5000); // 5 detik timeout
-
       try {
         const storedAccounts = getStoredAccounts();
         const activeId = getActiveAccountId();
@@ -170,7 +161,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setAccounts(storedAccounts);
         }
       } catch (error) {
-        console.error("Failed to initialize auth, clearing state:", error);
+        console.error("Failed to initialize auth:", error);
         if (isMounted) {
           // Clear potentially corrupted storage
           localStorage.removeItem(ACCOUNTS_STORAGE_KEY);
@@ -187,21 +178,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setProvider(null);
         }
       } finally {
-        clearTimeout(timeoutId);
         if (isMounted) {
           setLoading(false);
         }
       }
     }
 
-    setLoading(true);
     initializeAuth();
 
     return () => {
       isMounted = false;
-      clearTimeout(timeoutId);
     };
-  }, []); // Empty dependency array - hanya run sekali saat mount
+  }, []);
 
   useEffect(() => {
 
@@ -390,7 +378,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const targetAccount = accounts.find((acc) => acc.user.id === userId);
 
     if (targetAccount) {
-      setLoading(true);
       try {
         setActiveAccountId(userId);
         const { error } = await supabase.auth.setSession(targetAccount.session);
@@ -403,8 +390,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setProvider((targetAccount.user.app_metadata.provider as string) || null);
       } catch (error) {
         console.error('Error switching account:', error);
-      } finally {
-        setLoading(false);
       }
     }
   };

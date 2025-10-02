@@ -1074,6 +1074,7 @@ export type Database = {
         Args: Record<PropertyKey, never> | { current_user_id: string }
         Returns: {
           avatar_url: string
+          description: string
           id: string
           is_group: boolean
           last_message: string
@@ -1102,6 +1103,12 @@ export type Database = {
         Returns: {
           hashtag: string
           post_count: number
+        }[]
+      }
+      get_user_groups: {
+        Args: { p_user_id: string }
+        Returns: {
+          group_id: string
         }[]
       }
       get_user_posts: {
