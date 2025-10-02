@@ -14,9 +14,6 @@ import { Settings } from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import PrivateRoute from "./components/PrivateRoute";
-import ChatPage from "./pages/ChatPage";
-import ChatDetailPage from "./pages/ChatDetail";
-
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -35,22 +32,6 @@ const App = () => (
             <Route path="/memes" element={<Memes />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/settings" element={<Settings />} />
-            <Route
-              path="/chat"
-              element={
-                <PrivateRoute>
-                  <ChatPage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/chat/:chatId"
-              element={
-                <PrivateRoute>
-                  <ChatDetailPage />
-                </PrivateRoute>
-              }
-            />
             <Route
               path="/Admin_Dashbord"
               element={
