@@ -14,6 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
+      attachments: {
+        Row: {
+          created_at: string | null
+          file_size: number | null
+          file_type: string | null
+          file_url: string
+          id: string
+          message_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          file_url: string
+          id?: string
+          message_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      badges: {
+        Row: {
+          created_at: string | null
+          id: number
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: never
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: never
+          name?: string
+        }
+        Relationships: []
+      }
+      bookmarks: {
+        Row: {
+          created_at: string | null
+          id: number
+          post_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          post_id?: string | null
+          user_id?: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          post_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookmarks_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookmarks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comments: {
         Row: {
           content: string
@@ -115,6 +204,83 @@ export type Database = {
           },
         ]
       }
+      group_members: {
+        Row: {
+          group_id: string
+          id: string
+          joined_at: string | null
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          group_id: string
+          id?: string
+          joined_at?: string | null
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          group_id?: string
+          id?: string
+          joined_at?: string | null
+          role?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      groups: {
+        Row: {
+          created_at: string | null
+          creator_id: string
+          description: string | null
+          id: string
+          is_private: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          creator_id: string
+          description?: string | null
+          id?: string
+          is_private?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          creator_id?: string
+          description?: string | null
+          id?: string
+          is_private?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "groups_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hashtags: {
         Row: {
           created_at: string
@@ -195,6 +361,39 @@ export type Database = {
           },
         ]
       }
+      meme_badges: {
+        Row: {
+          badge_id: number
+          created_at: string | null
+          meme_id: string
+        }
+        Insert: {
+          badge_id: number
+          created_at?: string | null
+          meme_id: string
+        }
+        Update: {
+          badge_id?: number
+          created_at?: string | null
+          meme_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meme_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meme_badges_meme_id_fkey"
+            columns: ["meme_id"]
+            isOneToOne: false
+            referencedRelation: "memes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       memes: {
         Row: {
           caption: string | null
@@ -236,6 +435,110 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      message_reactions: {
+        Row: {
+          created_at: string | null
+          emoji: string
+          id: string
+          message_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          emoji: string
+          id?: string
+          message_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          emoji?: string
+          id?: string
+          message_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          edited_at: string | null
+          group_id: string | null
+          id: string
+          receiver_id: string | null
+          reply_to: string | null
+          sender_id: string
+          type: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          edited_at?: string | null
+          group_id?: string | null
+          id?: string
+          receiver_id?: string | null
+          reply_to?: string | null
+          sender_id: string
+          type?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          edited_at?: string | null
+          group_id?: string | null
+          id?: string
+          receiver_id?: string | null
+          reply_to?: string | null
+          sender_id?: string
+          type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_reply_to_fkey"
+            columns: ["reply_to"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -389,6 +692,7 @@ export type Database = {
           created_at: string
           id: string
           is_repost: boolean | null
+          isBookmarked: string | null
           likes_count: number | null
           location: string | null
           original_post_id: string | null
@@ -402,6 +706,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_repost?: boolean | null
+          isBookmarked?: string | null
           likes_count?: number | null
           location?: string | null
           original_post_id?: string | null
@@ -415,6 +720,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_repost?: boolean | null
+          isBookmarked?: string | null
           likes_count?: number | null
           location?: string | null
           original_post_id?: string | null
@@ -441,10 +747,9 @@ export type Database = {
       }
       profiles: {
         Row: {
-          role(role: string): unknown
-          role: string
           avatar_url: string | null
           bio: string | null
+          cover_img: string | null
           created_at: string
           display_name: string | null
           followers_count: number | null
@@ -452,13 +757,15 @@ export type Database = {
           id: string
           is_private: boolean | null
           posts_count: number | null
+          role: string | null
           updated_at: string
           user_id: string
-          username: string
+          username: string | null
         }
         Insert: {
           avatar_url?: string | null
           bio?: string | null
+          cover_img?: string | null
           created_at?: string
           display_name?: string | null
           followers_count?: number | null
@@ -466,13 +773,15 @@ export type Database = {
           id?: string
           is_private?: boolean | null
           posts_count?: number | null
+          role?: string | null
           updated_at?: string
           user_id: string
-          username: string
+          username?: string | null
         }
         Update: {
           avatar_url?: string | null
           bio?: string | null
+          cover_img?: string | null
           created_at?: string
           display_name?: string | null
           followers_count?: number | null
@@ -480,11 +789,48 @@ export type Database = {
           id?: string
           is_private?: boolean | null
           posts_count?: number | null
+          role?: string | null
           updated_at?: string
           user_id?: string
-          username?: string
+          username?: string | null
         }
         Relationships: []
+      }
+      read_receipts: {
+        Row: {
+          id: string
+          message_id: string | null
+          read_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          message_id?: string | null
+          read_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          message_id?: string | null
+          read_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "read_receipts_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "read_receipts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stories: {
         Row: {
@@ -511,6 +857,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "stories_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      user_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_logs_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -549,7 +930,59 @@ export type Database = {
           type?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      user_sessions: {
+        Row: {
+          created_at: string | null
+          device: string | null
+          id: string
+          ip_address: string | null
+          is_active: boolean | null
+          last_seen: string | null
+          refresh_token: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          device?: string | null
+          id?: string
+          ip_address?: string | null
+          is_active?: boolean | null
+          last_seen?: string | null
+          refresh_token?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          device?: string | null
+          id?: string
+          ip_address?: string | null
+          is_active?: boolean | null
+          last_seen?: string | null
+          refresh_token?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       user_settings: {
         Row: {
@@ -637,11 +1070,45 @@ export type Database = {
           username: string
         }[]
       }
+      get_conversations: {
+        Args: Record<PropertyKey, never> | { current_user_id: string }
+        Returns: {
+          avatar_url: string
+          description: string
+          id: string
+          is_group: boolean
+          last_message: string
+          last_message_at: string
+          name: string
+          unread_count: number
+        }[]
+      }
+      get_memes_with_badges: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          badges: Json[]
+          caption: string
+          comments_count: number
+          created_at: string
+          id: string
+          likes_count: number
+          media_type: string
+          media_url: string
+          user: Json
+          user_id: string
+        }[]
+      }
       get_trending_hashtags: {
         Args: { limit_count: number }
         Returns: {
           hashtag: string
           post_count: number
+        }[]
+      }
+      get_user_groups: {
+        Args: { p_user_id: string }
+        Returns: {
+          group_id: string
         }[]
       }
       get_user_posts: {
@@ -671,6 +1138,10 @@ export type Database = {
       increment_likes_count: {
         Args: { post_id: string }
         Returns: undefined
+      }
+      is_member_of_group: {
+        Args: { _group_id: string }
+        Returns: boolean
       }
       toggle_like: {
         Args: {

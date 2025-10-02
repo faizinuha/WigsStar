@@ -36,7 +36,19 @@ export const useConversations = () => {
         throw error;
       }
       
-      setConversations(data as Conversation[]);
+      // Map data to match Conversation interface
+      const mappedData = (data || []).map((conv: any) => ({
+        id: conv.id,
+        is_group: conv.is_group,
+        name: conv.name,
+        avatar_url: conv.avatar_url,
+        last_message: conv.last_message,
+        last_message_at: conv.last_message_at,
+        unread_count: Number(conv.unread_count || 0),
+        description: conv.description || '',
+      }));
+      
+      setConversations(mappedData);
     } catch (err) {
       setError(err);
     } finally {

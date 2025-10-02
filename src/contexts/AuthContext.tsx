@@ -119,8 +119,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [provider, setProvider] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function initializeAuth() {
-      setLoading(true);
       try {
         const storedAccounts = getStoredAccounts();
         const activeId = getActiveAccountId();
@@ -128,43 +129,69 @@ export function AuthProvider({ children }: AuthProviderProps) {
           (acc) => acc.user.id === activeId
         );
 
+        if (!isMounted) return;
+
         if (activeAccount) {
           await supabase.auth.setSession(activeAccount.session);
-          setUser(activeAccount.user);
-          setSession(activeAccount.session);
-          setProvider(activeAccount.user.app_metadata.provider || null);
+          if (isMounted) {
+            setUser(activeAccount.user);
+            setSession(activeAccount.session);
+            setProvider(activeAccount.user.app_metadata.provider || null);
+          }
         } else if (storedAccounts.length > 0) {
           const defaultAccount = storedAccounts[0];
           setActiveAccountId(defaultAccount.user.id);
           await supabase.auth.setSession(defaultAccount.session);
-          setUser(defaultAccount.user);
-          setSession(defaultAccount.session);
-          setProvider(defaultAccount.user.app_metadata.provider || null);
+          if (isMounted) {
+            setUser(defaultAccount.user);
+            setSession(defaultAccount.session);
+            setProvider(defaultAccount.user.app_metadata.provider || null);
+          }
         } else {
           // No accounts, ensure user is signed out
           await supabase.auth.signOut();
+          if (isMounted) {
+            setUser(null);
+            setSession(null);
+            setProvider(null);
+          }
+        }
+        
+        if (isMounted) {
+          setAccounts(storedAccounts);
+        }
+      } catch (error) {
+        console.error("Failed to initialize auth:", error);
+        if (isMounted) {
+          // Clear potentially corrupted storage
+          localStorage.removeItem(ACCOUNTS_STORAGE_KEY);
+          localStorage.removeItem(ACTIVE_ACCOUNT_ID_KEY);
+          // Reset state
+          try {
+            await supabase.auth.signOut();
+          } catch (signOutError) {
+            console.error("Error signing out:", signOutError);
+          }
           setUser(null);
           setSession(null);
+          setAccounts([]);
           setProvider(null);
         }
-        setAccounts(storedAccounts);
-      } catch (error) {
-        console.error("Failed to initialize auth, clearing state:", error);
-        // Clear potentially corrupted storage
-        localStorage.removeItem(ACCOUNTS_STORAGE_KEY);
-        localStorage.removeItem(ACTIVE_ACCOUNT_ID_KEY);
-        // Reset state
-        await supabase.auth.signOut();
-        setUser(null);
-        setSession(null);
-        setAccounts([]);
-        setProvider(null);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
 
     initializeAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
 
     const {
       data: { subscription },
@@ -351,16 +378,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const targetAccount = accounts.find((acc) => acc.user.id === userId);
 
     if (targetAccount) {
-      setLoading(true);
-      setActiveAccountId(userId);
-      const { error } = await supabase.auth.setSession(targetAccount.session);
-      if (error) {
-        console.error('Failed to switch session:', error);
+      try {
+        setActiveAccountId(userId);
+        const { error } = await supabase.auth.setSession(targetAccount.session);
+        if (error) {
+          console.error('Failed to switch session:', error);
+          throw error;
+        }
+        setUser(targetAccount.user);
+        setSession(targetAccount.session);
+        setProvider((targetAccount.user.app_metadata.provider as string) || null);
+      } catch (error) {
+        console.error('Error switching account:', error);
       }
-      setUser(targetAccount.user);
-      setSession(targetAccount.session);
-      setProvider((targetAccount.user.app_metadata.provider as string) || null);
-      setLoading(false);
     }
   };
 
@@ -388,8 +418,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   return (
     <AuthContext.Provider value={value}>
       {loading ? (
-        <div className="flex justify-center items-center h-screen">
-          Loading...
+        <div className="flex flex-col justify-center items-center h-screen gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       ) : (
         <>

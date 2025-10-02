@@ -4,8 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 
 export interface Post {
-  likes_count: ReactNode;
-  profiles: any;
   id: string;
   user_id: string;
   content: string;
@@ -13,15 +11,18 @@ export interface Post {
   media_type?: string;
   created_at: string;
   likes: number;
+  likes_count: number;
   comments: number;
-  isLiked: boolean; // This will be derived from user_likes
+  isLiked: boolean;
   isBookmarked: boolean;
   location?: string;
+  media?: Array<{ media_url: string; media_type: string; order_index?: number }>;
   user: {
     username: string;
     displayName: string;
     avatar: string;
   };
+  profiles?: any;
 }
 
 export function useCreatePost() {
@@ -180,7 +181,8 @@ export function useUserPosts(userId?: string) {
           ),
           post_media (
             media_url,
-            media_type
+            media_type,
+            order_index
           ),
           user_likes: likes(user_id)
         `
@@ -217,19 +219,24 @@ export function useUserPosts(userId?: string) {
 
       const processedData = await Promise.all(data.map(async (post: any) => {
         const avatarUrl = await processUrl(post.profiles?.avatar_url);
+        const sortedMedia = (post.post_media || []).sort((a: any, b: any) => 
+          (a.order_index || 0) - (b.order_index || 0)
+        );
         return {
             id: post.id,
             content: post.caption || '',
             location: post.location,
             created_at: post.created_at,
             likes: post.likes_count || 0,
+            likes_count: post.likes_count || 0,
             comments: post.comments_count || 0,
             isLiked: post.user_likes.some(
               (like: { user_id: string }) => like.user_id === user?.id
             ),
-            isBookmarked: false, // TODO: Implement bookmark logic
-            image_url: post.post_media?.[0]?.media_url,
-            media_type: post.post_media?.[0]?.media_type,
+            isBookmarked: false,
+            image_url: sortedMedia[0]?.media_url,
+            media_type: sortedMedia[0]?.media_type,
+            media: sortedMedia,
             user: {
               username: post.profiles?.username || '',
               displayName:
@@ -237,6 +244,7 @@ export function useUserPosts(userId?: string) {
               avatar: avatarUrl || '',
             },
             user_id: post.user_id,
+            profiles: post.profiles,
         }
       }));
 
@@ -270,7 +278,8 @@ export function useAllPosts() {
           ),
           post_media (
             media_url,
-            media_type
+            media_type,
+            order_index
           ),
           user_likes: likes(user_id)
         `
@@ -306,19 +315,24 @@ export function useAllPosts() {
 
       const processedData = await Promise.all(data.map(async (post: any) => {
         const avatarUrl = await processUrl(post.profiles?.avatar_url);
+        const sortedMedia = (post.post_media || []).sort((a: any, b: any) => 
+          (a.order_index || 0) - (b.order_index || 0)
+        );
         return {
             id: post.id,
             content: post.caption || '',
             location: post.location,
             created_at: post.created_at,
             likes: post.likes_count || 0,
+            likes_count: post.likes_count || 0,
             comments: post.comments_count || 0,
             isLiked: post.user_likes.some(
               (like: { user_id: string }) => like.user_id === user?.id
             ),
-            isBookmarked: false, // TODO: Implement bookmark logic
-            image_url: post.post_media?.[0]?.media_url,
-            media_type: post.post_media?.[0]?.media_type,
+            isBookmarked: false,
+            image_url: sortedMedia[0]?.media_url,
+            media_type: sortedMedia[0]?.media_type,
+            media: sortedMedia,
             user: {
               username: post.profiles?.username || '',
               displayName:
@@ -326,6 +340,7 @@ export function useAllPosts() {
               avatar: avatarUrl || '',
             },
             user_id: post.user_id,
+            profiles: post.profiles,
         }
       }));
       return processedData as Post[];
@@ -546,7 +561,11 @@ export function usePostById(postId: string) {
         return signedUrlData ? signedUrlData.signedUrl : url;
       };
 
-      const avatarUrl = await processUrl(data.profiles?.avatar_url);
+      const profile = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles;
+      const avatarUrl = await processUrl(profile?.avatar_url);
+      const sortedMedia = (data.post_media || []).sort((a: any, b: any) => 
+        (a.order_index || 0) - (b.order_index || 0)
+      );
 
       return {
         id: data.id,
@@ -554,20 +573,22 @@ export function usePostById(postId: string) {
         location: data.location,
         created_at: data.created_at,
         likes: data.likes_count || 0,
+        likes_count: data.likes_count || 0,
         comments: data.comments_count || 0,
         isLiked: data.user_likes.some(
           (like: { user_id: string }) => like.user_id === user?.id
         ),
-        isBookmarked: false, // TODO: Implement bookmark logic
-        image_url: data.post_media?.[0]?.media_url,
-        media_type: data.post_media?.[0]?.media_type,
+        isBookmarked: false,
+        image_url: sortedMedia[0]?.media_url,
+        media_type: sortedMedia[0]?.media_type,
+        media: sortedMedia,
         user: {
-          username: data.profiles?.username || '',
-          displayName:
-            data.profiles?.display_name || data.profiles?.username || '',
+          username: profile?.username || '',
+          displayName: profile?.display_name || profile?.username || '',
           avatar: avatarUrl || '',
         },
         user_id: data.user_id,
+        profiles: data.profiles,
       } as Post;
     },
     enabled: !!postId,

@@ -113,16 +113,14 @@ export const Notifications = () => {
         const combinedStandard = standardNotifications.map((notification) => ({
           ...notification,
           from_user: profilesMap.get(notification.from_user_id) || null,
-        }));
+        })) as any;
         allNotifications.push(...combinedStandard);
       }
 
       // Tambahkan notifikasi sistem
       if (systemNotifications && systemNotifications.length > 0) {
-        // Explicitly cast systemNotifications to CombinedNotification[]
-        // This is a workaround for the type inference issue, assuming the data structure is correct.
         allNotifications.push(
-          ...(systemNotifications.map((notification) => ({
+          ...(systemNotifications.map((notification: any) => ({
             ...notification,
             from_user: null, // System notifications don't have a 'from_user'
             from_user_id: undefined, // Ensure from_user_id is not present
