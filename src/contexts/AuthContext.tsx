@@ -6,7 +6,7 @@ import {
   ReactNode,
 } from 'react';
 import { User, Session, AuthError, Provider } from '@supabase/supabase-js';
-import supabase from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
 
 // --- Helper Functions for Local Storage ---
@@ -149,18 +149,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     let isMounted = true;
-    let initTimeout: NodeJS.Timeout;
+    const startTime = Date.now();
 
     async function initializeAuth() {
       try {
-        // Set a timeout to prevent infinite loading
-        initTimeout = setTimeout(() => {
-          if (isMounted && loading) {
-            console.warn('Auth initialization timeout - forcing completion');
-            setLoading(false);
-          }
-        }, 5000);
-
         const storedAccounts = getStoredAccounts();
         const activeId = getActiveAccountId();
         const activeAccount = storedAccounts.find(
@@ -210,8 +202,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       } finally {
         if (isMounted) {
-          clearTimeout(initTimeout);
-          setLoading(false);
+          // Ensure minimum 1 second loading like Instagram
+          const elapsed = Date.now() - startTime;
+          const remaining = Math.max(0, 1000 - elapsed);
+          
+          setTimeout(() => {
+            if (isMounted) {
+              setLoading(false);
+            }
+          }, remaining);
         }
       }
     }
@@ -220,7 +219,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     return () => {
       isMounted = false;
-      if (initTimeout) clearTimeout(initTimeout);
     };
   }, []);
 
