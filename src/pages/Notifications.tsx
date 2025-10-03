@@ -21,7 +21,7 @@ import {
 import { useEffect, useState } from 'react';
 import { type Tables } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
-import supabase from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 // Define PostForModal type
 interface PostForModal {

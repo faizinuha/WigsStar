@@ -6,7 +6,7 @@ import {
   ReactNode,
 } from 'react';
 import { User, Session, AuthError, Provider } from '@supabase/supabase-js';
-import supabase from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
 
 // --- Helper Functions for Local Storage ---
@@ -44,29 +44,58 @@ const ProfileSync = () => {
   const { mutate: updateProfile } = useUpdateProfile();
 
   useEffect(() => {
-    if (user && profile && !profile.display_name) {
-      const provider = user.app_metadata.provider;
-      const rawMetaData = user.user_metadata as any;
+    if (!user || !profile) return;
+    
+    const provider = user.app_metadata.provider;
+    const rawMetaData = user.user_metadata as any;
 
-      let updates: Partial<{ display_name: string; username?: string }> = {};
+    let updates: Partial<{ display_name: string; username?: string; avatar_url?: string }> = {};
 
-      if (provider === 'google' && rawMetaData?.full_name) {
+    // Auto-fill from Google
+    if (provider === 'google') {
+      if (!profile.display_name && rawMetaData?.full_name) {
         updates.display_name = rawMetaData.full_name;
-      } else if (provider === 'github' && rawMetaData?.name) {
+      }
+      if (!profile.username && rawMetaData?.email) {
+        updates.username = rawMetaData.email.split('@')[0];
+      }
+      if (!profile.avatar_url && rawMetaData?.avatar_url) {
+        updates.avatar_url = rawMetaData.avatar_url;
+      }
+    }
+    
+    // Auto-fill from GitHub
+    else if (provider === 'github') {
+      if (!profile.display_name && rawMetaData?.name) {
         updates.display_name = rawMetaData.name;
-        // Also update username if it's not set, using the github username
-        if (!profile.username && rawMetaData.user_name) {
-          updates.username = rawMetaData.user_name;
-        }
       }
+      if (!profile.username && rawMetaData?.user_name) {
+        updates.username = rawMetaData.user_name;
+      }
+      if (!profile.avatar_url && rawMetaData?.avatar_url) {
+        updates.avatar_url = rawMetaData.avatar_url;
+      }
+    }
 
-      if (updates.display_name) {
-        updateProfile(updates);
+    // Auto-fill from Discord
+    else if (provider === 'discord') {
+      if (!profile.display_name && rawMetaData?.full_name) {
+        updates.display_name = rawMetaData.full_name;
       }
+      if (!profile.username && rawMetaData?.name) {
+        updates.username = rawMetaData.name;
+      }
+      if (!profile.avatar_url && rawMetaData?.avatar_url) {
+        updates.avatar_url = rawMetaData.avatar_url;
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      updateProfile(updates);
     }
   }, [user, profile, updateProfile]);
 
-  return null; // This component doesn't render anything
+  return null;
 };
 
 
@@ -120,6 +149,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     let isMounted = true;
+    const startTime = Date.now();
 
     async function initializeAuth() {
       try {
@@ -132,8 +162,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (!isMounted) return;
 
         if (activeAccount) {
-          await supabase.auth.setSession(activeAccount.session);
-          if (isMounted) {
+          const { error } = await supabase.auth.setSession(activeAccount.session);
+          if (!error && isMounted) {
             setUser(activeAccount.user);
             setSession(activeAccount.session);
             setProvider(activeAccount.user.app_metadata.provider || null);
@@ -141,19 +171,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } else if (storedAccounts.length > 0) {
           const defaultAccount = storedAccounts[0];
           setActiveAccountId(defaultAccount.user.id);
-          await supabase.auth.setSession(defaultAccount.session);
-          if (isMounted) {
+          const { error } = await supabase.auth.setSession(defaultAccount.session);
+          if (!error && isMounted) {
             setUser(defaultAccount.user);
             setSession(defaultAccount.session);
             setProvider(defaultAccount.user.app_metadata.provider || null);
           }
         } else {
-          // No accounts, ensure user is signed out
-          await supabase.auth.signOut();
-          if (isMounted) {
-            setUser(null);
-            setSession(null);
-            setProvider(null);
+          // No accounts, check current session
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session && isMounted) {
+            setUser(session.user);
+            setSession(session);
+            setProvider(session.user.app_metadata.provider || null);
           }
         }
         
@@ -163,15 +193,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } catch (error) {
         console.error("Failed to initialize auth:", error);
         if (isMounted) {
-          // Clear potentially corrupted storage
           localStorage.removeItem(ACCOUNTS_STORAGE_KEY);
           localStorage.removeItem(ACTIVE_ACCOUNT_ID_KEY);
-          // Reset state
-          try {
-            await supabase.auth.signOut();
-          } catch (signOutError) {
-            console.error("Error signing out:", signOutError);
-          }
           setUser(null);
           setSession(null);
           setAccounts([]);
@@ -179,7 +202,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       } finally {
         if (isMounted) {
-          setLoading(false);
+          // Ensure minimum 1 second loading like Instagram
+          const elapsed = Date.now() - startTime;
+          const remaining = Math.max(0, 1000 - elapsed);
+          
+          setTimeout(() => {
+            if (isMounted) {
+              setLoading(false);
+            }
+          }, remaining);
         }
       }
     }

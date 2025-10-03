@@ -1,6 +1,6 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import supabase from './supabase'; // Assuming your Supabase client is exported from here
+import { supabase } from '@/integrations/supabase/client';
 
 // Define types for our tables to ensure type safety
 export interface UserSession {

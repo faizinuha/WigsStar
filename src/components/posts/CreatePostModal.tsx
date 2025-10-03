@@ -15,7 +15,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBadges } from '@/hooks/useMemes';
 import { useTrendingTags } from '@/hooks/useTags';
-import supabase from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Image, Laugh, Loader2, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 

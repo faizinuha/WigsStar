@@ -24,13 +24,15 @@ import {
 } from '@/components/ui/sheet';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
+import { useConversations } from '@/hooks/useConversations';
 import { CreatePostModal } from '@/components/posts/CreatePostModal';
-import { AccountSwitcher } from './AccountSwitcher'; // Import the new component
+import { AccountSwitcher } from './AccountSwitcher';
 
 export const Navigation = () => {
-  const { user } = useAuth(); // signOut is no longer needed here directly
+  const { user } = useAuth();
   const { data: profile } = useProfile();
-  const [notifications] = useState(3); 
+  const { totalUnread } = useConversations();
+  const [notifications] = useState(3);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const navigate = useNavigate();
@@ -64,7 +66,14 @@ export const Navigation = () => {
       path: '/memes',
       active: location.pathname === '/memes',
     },
-        {
+    {
+      icon: MessageCircle,
+      label: 'Chat',
+      path: '/chat',
+      badge: totalUnread > 0 ? totalUnread : null,
+      active: location.pathname.startsWith('/chat'),
+    },
+    {
       icon: Heart,
       label: 'Notifications',
       path: '/notifications',

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import supabase from '@/lib/supabase';
+import { ReactNode, useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Navigate } from 'react-router-dom';
 
 const PrivateRoute = ({ children }: { children: JSX.Element }) => {

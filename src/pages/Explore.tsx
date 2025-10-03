@@ -26,7 +26,7 @@ import {
   Loader2,
   Compass,
 } from "lucide-react";
-import supabase from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { Post } from "@/hooks/usePosts";
 import { PostDetailModal } from "@/components/posts/PostDetailModal";
 

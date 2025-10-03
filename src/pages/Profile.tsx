@@ -31,7 +31,7 @@ import {
   useUserPosts,
 } from '@/hooks/usePosts';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
-import supabase from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import {
