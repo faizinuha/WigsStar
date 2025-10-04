@@ -27,11 +27,18 @@ import { useProfile } from '@/hooks/useProfile';
 import { useConversations } from '@/hooks/useConversations';
 import { CreatePostModal } from '@/components/posts/CreatePostModal';
 import { AccountSwitcher } from './AccountSwitcher';
+<<<<<<< HEAD
 import { NavigationSkeleton } from '@/components/skeletons/NavigationSkeleton';
 
 export const Navigation = () => {
   const { user, loading: authLoading } = useAuth();
   const { data: profile, isLoading: profileLoading } = useProfile();
+=======
+
+export const Navigation = () => {
+  const { user } = useAuth();
+  const { data: profile } = useProfile();
+>>>>>>> 4744c4c0234a3c41c0259ca9c5733743a2409a33
   const { totalUnread } = useConversations();
   const [notifications] = useState(3);
   const [isMenuOpen, setIsMenuOpen] = useState(false);

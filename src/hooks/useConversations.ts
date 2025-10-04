@@ -1,6 +1,12 @@
+<<<<<<< HEAD
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+=======
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+>>>>>>> 4744c4c0234a3c41c0259ca9c5733743a2409a33
 import { useEffect } from 'react';
 
 export interface ConversationMember {
@@ -33,8 +39,12 @@ export const useConversations = () => {
 
       const { data, error } = await supabase
         .from('conversations')
+<<<<<<< HEAD
         .select(
           `
+=======
+        .select(`
+>>>>>>> 4744c4c0234a3c41c0259ca9c5733743a2409a33
           *,
           conversation_members!inner(
             user_id,
@@ -45,11 +55,16 @@ export const useConversations = () => {
             sender_id,
             created_at
           )
+<<<<<<< HEAD
         `
         )
         .order('last_message_at', { ascending: false })
         .order('created_at', { foreignTable: 'messages', ascending: false })
         .limit(1, { foreignTable: 'messages' });
+=======
+        `)
+        .order('last_message_at', { ascending: false });
+>>>>>>> 4744c4c0234a3c41c0259ca9c5733743a2409a33
 
       if (error) throw error;
 
@@ -57,9 +72,13 @@ export const useConversations = () => {
       const conversationsWithMembers = await Promise.all(
         data.map(async (conv: any) => {
           // Get all members' profiles
+<<<<<<< HEAD
           const memberIds = conv.conversation_members.map(
             (m: any) => m.user_id
           );
+=======
+          const memberIds = conv.conversation_members.map((m: any) => m.user_id);
+>>>>>>> 4744c4c0234a3c41c0259ca9c5733743a2409a33
           const { data: profiles } = await supabase
             .from('profiles')
             .select('user_id, username, display_name, avatar_url')
@@ -67,19 +86,29 @@ export const useConversations = () => {
 
           // Get last message
           const lastMessage = conv.messages?.[0];
+<<<<<<< HEAD
 
           // Calculate unread count
           const userMember = conv.conversation_members.find(
             (m: any) => m.user_id === user.id
           );
+=======
+          
+          // Calculate unread count
+          const userMember = conv.conversation_members.find((m: any) => m.user_id === user.id);
+>>>>>>> 4744c4c0234a3c41c0259ca9c5733743a2409a33
           const { count: unreadCount } = await supabase
             .from('messages')
             .select('*', { count: 'exact', head: true })
             .eq('conversation_id', conv.id)
+<<<<<<< HEAD
             .gt(
               'created_at',
               userMember?.last_read_at || new Date(0).toISOString()
             );
+=======
+            .gt('created_at', userMember?.last_read_at || new Date(0).toISOString());
+>>>>>>> 4744c4c0234a3c41c0259ca9c5733743a2409a33
 
           return {
             id: conv.id,
@@ -114,9 +143,13 @@ export const useConversations = () => {
           table: 'messages',
         },
         () => {
+<<<<<<< HEAD
           queryClient.invalidateQueries({
             queryKey: ['conversations', user.id],
           });
+=======
+          queryClient.invalidateQueries({ queryKey: ['conversations', user.id] });
+>>>>>>> 4744c4c0234a3c41c0259ca9c5733743a2409a33
         }
       )
       .on(
@@ -127,9 +160,13 @@ export const useConversations = () => {
           table: 'conversations',
         },
         () => {
+<<<<<<< HEAD
           queryClient.invalidateQueries({
             queryKey: ['conversations', user.id],
           });
+=======
+          queryClient.invalidateQueries({ queryKey: ['conversations', user.id] });
+>>>>>>> 4744c4c0234a3c41c0259ca9c5733743a2409a33
         }
       )
       .subscribe();
@@ -139,10 +176,14 @@ export const useConversations = () => {
     };
   }, [user, queryClient]);
 
+<<<<<<< HEAD
   const totalUnread = conversations.reduce(
     (sum, conv) => sum + conv.unread_count,
     0
   );
+=======
+  const totalUnread = conversations.reduce((sum, conv) => sum + conv.unread_count, 0);
+>>>>>>> 4744c4c0234a3c41c0259ca9c5733743a2409a33
 
   return {
     conversations,
@@ -156,12 +197,18 @@ export const useCreateConversation = () => {
 
   return useMutation({
     mutationFn: async ({ otherUserId }: { otherUserId: string }) => {
+<<<<<<< HEAD
       const { data, error } = await supabase.rpc(
         'get_or_create_direct_conversation',
         {
           other_user_id: otherUserId,
         }
       );
+=======
+      const { data, error } = await supabase.rpc('get_or_create_direct_conversation', {
+        other_user_id: otherUserId,
+      });
+>>>>>>> 4744c4c0234a3c41c0259ca9c5733743a2409a33
 
       if (error) throw error;
       return data;
