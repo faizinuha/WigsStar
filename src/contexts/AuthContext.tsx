@@ -49,11 +49,7 @@ const ProfileSync = () => {
     const provider = user.app_metadata.provider;
     const rawMetaData = user.user_metadata as any;
 
-<<<<<<< HEAD
     const updates: Partial<{ display_name: string; username?: string; avatar_url?: string }> = {};
-=======
-    let updates: Partial<{ display_name: string; username?: string; avatar_url?: string }> = {};
->>>>>>> 4744c4c0234a3c41c0259ca9c5733743a2409a33
 
     // Auto-fill from Google
     if (provider === 'google') {
@@ -180,7 +176,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         if (!isMounted) return;
 
-<<<<<<< HEAD
         if (session) {
           // We have an active session
           console.log('Found active session');
@@ -199,35 +194,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
           
           setStoredAccounts(storedAccounts);
-=======
-        if (activeAccount) {
-          const { error } = await supabase.auth.setSession(activeAccount.session);
-          if (!error && isMounted) {
-            setUser(activeAccount.user);
-            setSession(activeAccount.session);
-            setProvider(activeAccount.user.app_metadata.provider || null);
-          }
-        } else if (storedAccounts.length > 0) {
-          const defaultAccount = storedAccounts[0];
-          setActiveAccountId(defaultAccount.user.id);
-          const { error } = await supabase.auth.setSession(defaultAccount.session);
-          if (!error && isMounted) {
-            setUser(defaultAccount.user);
-            setSession(defaultAccount.session);
-            setProvider(defaultAccount.user.app_metadata.provider || null);
-          }
-        } else {
-          // No accounts, check current session
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session && isMounted) {
-            setUser(session.user);
-            setSession(session);
-            setProvider(session.user.app_metadata.provider || null);
-          }
-        }
-        
-        if (isMounted) {
->>>>>>> 4744c4c0234a3c41c0259ca9c5733743a2409a33
           setAccounts(storedAccounts);
           setActiveAccountId(session.user.id);
           
