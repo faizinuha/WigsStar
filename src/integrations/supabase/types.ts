@@ -311,6 +311,42 @@ export type Database = {
           },
         ]
       }
+      maintenance_tasks: {
+        Row: {
+          created_at: string
+          error: string | null
+          executed_at: string | null
+          executed_by: string | null
+          id: string
+          result: Json | null
+          status: string
+          task_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          executed_at?: string | null
+          executed_by?: string | null
+          id?: string
+          result?: Json | null
+          status?: string
+          task_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          executed_at?: string | null
+          executed_by?: string | null
+          id?: string
+          result?: Json | null
+          status?: string
+          task_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       meme_badges: {
         Row: {
           badge_id: number
@@ -708,6 +744,30 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      system_health: {
+        Row: {
+          check_type: string
+          checked_at: string
+          details: Json | null
+          id: string
+          status: string
+        }
+        Insert: {
+          check_type: string
+          checked_at?: string
+          details?: Json | null
+          id?: string
+          status: string
+        }
+        Update: {
+          check_type?: string
+          checked_at?: string
+          details?: Json | null
+          id?: string
+          status?: string
+        }
+        Relationships: []
       }
       user_logs: {
         Row: {

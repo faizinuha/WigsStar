@@ -105,43 +105,15 @@ export function useCreatePost() {
         }
       }
 
-      // 4. Handle hashtags (same logic as useUpdatePost)
-      const hashtags = content
-        .match(/#(\w+)/g)
-        ?.map((tag) => tag.substring(1).toLowerCase());
-      if (hashtags && hashtags.length > 0) {
-        const uniqueHashtags = [...new Set(hashtags)];
-
-        const { data: tags, error: tagsError } = await supabase
-          .from('tags')
-          .upsert(
-            uniqueHashtags.map((name) => ({ name })),
-            { onConflict: 'name' }
-          )
-          .select('id, name');
-
-        if (tagsError) {
-          console.error('Error upserting tags:', tagsError);
-        } else if (tags) {
-          const postTags = tags.map((tag) => ({
-            post_id: postId,
-            tag_id: tag.id,
-          }));
-          const { error: postTagsError } = await supabase
-            .from('post_tags')
-            .insert(postTags);
-          if (postTagsError)
-            console.error('Error creating post tags:', postTagsError);
-
-          try {
-            const { error: rpcError } = await supabase.rpc(
-              'increment_tag_counts',
-              { tag_names: uniqueHashtags }
-            );
-            if (rpcError) console.error('Error syncing tag counts:', rpcError);
-          } catch (e) {
-            console.error('RPC Error:', e);
-          }
+      // 4. Extract hashtags using existing RPC function
+      if (content) {
+        try {
+          await supabase.rpc('extract_and_store_hashtags', { 
+            post_content: content, 
+            post_id: postId 
+          });
+        } catch (e) {
+          console.error('Error extracting hashtags:', e);
         }
       }
 
@@ -373,7 +345,7 @@ export function useTogglePostLike() {
         if (error) throw error;
 
         // Decrement likes_count in posts table
-        await supabase.rpc('likes_count_decrement', { post_id: postId });
+        await supabase.rpc('decrement_likes_count', { post_id: postId });
       } else {
         // Like post
         const { error } = await supabase.from('likes').insert({
@@ -384,7 +356,7 @@ export function useTogglePostLike() {
         if (error) throw error;
 
         // Increment likes_count in posts table
-        await supabase.rpc('increment_post_likes_count', { post_id: postId });
+        await supabase.rpc('increment_likes_count', { post_id: postId });
       }
 
       return true;
@@ -439,54 +411,14 @@ export function useUpdatePost() {
       }
 
       // --- START HASHTAG SYNCING ---
-      // First, remove all old tags associated with this post
-      const { error: deleteError } = await supabase
-        .from('post_tags')
-        .delete()
-        .eq('post_id', postId);
-      if (deleteError) console.error('Error deleting old tags:', deleteError);
-
-      // Now, process and add the new tags
-      const hashtags = content
-        .match(/#(\w+)/g)
-        ?.map((tag) => tag.substring(1).toLowerCase());
-      if (hashtags && hashtags.length > 0) {
-        const uniqueHashtags = [...new Set(hashtags)];
-
-        const { data: tags, error: tagsError } = await supabase
-          .from('tags')
-          .upsert(
-            uniqueHashtags.map((name) => ({ name })),
-            { onConflict: 'name' }
-          )
-          .select('id, name');
-
-        if (tagsError) {
-          console.error('Error upserting tags:', tagsError);
-        } else if (tags) {
-          const postTags = tags.map((tag) => ({
-            post_id: postId,
-            tag_id: tag.id,
-          }));
-          const { error: postTagsError } = await supabase
-            .from('post_tags')
-            .insert(postTags);
-          if (postTagsError)
-            console.error('Error creating post tags:', postTagsError);
-
-          // It's complex to handle decrementing old tags and incrementing new ones safely from the client.
-          // A better approach is a dedicated RPC function `sync_post_tags`.
-          // For now, we rely on a function that recounts or increments.
-          try {
-            const { error: rpcError } = await supabase.rpc(
-              'increment_tag_counts',
-              { tag_names: uniqueHashtags }
-            );
-            if (rpcError) console.error('Error syncing tag counts:', rpcError);
-          } catch (e) {
-            console.error('RPC Error:', e);
-          }
-        }
+      // Use the existing extract_and_store_hashtags function
+      try {
+        await supabase.rpc('extract_and_store_hashtags', { 
+          post_content: content, 
+          post_id: postId 
+        });
+      } catch(e) { 
+        console.error('Error syncing hashtags:', e) 
       }
       // --- END HASHTAG SYNCING ---
 
