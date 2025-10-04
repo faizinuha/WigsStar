@@ -136,9 +136,10 @@ const AdminContent = () => {
 
       // Process users and their avatars
       const processedUsers = await Promise.all(
-        usersRes.data.map(async (u) => ({
+        usersRes.data.map(async (u: any) => ({
           ...u,
           avatar_url: await processAvatarUrl(u.avatar_url),
+          is_verified: false, // Default value since is_verified doesn't exist in profiles table
         }))
       );
       setUsers(processedUsers as Profile[]);
