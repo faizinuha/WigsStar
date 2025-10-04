@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import Index from "./pages/Index";
 import { Auth } from "./pages/Auth";
+import { AuthCallback } from "./pages/AuthCallback";
 import Profile from "./pages/Profile";
 import Explore from "./pages/Explore";
 import { Memes } from "./pages/Memes";
@@ -29,6 +30,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:userId" element={<Profile />} />
             <Route path="/explore" element={<Explore />} />

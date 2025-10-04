@@ -202,15 +202,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       } finally {
         if (isMounted) {
-          // Ensure minimum 1 second loading like Instagram
-          const elapsed = Date.now() - startTime;
-          const remaining = Math.max(0, 1000 - elapsed);
-          
-          setTimeout(() => {
-            if (isMounted) {
-              setLoading(false);
-            }
-          }, remaining);
+          setLoading(false);
         }
       }
     }
@@ -352,7 +344,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await supabase.auth.signOut();
 
     const options: { redirectTo: string; scopes?: string } = {
-      redirectTo: window.location.origin,
+      redirectTo: `${window.location.origin}/auth/callback`,
     };
 
     if (provider === 'spotify') {
@@ -448,17 +440,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   return (
     <AuthContext.Provider value={value}>
-      {loading ? (
-        <div className="flex flex-col justify-center items-center h-screen gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      ) : (
-        <>
-          {children}
-          <ProfileSync />
-        </>
-      )}
+      {children}
+      <ProfileSync />
     </AuthContext.Provider>
   );
 }
