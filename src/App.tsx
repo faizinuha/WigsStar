@@ -20,7 +20,6 @@ import PrivateRoute from "./components/PrivateRoute";
 import Chat from "./pages/Chat";
 import ChatDetail from "./pages/ChatDetail";
 
-<<<<<<< HEAD
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -95,57 +94,6 @@ const App = () => (
       </LoadingProvider>
     </QueryClientProvider>
   </ErrorBoundary>
-=======
-const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider> {/* Moved AuthProvider inside BrowserRouter */}
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/profile/:userId" element={<Profile />} />
-            <Route path="/explore" element={<Explore />} />
-            <Route path="/memes" element={<Memes />} />
-            <Route path="/notifications" element={<Notifications />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route
-              path="/chat"
-              element={
-                <PrivateRoute>
-                  <Chat />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/chat/:chatId"
-              element={
-                <PrivateRoute>
-                  <ChatDetail />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/Admin_Dashbord"
-              element={
-                <PrivateRoute>
-                  <Admin />
-                </PrivateRoute>
-              }
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
->>>>>>> 4744c4c0234a3c41c0259ca9c5733743a2409a33
 );
 
 export default App;
