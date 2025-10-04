@@ -1,4 +1,4 @@
-import {
+import React, {
   createContext,
   useContext,
   useEffect,
@@ -6,7 +6,7 @@ import {
   ReactNode,
 } from 'react';
 import { User, Session, AuthError, Provider } from '@supabase/supabase-js';
-import supabase from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
 
 // --- Helper Functions for Local Storage ---
@@ -44,29 +44,58 @@ const ProfileSync = () => {
   const { mutate: updateProfile } = useUpdateProfile();
 
   useEffect(() => {
-    if (user && profile && !profile.display_name) {
-      const provider = user.app_metadata.provider;
-      const rawMetaData = user.user_metadata as any;
+    if (!user || !profile) return;
+    
+    const provider = user.app_metadata.provider;
+    const rawMetaData = user.user_metadata as any;
 
-      let updates: Partial<{ display_name: string; username?: string }> = {};
+    const updates: Partial<{ display_name: string; username?: string; avatar_url?: string }> = {};
 
-      if (provider === 'google' && rawMetaData?.full_name) {
+    // Auto-fill from Google
+    if (provider === 'google') {
+      if (!profile.display_name && rawMetaData?.full_name) {
         updates.display_name = rawMetaData.full_name;
-      } else if (provider === 'github' && rawMetaData?.name) {
+      }
+      if (!profile.username && rawMetaData?.email) {
+        updates.username = rawMetaData.email.split('@')[0];
+      }
+      if (!profile.avatar_url && rawMetaData?.avatar_url) {
+        updates.avatar_url = rawMetaData.avatar_url;
+      }
+    }
+    
+    // Auto-fill from GitHub
+    else if (provider === 'github') {
+      if (!profile.display_name && rawMetaData?.name) {
         updates.display_name = rawMetaData.name;
-        // Also update username if it's not set, using the github username
-        if (!profile.username && rawMetaData.user_name) {
-          updates.username = rawMetaData.user_name;
-        }
       }
+      if (!profile.username && rawMetaData?.user_name) {
+        updates.username = rawMetaData.user_name;
+      }
+      if (!profile.avatar_url && rawMetaData?.avatar_url) {
+        updates.avatar_url = rawMetaData.avatar_url;
+      }
+    }
 
-      if (updates.display_name) {
-        updateProfile(updates);
+    // Auto-fill from Discord
+    else if (provider === 'discord') {
+      if (!profile.display_name && rawMetaData?.full_name) {
+        updates.display_name = rawMetaData.full_name;
       }
+      if (!profile.username && rawMetaData?.name) {
+        updates.username = rawMetaData.name;
+      }
+      if (!profile.avatar_url && rawMetaData?.avatar_url) {
+        updates.avatar_url = rawMetaData.avatar_url;
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      updateProfile(updates);
     }
   }, [user, profile, updateProfile]);
 
-  return null; // This component doesn't render anything
+  return null;
 };
 
 
@@ -116,62 +145,89 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initTimeout, setInitTimeout] = useState<NodeJS.Timeout | null>(null);
   const [provider, setProvider] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
+    // Set a timeout to force loading to false after 10 seconds max
+    const timeout = setTimeout(() => {
+      if (isMounted) {
+        console.warn('Auth initialization taking too long, forcing loading to false');
+        setLoading(false);
+      }
+    }, 10000);
+
+    setInitTimeout(timeout);
+
     async function initializeAuth() {
       try {
-        const storedAccounts = getStoredAccounts();
-        const activeId = getActiveAccountId();
-        const activeAccount = storedAccounts.find(
-          (acc) => acc.user.id === activeId
-        );
+        console.log('Starting auth initialization...');
+        
+        // First, try to get current session from Supabase
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          throw sessionError;
+        }
 
         if (!isMounted) return;
 
-        if (activeAccount) {
-          await supabase.auth.setSession(activeAccount.session);
-          if (isMounted) {
-            setUser(activeAccount.user);
-            setSession(activeAccount.session);
-            setProvider(activeAccount.user.app_metadata.provider || null);
+        if (session) {
+          // We have an active session
+          console.log('Found active session');
+          setUser(session.user);
+          setSession(session);
+          setProvider(session.user.app_metadata.provider || null);
+          
+          // Update stored accounts with current session
+          const storedAccounts = getStoredAccounts();
+          const existingAccountIndex = storedAccounts.findIndex(acc => acc.user.id === session.user.id);
+          
+          if (existingAccountIndex >= 0) {
+            storedAccounts[existingAccountIndex] = { user: session.user, session };
+          } else {
+            storedAccounts.push({ user: session.user, session });
           }
-        } else if (storedAccounts.length > 0) {
-          const defaultAccount = storedAccounts[0];
-          setActiveAccountId(defaultAccount.user.id);
-          await supabase.auth.setSession(defaultAccount.session);
-          if (isMounted) {
-            setUser(defaultAccount.user);
-            setSession(defaultAccount.session);
-            setProvider(defaultAccount.user.app_metadata.provider || null);
-          }
-        } else {
-          // No accounts, ensure user is signed out
-          await supabase.auth.signOut();
-          if (isMounted) {
-            setUser(null);
-            setSession(null);
-            setProvider(null);
-          }
-        }
-        
-        if (isMounted) {
+          
+          setStoredAccounts(storedAccounts);
           setAccounts(storedAccounts);
+          setActiveAccountId(session.user.id);
+          
+        } else {
+          // No active session, check stored accounts
+          console.log('No active session, checking stored accounts');
+          const storedAccounts = getStoredAccounts();
+          const activeId = getActiveAccountId();
+          const activeAccount = storedAccounts.find(acc => acc.user.id === activeId);
+
+          if (activeAccount && isMounted) {
+            console.log('Restoring session from stored account');
+            const { error } = await supabase.auth.setSession(activeAccount.session);
+            if (!error) {
+              setUser(activeAccount.user);
+              setSession(activeAccount.session);
+              setProvider(activeAccount.user.app_metadata.provider || null);
+              setAccounts(storedAccounts);
+            } else {
+              console.error('Failed to restore session:', error);
+              // Clear invalid stored data
+              localStorage.removeItem(ACCOUNTS_STORAGE_KEY);
+              localStorage.removeItem(ACTIVE_ACCOUNT_ID_KEY);
+            }
+          } else {
+            console.log('No stored accounts or invalid active account');
+            setAccounts([]);
+          }
         }
+
       } catch (error) {
         console.error("Failed to initialize auth:", error);
         if (isMounted) {
-          // Clear potentially corrupted storage
           localStorage.removeItem(ACCOUNTS_STORAGE_KEY);
           localStorage.removeItem(ACTIVE_ACCOUNT_ID_KEY);
-          // Reset state
-          try {
-            await supabase.auth.signOut();
-          } catch (signOutError) {
-            console.error("Error signing out:", signOutError);
-          }
           setUser(null);
           setSession(null);
           setAccounts([]);
@@ -179,7 +235,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       } finally {
         if (isMounted) {
+          clearTimeout(timeout);
           setLoading(false);
+          console.log('Auth initialization completed');
         }
       }
     }
@@ -188,6 +246,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     return () => {
       isMounted = false;
+      if (initTimeout) {
+        clearTimeout(initTimeout);
+      }
     };
   }, []);
 
@@ -321,7 +382,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await supabase.auth.signOut();
 
     const options: { redirectTo: string; scopes?: string } = {
-      redirectTo: window.location.origin,
+      redirectTo: `${window.location.origin}/auth/callback`,
     };
 
     if (provider === 'spotify') {
@@ -417,17 +478,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   return (
     <AuthContext.Provider value={value}>
-      {loading ? (
-        <div className="flex flex-col justify-center items-center h-screen gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      ) : (
-        <>
-          {children}
-          <ProfileSync />
-        </>
-      )}
+      {children}
+      <ProfileSync />
     </AuthContext.Provider>
   );
 }

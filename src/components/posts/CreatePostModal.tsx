@@ -15,7 +15,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBadges } from '@/hooks/useMemes';
 import { useTrendingTags } from '@/hooks/useTags';
-import supabase from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Image, Laugh, Loader2, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -173,47 +173,15 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
         if (mediaError) throw mediaError;
 
         // --- START HASHTAG PROCESSING ---
-        const hashtags = caption
-          .match(/#(\w+)/g)
-          ?.map((tag) => tag.substring(1).toLowerCase());
-        if (hashtags && hashtags.length > 0) {
-          const uniqueHashtags = [...new Set(hashtags)];
-
-          // 1. Upsert tags and get their IDs
-          const { data: tags, error: tagsError } = await supabase
-            .from('tags')
-            .upsert(
-              uniqueHashtags.map((name) => ({ name })),
-              { onConflict: 'name' }
-            )
-            .select('id, name');
-
-          if (tagsError) {
-            console.error('Error upserting tags:', tagsError);
-          } else if (tags) {
-            // 2. Link tags to the post
-            const postTags = tags.map((tag) => ({
-              post_id: post.id,
-              tag_id: tag.id,
-            }));
-            const { error: postTagsError } = await supabase
-              .from('post_tags')
-              .insert(postTags);
-            if (postTagsError) {
-              console.error('Error creating post tags:', postTagsError);
-            }
-
-            // 3. Increment tag counts via RPC
-            try {
-              const { error: rpcError } = await supabase.rpc(
-                'increment_tag_counts',
-                { tag_names: uniqueHashtags }
-              );
-              if (rpcError)
-                console.error('Error incrementing tag counts:', rpcError);
-            } catch (e) {
-              console.error('RPC Error:', e);
-            }
+        // Extract hashtags using existing RPC function
+        if (caption) {
+          try {
+            await supabase.rpc('extract_and_store_hashtags', { 
+              post_content: caption, 
+              post_id: post.id 
+            });
+          } catch (e) {
+            console.error('Error extracting hashtags:', e);
           }
         }
         // --- END HASHTAG PROCESSING ---

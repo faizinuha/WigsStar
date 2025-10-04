@@ -21,7 +21,7 @@ import {
 import { useEffect, useState } from 'react';
 import { type Tables } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
-import supabase from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 // Define PostForModal type
 interface PostForModal {
@@ -251,7 +251,11 @@ export const Notifications = () => {
       const transformedPost: PostForModal = {
         ...postData,
         content: postData.caption || '',
-        user: postData.profiles,
+        user: {
+          username: postData.profiles?.username || '',
+          displayName: postData.profiles?.display_name || postData.profiles?.username || '',
+          avatar: postData.profiles?.avatar_url || '',
+        },
         likes: postData.likes_count || 0,
         comments: postData.comments_count || 0,
         isLiked: postData.user_likes.some((like: { user_id: string }) => like.user_id === user.id),

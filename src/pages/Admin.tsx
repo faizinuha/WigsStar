@@ -1,7 +1,8 @@
 import { useEffect, useState, ReactNode } from "react";
-import supabase from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { EditUserModal } from "@/components/admin/EditUserModal";
 import UserActivityChart from "@/components/admin/UserActivityChart";
+import { useMaintenanceTasks, useExecuteMaintenanceTask, useSystemHealth } from "@/hooks/useMaintenanceTasks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -66,24 +67,123 @@ const StatCard = ({ title, value, icon, description }: { title: string, value: s
 );
 
 const MaintenanceTab = () => {
-  const { toast } = useToast();
-  const runAction = (actionName: string) => {
-    toast({ title: "Action Triggered", description: `${actionName} has been started.` });
-  };
+  const { data: tasks, isLoading: tasksLoading } = useMaintenanceTasks();
+  const { data: health } = useSystemHealth();
+  const { mutate: executeTask, isPending } = useExecuteMaintenanceTask();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Maintenance Actions</CardTitle>
-        <CardDescription>Run manual system maintenance tasks.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-wrap gap-4">
-        <Button variant="outline" onClick={() => runAction('Clear Application Cache')}>Clear Application Cache</Button>
-        <Button variant="outline" onClick={() => runAction('Re-index Search Data')}>Re-index Search Data</Button>
-        <Button variant="outline" onClick={() => runAction('Run System Health Checks')}>Run Health Checks</Button>
-        <Button variant="destructive" onClick={() => runAction('Force Stop All Jobs')}>Force Stop All Jobs</Button>
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Maintenance Actions</CardTitle>
+          <CardDescription>Run manual system maintenance tasks</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => executeTask('clear_cache')}
+              disabled={isPending}
+              className="justify-start"
+            >
+              Clear Application Cache
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => executeTask('reindex_search')}
+              disabled={isPending}
+              className="justify-start"
+            >
+              Re-index Search Data
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => executeTask('health_check')}
+              disabled={isPending}
+              className="justify-start"
+            >
+              Run Health Checks
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => executeTask('force_stop_jobs')}
+              disabled={isPending}
+              className="justify-start"
+            >
+              Force Stop All Jobs
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* System Health Status */}
+      {health && health.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>System Health</CardTitle>
+            <CardDescription>Latest health check results</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {health[0].details && Object.entries(health[0].details as Record<string, any>).map(([key, value]) => (
+                <div key={key} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                  <span className="font-medium capitalize">{key}</span>
+                  <Badge variant={value.status === 'healthy' ? 'default' : 'destructive'}>
+                    {value.status}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-4">
+              Last checked: {new Date(health[0].checked_at).toLocaleString()}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recent Tasks */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Maintenance Tasks</CardTitle>
+          <CardDescription>History of executed maintenance tasks</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {tasksLoading ? (
+            <div className="space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : tasks && tasks.length > 0 ? (
+            <div className="space-y-2">
+              {tasks.map((task) => (
+                <div key={task.id} className="flex items-center justify-between p-3 rounded-lg border">
+                  <div className="flex-1">
+                    <p className="font-medium capitalize">{task.task_type.replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {task.executed_at ? new Date(task.executed_at).toLocaleString() : 'Not executed'}
+                    </p>
+                  </div>
+                  <Badge 
+                    variant={
+                      task.status === 'completed' ? 'default' : 
+                      task.status === 'failed' ? 'destructive' : 
+                      'secondary'
+                    }
+                  >
+                    {task.status}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No maintenance tasks executed yet
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
@@ -136,9 +236,10 @@ const AdminContent = () => {
 
       // Process users and their avatars
       const processedUsers = await Promise.all(
-        usersRes.data.map(async (u) => ({
+        usersRes.data.map(async (u: any) => ({
           ...u,
           avatar_url: await processAvatarUrl(u.avatar_url),
+          is_verified: false, // Default value since is_verified doesn't exist in profiles table
         }))
       );
       setUsers(processedUsers as Profile[]);

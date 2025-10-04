@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
-import supabase from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -114,41 +114,16 @@ export function useLikes(entity: LikeableEntity, entityId: string | undefined) {
         currentlyLiked ? Math.max(0, prev - 1) : prev + 1
       );
 
+      // Use toggle_like RPC function for both like and unlike operations
+      const params: any = { p_user_id: user.id };
+      if (entity === 'post') params.p_post_id = entityId;
+      else if (entity === 'meme') params.p_meme_id = entityId;
+      else if (entity === 'comment') params.p_comment_id = entityId;
+
       try {
-        if (currentlyLiked) {
-          const { error } = await supabase
-            .from('likes')
-            .delete()
-            .eq('user_id', user.id)
-            .eq(column, entityId);
-
-          if (error) throw error;
-        } else {
-          const payload: Record<string, string | null> = {
-            user_id: user.id,
-            post_id: null,
-            comment_id: null,
-            meme_id: null,
-            [column]: entityId,
-          };
-          const { data, error } = await supabase
-            .from('likes')
-            .insert(payload)
-            .select()
-            .single();
-
-          if (error) {
-            // Log the payload to help debug DB constraint failures
-            console.error(
-              'Like insert failed. Payload:',
-              payload,
-              'Error:',
-              error
-            );
-            throw error;
-          }
-        }
-      } catch (err) {
+        const { error: rpcError } = await supabase.rpc('toggle_like', params);
+        if (rpcError) throw rpcError;
+      } catch (err: any) {
         // Revert optimistic update
         setIsLiked(currentlyLiked);
         setLikesCount((prev) =>
