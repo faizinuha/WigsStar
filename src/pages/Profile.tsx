@@ -31,6 +31,7 @@ import {
   useUserPosts,
 } from '@/hooks/usePosts';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
+import { useCreateConversation } from '@/hooks/useConversations';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -47,8 +48,9 @@ import {
   MoreHorizontal,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useBookmarks } from '../hooks/useBookmarks';
+import { toast } from 'sonner';
 
 const PostCard = ({ post, authUser }) => {
   const [isLiked, setIsLiked] = useState(post.isLiked);
@@ -171,9 +173,11 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
   const { user: authUser } = useAuth();
   const { mutateAsync: updateProfileMutate } = useUpdateProfile();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const { mutate: createConversation } = useCreateConversation();
 
   const { data: posts, isLoading: postsLoading } = useUserPosts(
     profile?.user_id
@@ -411,11 +415,25 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
                       >
                         {isFollowing ? 'Following' : 'Follow'}
                       </Button>
-                      <Link to={`/messages/${profile.username}`}>
-                        <Button variant="outline" size="icon">
-                          <MessageCircle className="h-4 w-4" />
-                        </Button>
-                      </Link>
+                      <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={() => {
+                          createConversation(
+                            { otherUserId: profile.user_id },
+                            {
+                              onSuccess: (conversationId) => {
+                                navigate(`/chat/${conversationId}`);
+                              },
+                              onError: () => {
+                                toast.error('Gagal membuat percakapan');
+                              },
+                            }
+                          );
+                        }}
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
                       <Button variant="outline" size="icon">
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>

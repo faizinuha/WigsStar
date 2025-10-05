@@ -426,6 +426,8 @@ export type Database = {
       }
       messages: {
         Row: {
+          attachment_type: string | null
+          attachment_url: string | null
           content: string
           conversation_id: string
           created_at: string | null
@@ -434,6 +436,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          attachment_type?: string | null
+          attachment_url?: string | null
           content: string
           conversation_id: string
           created_at?: string | null
@@ -442,6 +446,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          attachment_type?: string | null
+          attachment_url?: string | null
           content?: string
           conversation_id?: string
           created_at?: string | null
@@ -1034,6 +1040,10 @@ export type Database = {
       increment_likes_count: {
         Args: { post_id: string }
         Returns: undefined
+      }
+      is_conversation_member: {
+        Args: { p_conversation_id: string; p_user_id: string }
+        Returns: boolean
       }
       is_member_of_group: {
         Args: { _group_id: string }
