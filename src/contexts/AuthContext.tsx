@@ -382,12 +382,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const addAccountWithOAuth = async (provider: Provider) => {
     await supabase.auth.signOut();
 
-    const options: { redirectTo: string; scopes?: string } = {
-      redirectTo: `${window.location.origin}/auth/callback`,
-    };
+    const options: { redirectTo: string; scopes?: string } = { redirectTo: '' };
 
     if (provider === 'spotify') {
-      options.scopes = 'playlist-read-private';
+      options.redirectTo = `${window.location.origin}/spotify/music`;
+      options.scopes = 'playlist-read-private user-read-private user-read-email';
+    } else {
+      options.redirectTo = `${window.location.origin}/auth/callback`;
     }
 
     await supabase.auth.signInWithOAuth({

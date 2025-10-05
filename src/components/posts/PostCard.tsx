@@ -281,7 +281,6 @@ export const PostCard = ({ post }: PostCardProps) => {
                 ref={videoRef}
                 src={post.image_url}
                 loop
-                muted
                 autoPlay
                 playsInline
                 className="w-full h-full object-contain cursor-pointer"
