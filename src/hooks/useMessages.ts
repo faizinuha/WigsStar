@@ -9,6 +9,8 @@ export interface Message {
   sender_id: string;
   content: string;
   created_at: string;
+  attachment_url?: string;
+  attachment_type?: string;
   sender: {
     user_id: string;
     username: string;
@@ -109,22 +111,58 @@ export const useMessages = (conversationId: string | undefined) => {
 
 export const useSendMessage = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({
       conversationId,
       content,
+      file,
     }: {
       conversationId: string;
       content: string;
+      file?: File;
     }) => {
-      const { data, error } = await supabase.rpc('send_message', {
-        p_conversation_id: conversationId,
-        p_content: content,
-      });
+      let attachmentUrl: string | undefined;
+      let attachmentType: string | undefined;
+
+      // Upload file if provided
+      if (file && user) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${user.id}/${conversationId}/${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('chat-attachments')
+          .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        attachmentUrl = fileName;
+        attachmentType = file.type;
+      }
+
+      // Send message with attachment
+      const { data: message, error } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: user?.id,
+          content: content || '',
+          attachment_url: attachmentUrl,
+          attachment_type: attachmentType,
+        })
+        .select()
+        .single();
 
       if (error) throw error;
-      return data;
+
+      // Update conversation last_message_at
+      await supabase
+        .from('conversations')
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('id', conversationId);
+
+      return message;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['messages', variables.conversationId] });

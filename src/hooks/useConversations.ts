@@ -36,7 +36,7 @@ export const useConversations = () => {
         .select(
           `
           *,
-          conversation_members!inner(
+          conversation_members(
             user_id,
             last_read_at
           ),

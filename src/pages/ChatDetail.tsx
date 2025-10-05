@@ -6,8 +6,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Send, MoreVertical, Phone, Video } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, Phone, Video, Paperclip, X, Image as ImageIcon, FileText, Music } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function ChatDetail() {
   const { chatId } = useParams();
@@ -16,7 +17,9 @@ export default function ChatDetail() {
   const { messages, isLoading } = useMessages(chatId);
   const { mutate: sendMessage } = useSendMessage();
   const [newMessage, setNewMessage] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -27,13 +30,15 @@ export default function ChatDetail() {
   }, [messages]);
 
   const handleSend = () => {
-    if (!newMessage.trim() || !chatId) return;
+    if ((!newMessage.trim() && !selectedFile) || !chatId) return;
 
     sendMessage({
       conversationId: chatId,
       content: newMessage.trim(),
+      file: selectedFile || undefined,
     });
     setNewMessage('');
+    setSelectedFile(null);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -41,6 +46,31 @@ export default function ChatDetail() {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File size must be less than 10MB');
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  const getFileIcon = (type?: string) => {
+    if (!type) return <FileText className="h-4 w-4" />;
+    if (type.startsWith('image/')) return <ImageIcon className="h-4 w-4" />;
+    if (type.startsWith('audio/')) return <Music className="h-4 w-4" />;
+    return <FileText className="h-4 w-4" />;
+  };
+
+  const getAttachmentUrl = async (path: string) => {
+    const { data } = await supabase.storage
+      .from('chat-attachments')
+      .createSignedUrl(path, 3600);
+    return data?.signedUrl;
   };
 
   const otherUser = messages[0]?.sender_id !== user?.id ? messages[0]?.sender : messages[1]?.sender;
@@ -133,7 +163,36 @@ export default function ChatDetail() {
                       : 'bg-muted rounded-bl-md'
                   }`}
                 >
-                  <p className="text-sm break-words leading-relaxed">{message.content}</p>
+                  {message.attachment_url && (
+                    <div className="mb-2">
+                      {message.attachment_type?.startsWith('image/') ? (
+                        <img 
+                          src={supabase.storage.from('chat-attachments').getPublicUrl(message.attachment_url).data.publicUrl}
+                          alt="Attachment"
+                          className="max-w-full rounded-lg max-h-60 object-cover"
+                          onError={async (e) => {
+                            const url = await getAttachmentUrl(message.attachment_url!);
+                            if (url) e.currentTarget.src = url;
+                          }}
+                        />
+                      ) : message.attachment_type?.startsWith('audio/') ? (
+                        <audio controls className="max-w-full">
+                          <source src={supabase.storage.from('chat-attachments').getPublicUrl(message.attachment_url).data.publicUrl} />
+                        </audio>
+                      ) : (
+                        <a 
+                          href={supabase.storage.from('chat-attachments').getPublicUrl(message.attachment_url).data.publicUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-sm hover:underline"
+                        >
+                          {getFileIcon(message.attachment_type)}
+                          <span>View attachment</span>
+                        </a>
+                      )}
+                    </div>
+                  )}
+                  {message.content && <p className="text-sm break-words leading-relaxed">{message.content}</p>}
                 </div>
                 <span className="text-xs text-muted-foreground mt-1 px-2">
                   {formatDistanceToNow(new Date(message.created_at), {
@@ -149,7 +208,38 @@ export default function ChatDetail() {
 
       {/* Input - Instagram Style */}
       <div className="border-t p-3 bg-background">
+        {selectedFile && (
+          <div className="mb-2 max-w-4xl mx-auto">
+            <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+              {getFileIcon(selectedFile.type)}
+              <span className="text-sm flex-1 truncate">{selectedFile.name}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 flex-shrink-0"
+                onClick={() => setSelectedFile(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
         <div className="flex gap-2 items-center max-w-4xl mx-auto">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept="image/*,audio/*,.pdf,.doc,.docx,.txt"
+            onChange={handleFileSelect}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full h-10 w-10"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Paperclip className="h-4 w-4" />
+          </Button>
           <Input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
@@ -159,7 +249,7 @@ export default function ChatDetail() {
           />
           <Button 
             onClick={handleSend} 
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() && !selectedFile}
             size="icon"
             className="rounded-full h-10 w-10"
           >
