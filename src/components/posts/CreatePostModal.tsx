@@ -159,6 +159,9 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
           .single();
 
         if (postError) throw postError;
+        if (!post) {
+          throw new Error('Post creation failed. Please try again.');
+        }
 
         const mediaInserts = uploadedFiles.map((file, index) => ({
           post_id: post.id,
@@ -227,38 +230,35 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="post-files">Select Images/Videos</Label>
-                <div className="mt-2">
-                  <input
-                    id="post-files"
-                    type="file"
-                    multiple
-                    accept="image/*,video/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      document.getElementById('post-files')?.click()
-                    }
-                    className="w-full h-32 border-dashed"
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <Upload className="h-8 w-8" />
-                      <span>Choose files or drag and drop</span>
-                      <span className="text-xs text-muted-foreground">
-                        Up to 10 images/videos
-                      </span>
-                    </div>
-                  </Button>
-                </div>
-                {/* Preview appears directly below select button */}
-                {previews.length > 0 && (
+                <input
+                  id="post-files"
+                  type="file"
+                  multiple
+                  accept="image/*,video/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                {previews.length === 0 ? (
+                  <div className="mt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        document.getElementById('post-files')?.click()
+                      }
+                      className="w-full h-32 border-dashed"
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <Upload className="h-8 w-8" />
+                        <span>Choose files or drag and drop</span>
+                        <span className="text-xs text-muted-foreground">
+                          Up to 10 images/videos
+                        </span>
+                      </div>
+                    </Button>
+                  </div>
+                ) : (
                   <div className="space-y-2 mt-2">
-                    <Label>
-                      Preview ({files.length}/{activeTab === 'meme' ? 1 : 10})
-                    </Label>
                     <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 max-h-40 overflow-y-auto p-2 bg-muted/50 rounded-lg">
                       {previews.map((preview, index) => (
                         <Card key={index} className="relative group">
@@ -287,6 +287,18 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
                         </Card>
                       ))}
                     </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        document.getElementById('post-files')?.click()
+                      }
+                      className="w-full"
+                      disabled={files.length >= 10}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Add more files ({files.length}/10)
+                    </Button>
                   </div>
                 )}
               </div>
@@ -366,37 +378,34 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="meme-file">Select Meme Image/Video</Label>
-                <div className="mt-2">
-                  <input
-                    id="meme-file"
-                    type="file"
-                    accept="image/*,video/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      document.getElementById('meme-file')?.click()
-                    }
-                    className="w-full h-32 border-dashed"
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <Laugh className="h-8 w-8" />
-                      <span>Choose your meme</span>
-                      <span className="text-xs text-muted-foreground">
-                        Single image or video
-                      </span>
-                    </div>
-                  </Button>
-                </div>
-                {/* Preview appears directly below select button */}
-                {previews.length > 0 && (
+                <input
+                  id="meme-file"
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                {previews.length === 0 ? (
+                  <div className="mt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        document.getElementById('meme-file')?.click()
+                      }
+                      className="w-full h-32 border-dashed"
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <Laugh className="h-8 w-8" />
+                        <span>Choose your meme</span>
+                        <span className="text-xs text-muted-foreground">
+                          Single image or video
+                        </span>
+                      </div>
+                    </Button>
+                  </div>
+                ) : (
                   <div className="space-y-2 mt-2">
-                    <Label>
-                      Preview ({files.length}/{activeTab === 'meme' ? 1 : 10})
-                    </Label>
                     <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 max-h-40 overflow-y-auto p-2 bg-muted/50 rounded-lg">
                       {previews.map((preview, index) => (
                         <Card key={index} className="relative group">
@@ -425,6 +434,17 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
                         </Card>
                       ))}
                     </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        document.getElementById('meme-file')?.click()
+                      }
+                      className="w-full"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Change file
+                    </Button>
                   </div>
                 )}
               </div>
@@ -467,42 +487,6 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
             </div>
           </TabsContent>
         </Tabs>
-
-        {previews.length > 0 && (
-          <div className="space-y-2">
-            <Label>
-              Preview ({files.length}/{activeTab === 'meme' ? 1 : 10})
-            </Label>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 max-h-40 overflow-y-auto p-2 bg-muted/50 rounded-lg">
-              {previews.map((preview, index) => (
-                <Card key={index} className="relative group">
-                  <div className="aspect-square overflow-hidden rounded-md">
-                    {files[index]?.type.startsWith('image/') ? (
-                      <img
-                        src={preview}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <video
-                        src={preview}
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-                  </div>
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    onClick={() => removeFile(index)}
-                    className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div className="flex gap-3 pt-4 border-t">
           <Button
