@@ -775,6 +775,33 @@ export type Database = {
         }
         Relationships: []
       }
+      tracks: {
+        Row: {
+          album_title: string | null
+          artist: string | null
+          created_at: string
+          id: string
+          image_url: string | null
+          name: string | null
+        }
+        Insert: {
+          album_title?: string | null
+          artist?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          name?: string | null
+        }
+        Update: {
+          album_title?: string | null
+          artist?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          name?: string | null
+        }
+        Relationships: []
+      }
       user_logs: {
         Row: {
           action: string

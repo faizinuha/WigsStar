@@ -21,8 +21,8 @@ export default defineConfig(({ mode }) => {
       // Custom plugin to proxy Spotify API calls during development
       mode === 'development' && {
         name: 'spotify-dev-api-proxy',
-        configureServer(server) {
-          server.middlewares.use('/api/spotify', async (req, res, next) => {
+        configureServer(server: any) {
+          server.middlewares.use('/api/spotify', async (req: any, res: any, next: any) => {
             console.log("Middleware for /api/spotify triggered.");
             console.log("Loaded SPOTIFY_CLIENT_SECRET:", client_secret ? "found" : "NOT FOUND");
             try {
@@ -40,7 +40,7 @@ export default defineConfig(({ mode }) => {
                 body: 'grant_type=client_credentials'
               });
 
-              const tokenData = await tokenResponse.json();
+              const tokenData = await tokenResponse.json() as any;
               if (!tokenResponse.ok) {
                 console.error("Error fetching Spotify token:", tokenData);
                 throw new Error('Failed to fetch access token from Spotify.');
@@ -64,7 +64,7 @@ export default defineConfig(({ mode }) => {
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify(recommendationsData));
 
-            } catch (error) {
+            } catch (error: any) {
               console.error('Spotify proxy middleware error:', error);
               res.statusCode = 500;
               res.setHeader('Content-Type', 'application/json');
