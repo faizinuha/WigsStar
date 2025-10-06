@@ -14,6 +14,7 @@ import {
   X,
   Settings,
   Laugh,
+  Music,
 } from 'lucide-react';
 import {
   Sheet,
@@ -86,6 +87,12 @@ export const Navigation = () => {
       badge: notifications, // Original notifications
       active: location.pathname === '/notifications',
     },
+    {
+      icon: Music,
+      label: 'Spotify',
+      path: '/spotify/music',
+      active: location.pathname === '/spotify/music',
+    }
   ];
 
   // Don't render navigation if user is not authenticated
@@ -177,8 +184,8 @@ export const Navigation = () => {
           </Button>
 
           <div className="flex items-center space-x-3 p-3 rounded-2xl bg-secondary">
-            <div 
-              className="flex-1 min-w-0 flex items-center space-x-3 cursor-pointer" 
+            <div
+              className="flex-1 min-w-0 flex items-center space-x-3 cursor-pointer"
               onClick={handleProfileClick}
             >
               <Avatar className="h-10 w-10">
@@ -230,22 +237,22 @@ export const Navigation = () => {
               <div className="mt-8 space-y-6">
                 {/* Profile Section & Account Switcher */}
                 <div className="flex items-center justify-between p-4 rounded-2xl bg-secondary">
-                    <div 
-                      className="flex items-center space-x-3 cursor-pointer flex-1 min-w-0"
-                      onClick={handleProfileClick}
-                    >
-                        <Avatar className="h-12 w-12">
-                            <AvatarImage src={profile?.avatar_url || '/assets/placeholder/cewek.png'} />
-                            <AvatarFallback>{user?.user_metadata?.display_name?.charAt(0) || user?.email?.charAt(0) || "U"}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{user?.user_metadata?.display_name || user?.email?.split('@')[0] || "yourname"}</p>
-                            <p className="text-sm text-muted-foreground truncate">@{user?.user_metadata?.username || user?.email?.split('@')[0] || "yourname"}</p>
-                        </div>
+                  <div
+                    className="flex items-center space-x-3 cursor-pointer flex-1 min-w-0"
+                    onClick={handleProfileClick}
+                  >
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={profile?.avatar_url || '/assets/placeholder/cewek.png'} />
+                      <AvatarFallback>{user?.user_metadata?.display_name?.charAt(0) || user?.email?.charAt(0) || "U"}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{user?.user_metadata?.display_name || user?.email?.split('@')[0] || "yourname"}</p>
+                      <p className="text-sm text-muted-foreground truncate">@{user?.user_metadata?.username || user?.email?.split('@')[0] || "yourname"}</p>
                     </div>
-                    <AccountSwitcher />
+                  </div>
+                  <AccountSwitcher />
                 </div>
-                
+
                 {profile?.role === 'admin' && (
                   <Button
                     variant={location.pathname === '/admin' ? 'secondary' : 'ghost'}
@@ -256,7 +263,7 @@ export const Navigation = () => {
                     <span>Dashbaord Admin</span>
                   </Button>
                 )}
-                
+
                 <div className="space-y-2">
                   {navItems.map((item, index) => {
                     const Icon = item.icon;

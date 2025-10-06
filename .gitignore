@@ -12,7 +12,9 @@ dist
 dist-ssr
 *.local
 
-
+/.env.test.local
+/.env.production.local
+/.env
 .env
 /.env.local
 /.env.development.local
@@ -37,3 +39,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.vercel

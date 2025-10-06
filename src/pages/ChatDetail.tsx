@@ -6,8 +6,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Send, MoreVertical, Phone, Video } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, Phone, Video, Paperclip, X, Image as ImageIcon, FileText, Music, Mic, Square, Play } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export default function ChatDetail() {
   const { chatId } = useParams();
@@ -16,7 +18,13 @@ export default function ChatDetail() {
   const { messages, isLoading } = useMessages(chatId);
   const { mutate: sendMessage } = useSendMessage();
   const [newMessage, setNewMessage] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -27,13 +35,18 @@ export default function ChatDetail() {
   }, [messages]);
 
   const handleSend = () => {
-    if (!newMessage.trim() || !chatId) return;
+    if ((!newMessage.trim() && !selectedFile && !audioBlob) || !chatId) return;
+
+    const fileToSend = audioBlob ? new File([audioBlob], `audio-${Date.now()}.webm`, { type: 'audio/webm' }) : selectedFile;
 
     sendMessage({
       conversationId: chatId,
       content: newMessage.trim(),
+      file: fileToSend || undefined,
     });
     setNewMessage('');
+    setSelectedFile(null);
+    setAudioBlob(null);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -41,6 +54,65 @@ export default function ChatDetail() {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('File size must be less than 10MB');
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setAudioBlob(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      toast.error('Tidak dapat mengakses mikrofon');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const getFileIcon = (type?: string) => {
+    if (!type) return <FileText className="h-4 w-4" />;
+    if (type.startsWith('image/')) return <ImageIcon className="h-4 w-4" />;
+    if (type.startsWith('audio/')) return <Music className="h-4 w-4" />;
+    if (type.startsWith('video/')) return <Video className="h-4 w-4" />;
+    return <FileText className="h-4 w-4" />;
+  };
+
+  const getAttachmentUrl = async (path: string) => {
+    const { data } = await supabase.storage
+      .from('chat-attachments')
+      .createSignedUrl(path, 3600);
+    return data?.signedUrl;
   };
 
   const otherUser = messages[0]?.sender_id !== user?.id ? messages[0]?.sender : messages[1]?.sender;
@@ -54,7 +126,6 @@ export default function ChatDetail() {
             variant="ghost"
             size="icon"
             onClick={() => navigate('/chat')}
-            className="md:hidden"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -94,7 +165,17 @@ export default function ChatDetail() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Welcome Message */}
+        {!isLoading && messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full text-center px-4">
+            <div className="max-w-md space-y-2">
+              <h3 className="text-lg font-semibold">Selamat datang di chat {otherUser?.display_name || 'user'}</h3>
+              <p className="text-sm text-muted-foreground">Chat ini terenkripsi end-to-end, jadi aman! 🔒</p>
+            </div>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="space-y-4">
             {[...Array(6)].map((_, i) => (
@@ -133,7 +214,50 @@ export default function ChatDetail() {
                       : 'bg-muted rounded-bl-md'
                   }`}
                 >
-                  <p className="text-sm break-words leading-relaxed">{message.content}</p>
+                  {message.attachment_url && (
+                    <div className="mb-2">
+                      {message.attachment_type?.startsWith('image/') ? (
+                        <img 
+                          src={supabase.storage.from('chat-attachments').getPublicUrl(message.attachment_url).data.publicUrl}
+                          alt="Attachment"
+                          className="max-w-full rounded-lg max-h-60 object-cover cursor-pointer"
+                          onClick={async (e) => {
+                            const url = await getAttachmentUrl(message.attachment_url!);
+                            if (url) window.open(url, '_blank');
+                          }}
+                          onError={async (e) => {
+                            const url = await getAttachmentUrl(message.attachment_url!);
+                            if (url) e.currentTarget.src = url;
+                          }}
+                        />
+                      ) : message.attachment_type?.startsWith('video/') ? (
+                        <video 
+                          controls 
+                          className="max-w-full rounded-lg max-h-60"
+                          src={supabase.storage.from('chat-attachments').getPublicUrl(message.attachment_url).data.publicUrl}
+                          onError={async (e) => {
+                            const url = await getAttachmentUrl(message.attachment_url!);
+                            if (url) e.currentTarget.src = url;
+                          }}
+                        />
+                      ) : message.attachment_type?.startsWith('audio/') ? (
+                        <audio controls className="max-w-full">
+                          <source src={supabase.storage.from('chat-attachments').getPublicUrl(message.attachment_url).data.publicUrl} />
+                        </audio>
+                      ) : (
+                        <a 
+                          href={supabase.storage.from('chat-attachments').getPublicUrl(message.attachment_url).data.publicUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-sm hover:underline"
+                        >
+                          {getFileIcon(message.attachment_type)}
+                          <span>Lihat lampiran</span>
+                        </a>
+                      )}
+                    </div>
+                  )}
+                  {message.content && <p className="text-sm break-words leading-relaxed">{message.content}</p>}
                 </div>
                 <span className="text-xs text-muted-foreground mt-1 px-2">
                   {formatDistanceToNow(new Date(message.created_at), {
@@ -149,23 +273,98 @@ export default function ChatDetail() {
 
       {/* Input - Instagram Style */}
       <div className="border-t p-3 bg-background">
+        {(selectedFile || audioBlob) && (
+          <div className="mb-2 max-w-4xl mx-auto">
+            <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+              {audioBlob ? (
+                <>
+                  <Music className="h-4 w-4" />
+                  <span className="text-sm flex-1">Rekaman suara</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => {
+                      const url = URL.createObjectURL(audioBlob);
+                      const audio = new Audio(url);
+                      audio.play();
+                    }}
+                  >
+                    <Play className="h-3 w-3" />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {getFileIcon(selectedFile?.type)}
+                  <span className="text-sm flex-1 truncate">{selectedFile?.name}</span>
+                </>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 flex-shrink-0"
+                onClick={() => {
+                  setSelectedFile(null);
+                  setAudioBlob(null);
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
         <div className="flex gap-2 items-center max-w-4xl mx-auto">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
+            onChange={handleFileSelect}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full h-10 w-10"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isRecording}
+          >
+            <Paperclip className="h-4 w-4" />
+          </Button>
+          
+          {!selectedFile && !audioBlob && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`rounded-full h-10 w-10 ${isRecording ? 'bg-destructive text-destructive-foreground' : ''}`}
+              onMouseDown={startRecording}
+              onMouseUp={stopRecording}
+              onTouchStart={startRecording}
+              onTouchEnd={stopRecording}
+            >
+              {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </Button>
+          )}
+          
           <Input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Message..."
+            placeholder="Ketik pesan..."
             className="flex-1 rounded-full border-2 px-4 py-2 bg-muted/50 focus-visible:ring-0 focus-visible:ring-offset-0"
+            disabled={isRecording}
           />
           <Button 
             onClick={handleSend} 
-            disabled={!newMessage.trim()}
+            disabled={(!newMessage.trim() && !selectedFile && !audioBlob) || isRecording}
             size="icon"
             className="rounded-full h-10 w-10"
           >
             <Send className="h-4 w-4" />
           </Button>
         </div>
+        {isRecording && (
+          <p className="text-xs text-center text-muted-foreground mt-2">Merekam... Lepas untuk mengirim</p>
+        )}
       </div>
     </div>
   );
