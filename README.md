@@ -1,6 +1,26 @@
 # StarMar - Platform Media Sosial
 
-![Logo StarMar](./assets/Logo/StarMar-.png)
+<p align="center">
+  <img src="assets/Logo/StarMar-.png" alt="Logo StarMar" width="220"/>
+</p>
+
+<p align="center">
+  <a href="https://github.com/faizinuha/StarMar2/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/faizinuha/StarMar2?color=blue&style=for-the-badge" alt="License">
+  </a>
+  <a href="https://github.com/faizinuha/StarMar2/issues">
+    <img src="https://img.shields.io/github/issues/faizinuha/StarMar2?color=yellow&style=for-the-badge" alt="Issues">
+  </a>
+  <a href="https://github.com/faizinuha/StarMar2/network/members">
+    <img src="https://img.shields.io/github/forks/faizinuha/StarMar2?color=orange&style=for-the-badge" alt="Forks">
+  </a>
+  <a href="https://github.com/faizinuha/StarMar2/stargazers">
+    <img src="https://img.shields.io/github/stars/faizinuha/StarMar2?color=red&style=for-the-badge" alt="Stars">
+  </a>
+  <a href="https://github.com/faizinuha/StarMar2/graphs/contributors">
+    <img src="https://img.shields.io/github/contributors/faizinuha/StarMar2?color=brightgreen&style=for-the-badge" alt="Contributors">
+  </a>
+</p>
 
 StarMar adalah aplikasi media sosial modern dan kaya fitur yang dirancang untuk menghubungkan orang dan membangun komunitas. Ini memungkinkan pengguna untuk berbagi postingan, cerita, dan meme, berinteraksi dengan teman, dan menjelajahi konten yang sedang tren.
 
