@@ -48,7 +48,7 @@ export const EditUserModal = ({ user, isOpen, onClose }) => {
         role,
         username,
         display_name: displayName,
-        is_verified: isVerified,
+        is_verified: isVerified ? 'true' : 'false',
       })
       .eq('id', user.id)
       .select()
