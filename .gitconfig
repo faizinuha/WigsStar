@@ -1,0 +1,12 @@
+[alias]
+  # ✨ Sync ke StarMar2
+  sync-star = "!git fetch starmar && git pull starmar main && git push starmar main"
+
+  # 💞 Sync ke WigsStar
+  sync-wigs = "!git fetch origin && git pull origin main && git push origin main"
+
+  # ⚡ Quick push/pull biar ringkas
+  fp = "!git fetch && git pull && git push"
+
+  # 🌸 Lihat daftar remote dan branch dengan cepat
+  remotes = "!git remote -v && echo && git branch -vv"
