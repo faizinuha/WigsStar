@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 export type MaintenanceTaskType = 
   | 'clear_cache'
@@ -39,15 +40,18 @@ export function useMaintenanceTasks() {
 export function useExecuteMaintenanceTask() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (taskType: MaintenanceTaskType) => {
+      if (!user) throw new Error('User not authenticated');
       // Create task record
       const { data: task, error: insertError } = await supabase
         .from('maintenance_tasks')
         .insert({
           task_type: taskType,
           status: 'running',
+          executed_by: user.id,
         })
         .select()
         .single();

@@ -22,8 +22,6 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
 
 export const EditUserModal = ({ user, isOpen, onClose }) => {
-  const [username, setUsername] = useState('');
-  const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState('user');
   const [isVerified, setIsVerified] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -31,45 +29,56 @@ export const EditUserModal = ({ user, isOpen, onClose }) => {
 
   useEffect(() => {
     if (user) {
-      setUsername(user.username || '');
-      setDisplayName(user.display_name || '');
       setRole(user.role || 'user');
-      setIsVerified(user.is_verified || false);
+      setIsVerified(user.is_verified === 'verified');
     }
   }, [user]);
 
   const handleSave = async () => {
-    if (!user) return;
+    if (!user || !user.user_id) return;
 
     setIsSaving(true);
+
     const { data, error } = await supabase
       .from('profiles')
       .update({
         role,
-        username,
-        display_name: displayName,
-        is_verified: isVerified ? 'true' : 'false',
+        is_verified: isVerified ? 'verified' : null,
       })
-      .eq('id', user.id)
+      .eq('user_id', user.user_id)
       .select()
       .single();
 
-    if (error) {
+    // Check if the first attempt failed because the row was not found
+    if (error && error.code === 'PGRST116') {
+      console.warn(`Update with user_id failed, retrying with id for user: ${user.username}`);
+      // Retry with the primary key 'id' as a fallback
+      const { data: retryData, error: retryError } = await supabase
+        .from('profiles')
+        .update({ role, is_verified: isVerified ? 'verified' : null })
+        .eq('id', user.id) // Fallback to 'id'
+        .select()
+        .single();
+
+      if (retryError) {
+        console.error('Error updating user on retry:', retryError);
+        toast({ title: 'Error updating user', description: retryError.message, variant: 'destructive' });
+      } else if (retryData) {
+        toast({ title: 'User updated successfully', description: `Role and verification status for @${retryData.username} have been updated.` });
+        onClose(retryData); // Pass updated data back
+      }
+    } else if (error) {
       console.error('Error updating user:', error);
-      toast({
-        title: 'Error updating user',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'User updated successfully',
-        description: `@${data.username} has been updated.`,
-      });
-      onClose();
+      toast({ title: 'Error updating user', description: error.message, variant: 'destructive' });
+    } else if (data) {
+      toast({ title: 'User updated successfully', description: `Role and verification status for @${data.username} have been updated.` });
+      onClose(data); // Pass updated data back
     }
+
     setIsSaving(false);
   };
+
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -77,32 +86,10 @@ export const EditUserModal = ({ user, isOpen, onClose }) => {
         <DialogHeader>
           <DialogTitle>Edit User</DialogTitle>
           <DialogDescription>
-            Make changes to the profile for @{user?.username}. Click save when you're done.
+            Make changes to the role and verification status for @{user?.username}.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="username" className="text-right">
-              Username
-            </Label>
-            <Input
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="displayName" className="text-right">
-              Display Name
-            </Label>
-            <Input
-              id="displayName"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              className="col-span-3"
-            />
-          </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="role" className="text-right">
               Role
@@ -113,7 +100,7 @@ export const EditUserModal = ({ user, isOpen, onClose }) => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="user">User</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="admin">admin</SelectItem>
                 <SelectItem value="moderator">Moderator</SelectItem>
               </SelectContent>
             </Select>

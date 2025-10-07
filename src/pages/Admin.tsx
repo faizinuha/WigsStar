@@ -2,6 +2,7 @@ import { useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { EditUserModal } from "@/components/admin/EditUserModal";
 import UserActivityChart from "@/components/admin/UserActivityChart";
+import { MaintenanceBannersTab } from "@/pages/MaintenanceBannersTab";
 import { useMaintenanceTasks, useExecuteMaintenanceTask, useSystemHealth } from "@/hooks/useMaintenanceTasks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -41,14 +42,14 @@ import { Navigation } from "@/components/layout/Navigation";
 interface Profile {
   id: string;
   user_id: string;
-  username: string;
-  avatar_url: string;
-  display_name: string;
+  username: string | null;
+  avatar_url: string | null;
+  display_name: string | null;
   followers_count: number;
   following_count: number;
   posts_count: number;
-  role: string;
-  is_verified: boolean;
+  role: string | null;
+  is_verified: string | null;
   created_at: string;
 }
 
@@ -73,39 +74,40 @@ const MaintenanceTab = () => {
 
   return (
     <div className="space-y-4">
-      <Card>
+      <MaintenanceBannersTab />
+      <Card className="mt-4">
         <CardHeader>
           <CardTitle>Maintenance Actions</CardTitle>
           <CardDescription>Run manual system maintenance tasks</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => executeTask('clear_cache')}
               disabled={isPending}
               className="justify-start"
             >
               Clear Application Cache
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => executeTask('reindex_search')}
               disabled={isPending}
               className="justify-start"
             >
               Re-index Search Data
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => executeTask('health_check')}
               disabled={isPending}
               className="justify-start"
             >
               Run Health Checks
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={() => executeTask('force_stop_jobs')}
               disabled={isPending}
               className="justify-start"
@@ -164,11 +166,11 @@ const MaintenanceTab = () => {
                       {task.executed_at ? new Date(task.executed_at).toLocaleString() : 'Not executed'}
                     </p>
                   </div>
-                  <Badge 
+                  <Badge
                     variant={
-                      task.status === 'completed' ? 'default' : 
-                      task.status === 'failed' ? 'destructive' : 
-                      'secondary'
+                      task.status === 'completed' ? 'default' :
+                        task.status === 'failed' ? 'destructive' :
+                          'secondary'
                     }
                   >
                     {task.status}
@@ -225,7 +227,7 @@ const AdminContent = () => {
     try {
       // Fetch all data in parallel
       const [usersRes, postsCountRes, likesCountRes] = await Promise.all([
-        supabase.from("profiles").select("*, user_id:id").order("created_at", { ascending: false }),
+        supabase.from("profiles").select("*").order("created_at", { ascending: false }),
         supabase.from("posts").select("id", { count: "exact", head: true }),
         supabase.from("likes").select("id", { count: "exact", head: true }),
       ]);
@@ -236,12 +238,12 @@ const AdminContent = () => {
 
       // Process users and their avatars
       const processedUsers = await Promise.all(
-        usersRes.data.map(async (u: any) => ({
-          ...u,
-          avatar_url: await processAvatarUrl(u.avatar_url),
-          is_verified: false, // Default value since is_verified doesn't exist in profiles table
-        }))
+        usersRes.data.map(async (user) => {
+          const avatar_url = await processAvatarUrl(user.avatar_url);
+          return { ...user, avatar_url };
+        })
       );
+
       setUsers(processedUsers as Profile[]);
 
       // Calculate stats
@@ -272,10 +274,15 @@ const AdminContent = () => {
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
+  const handleCloseModal = (updatedUser?: Profile) => {
     setIsModalOpen(false);
     setSelectedUser(null);
-    fetchDashboardData(); // Refetch all data after modal is closed
+    if (updatedUser) {
+      // Optimistically update the local state instead of refetching everything
+      setUsers(currentUsers => currentUsers.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
+    } else {
+      fetchDashboardData(); // Fallback to refetch if no updated user is provided
+    }
   };
 
   const handleDeleteClick = (user: Profile) => {
@@ -359,7 +366,7 @@ const AdminContent = () => {
                             {user.role}
                           </Badge>
                         </TableCell>
-                        <TableCell>{user.is_verified ? "Yes" : "No"}</TableCell>
+                        <TableCell>{user.is_verified === 'verified' ? "Yes" : "No"}</TableCell>
                         <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
@@ -374,6 +381,7 @@ const AdminContent = () => {
                               <DropdownMenuItem onClick={() => handleEditClick(user)}>Edit</DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { /* TODO: Impersonate */ }}>Impersonate</DropdownMenuItem>
                               <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteClick(user)}>Delete</DropdownMenuItem>
+
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -393,11 +401,7 @@ const AdminContent = () => {
         </TabsContent>
       </Tabs>
       {selectedUser && (
-        <EditUserModal
-          user={selectedUser}
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-        />
+        <EditUserModal user={selectedUser} isOpen={isModalOpen} onClose={handleCloseModal} />
       )}
       <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
         <AlertDialogContent>

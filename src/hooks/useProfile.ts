@@ -4,25 +4,21 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ReactNode } from "react";
 
 export interface Profile {
-  avatar?: string;
-  role: string;
-  avatar_url: string;
   id: string;
   user_id: string;
-  username: string;
+  username: string | null;
   display_name?: string;
   bio?: string;
-  location?: string;
-  website?: string;
-  join_date?: string;
-  is_verified?: boolean;
+  avatar_url: string | null;
+  cover_img?: string | null;
   followers_count: number;
   following_count: number;
   posts_count: number;
   is_private: boolean;
+  is_verified: string | null;
+  role: string | null;
   created_at: string;
   updated_at: string;
-  cover_img?: string;
 }
 
 export interface Post {
@@ -168,7 +164,7 @@ export function useUpdateProfile() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (updates: Partial<Profile>) => {
+    mutationFn: async (updates: Partial<Profile> & { is_verified?: boolean }) => {
       if (!user) throw new Error("No user found");
 
       const { data, error } = await supabase
