@@ -25,3 +25,19 @@ export async function getRecommendations(): Promise<Track[]> {
   // The edge function returns an object with a 'tracks' property
   return data.tracks as Track[];
 }
+
+/**
+ * Invokes a Supabase Edge Function to get a single track by its ID from the Spotify API.
+ * @param trackId The ID of the Spotify track.
+ */
+export async function getTrackById(trackId: string): Promise<Track> {
+  const { data, error } = await supabase.functions.invoke('spotify-track-by-id', {
+    body: { trackId },
+  });
+
+  if (error) {
+    throw new Error(`Failed to fetch track ${trackId}: ${error.message}`);
+  }
+
+  return data.track as Track;
+}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 // Import fungsi getRecommendations dan type Track dari Supabase
+import { useNavigate } from "react-router-dom";
 import { getRecommendations, Track } from "../lib/spotify"; 
 
 export default function MusicPage() {
@@ -7,6 +8,7 @@ export default function MusicPage() {
   const [tracks, setTracks] = useState<Track[]>([]); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchRecommendations = async () => {
@@ -48,7 +50,7 @@ export default function MusicPage() {
           <div 
             key={track.id} 
             className="bg-[#181818] p-4 rounded-xl hover:bg-[#282828] transition cursor-pointer group"
-            onClick={() => window.open(`https://open.spotify.com/track/${track.id}`, '_blank')}
+            onClick={() => navigate(`/play/${track.id}`)}
           >
             <div className="relative">
               <img 

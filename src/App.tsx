@@ -20,6 +20,7 @@ import PrivateRoute from "./components/PrivateRoute";
 import Chat from "./pages/Chat";
 import ChatDetail from "./pages/ChatDetail";
 import  MusicPage  from "./contexts/Music";
+import PlayPage from "./pages/play";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,6 +60,7 @@ const App = () => (
                 <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/profile" element={<Profile />} /> {/* This route is likely for the current user's profile */}
                 <Route path="/spotify/music" element={<MusicPage />} />
+                <Route path="/play/:trackId" element={<PlayPage />} />
                 <Route path="/profile/:userId" element={<Profile />} />
                 <Route path="/explore" element={<Explore />} />
                 <Route path="/memes" element={<Memes />} />
