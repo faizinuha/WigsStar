@@ -16,6 +16,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLikes } from '@/hooks/useLikes';
+import { useMemeComments } from '@/hooks/useComments';
 import { Meme, useAddMemeBadge, useBadges } from '@/hooks/useMemes';
 import {
   Bookmark,
@@ -29,6 +30,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { CommentSection } from './CommentSection';
 
 interface MemeCardProps {
   meme: Meme;
@@ -97,8 +99,10 @@ export const MemeCard = ({ meme }: MemeCardProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { likesCount, isLiked, toggleLike } = useLikes('meme', meme.id);
+  const { data: commentsForMeme = [] } = useMemeComments(meme.id);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showFullCaption, setShowFullCaption] = useState(false);
+  const [showComments, setShowComments] = useState(false);
 
   const handleLike = async () => {
     if (!user) {
@@ -234,7 +238,12 @@ export const MemeCard = ({ meme }: MemeCardProps) => {
               />
             </Button>
 
-            <Button variant="ghost" size="icon" className="h-10 w-10">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-10 w-10"
+              onClick={() => setShowComments(true)}
+            >
               <MessageCircle className="h-6 w-6 hover:text-blue-500 transition-colors" />
             </Button>
 
@@ -265,8 +274,18 @@ export const MemeCard = ({ meme }: MemeCardProps) => {
         </div>
 
         {/* Likes Count */}
-        <div className="text-sm font-semibold">
-          {likesCount.toLocaleString()} likes
+        <div className="flex items-center gap-4">
+          <div className="text-sm font-semibold">
+            {likesCount.toLocaleString()} likes
+          </div>
+          {commentsForMeme.length > 0 && (
+            <button
+              onClick={() => setShowComments(true)}
+              className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {commentsForMeme.length} {commentsForMeme.length === 1 ? 'comment' : 'comments'}
+            </button>
+          )}
         </div>
 
         {/* Badges Section */}
@@ -306,12 +325,41 @@ export const MemeCard = ({ meme }: MemeCardProps) => {
         )}
 
         {/* Comments Link */}
-        {meme.comments_count > 0 && (
-          <button className="text-sm text-muted-foreground hover:text-foreground">
-            View all {meme.comments_count} comments
+        {commentsForMeme.length > 0 && (
+          <button 
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setShowComments(true)}
+          >
+            View all {commentsForMeme.length} comments
           </button>
         )}
       </div>
+
+      {/* Comment Section Modal */}
+      {showComments && (
+        <CommentSection
+          memeId={meme.id}
+          post={{
+            id: meme.id,
+            user_id: meme.user_id,
+            content: meme.caption || '',
+            image_url: meme.media_url,
+            created_at: meme.created_at,
+            likes: likesCount,
+            comments: commentsForMeme.length,
+            isLiked: isLiked,
+            isBookmarked: isBookmarked,
+            user: {
+              username: meme.user.username,
+              displayName: meme.user.displayName,
+              avatar: meme.user.avatar,
+            },
+            media_type: meme.media_type,
+          }}
+          onClose={() => setShowComments(false)}
+          isOpen={showComments}
+        />
+      )}
     </Card>
   );
 };

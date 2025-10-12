@@ -114,17 +114,17 @@ export const CommentSection = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl md:max-w-5xl lg:max-w-6xl h-[90vh] p-0 gap-0">
-        <div className="flex h-full flex-col md:flex-row">
+      <DialogContent className="max-w-4xl md:max-w-5xl lg:max-w-6xl h-[90vh] p-0 gap-0 overflow-hidden">
+        <div className="flex h-full flex-col md:flex-row overflow-hidden">
           {/* Kolom Kiri: Gambar Postingan */}
           {post?.image_url && (
-            <div className="w-full md:w-2/3 bg-black flex items-center justify-center h-64 md:h-full relative group">
+            <div className="w-full md:w-2/3 bg-black flex items-center justify-center max-h-[40vh] md:max-h-full md:h-full relative group overflow-hidden">
               {post.media_type === 'video' ? (
                 <>
                   <video
                     ref={videoRef}
                     src={post.image_url}
-                    className="w-auto h-auto max-w-full max-h-full object-contain cursor-pointer"
+                    className="w-full h-full object-contain cursor-pointer"
                     autoPlay
                     loop
                     muted
@@ -156,7 +156,7 @@ export const CommentSection = ({
               ) : (
                 <img
                   src={post.image_url}
-                  className="w-auto h-auto max-w-full max-h-full object-contain"
+                  className="w-full h-full object-contain"
                   alt="Post content"
                   loading="lazy"
                   decoding="async"
@@ -167,16 +167,16 @@ export const CommentSection = ({
 
           {/* Kolom Kanan: Komentar dan Detail */}
           <div
-            className={`flex flex-col h-full min-h-0 ${
-              post?.image_url ? 'w-full md:w-1/3' : 'w-full'
+            className={`flex flex-col min-h-0 overflow-hidden ${
+              post?.image_url ? 'w-full md:w-1/3 h-[60vh] md:h-full' : 'w-full h-full'
             }`}
           >
-            <DialogHeader className="p-4 border-b">
+            <DialogHeader className="p-4 border-b flex-shrink-0">
               <DialogTitle>Comments</DialogTitle>
             </DialogHeader>
 
             {/* Keep comments scrollable while input is pinned */}
-            <ScrollArea className="flex-1 min-h-0">
+            <ScrollArea className="flex-1 min-h-0 overflow-y-auto">
               <div className="space-y-6 p-4">
                 {isLoading ? (
                   <div className="flex justify-center py-8">
@@ -202,7 +202,7 @@ export const CommentSection = ({
             </ScrollArea>
 
             {/* Form Tambah Komentar */}
-            <form onSubmit={handleSubmit} className="flex gap-3 p-4 border-t">
+            <form onSubmit={handleSubmit} className="flex gap-3 p-4 border-t flex-shrink-0 bg-background">
               <Avatar className="h-8 w-8">
                 <AvatarImage src={user?.user_metadata?.avatar_url} />
                 <AvatarFallback className="text-sm">
