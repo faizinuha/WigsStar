@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 type LikeableEntity = 'post' | 'comment' | 'meme';
 
-export function useLikes(entity: LikeableEntity, entityId: string | undefined) {
+export function useLikes(entity: LikeableEntity, entityId: string | undefined, ownerId?: string) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -121,8 +121,23 @@ export function useLikes(entity: LikeableEntity, entityId: string | undefined) {
       else if (entity === 'comment') params.p_comment_id = entityId;
 
       try {
-        const { error: rpcError } = await supabase.rpc('toggle_like', params);
+        const { data: toggleResult, error: rpcError } = await supabase.rpc('toggle_like', params);
         if (rpcError) throw rpcError;
+
+        // Create notification if liked (not unliked) and not liking own content
+        if (toggleResult === true && ownerId && ownerId !== user.id) {
+          const notificationData: any = {
+            user_id: ownerId,
+            from_user_id: user.id,
+            type: 'like',
+          };
+          
+          if (entity === 'post') notificationData.post_id = entityId;
+          else if (entity === 'meme') notificationData.meme_id = entityId;
+          else if (entity === 'comment') notificationData.comment_id = entityId;
+
+          await supabase.from('notifications').insert(notificationData);
+        }
       } catch (err: any) {
         // Revert optimistic update
         setIsLiked(currentlyLiked);

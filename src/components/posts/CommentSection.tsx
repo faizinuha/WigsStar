@@ -86,6 +86,8 @@ export const CommentSection = ({
         content: newComment,
         postId,
         memeId,
+        postOwnerId: post?.user_id,
+        memeOwnerId: post?.user_id,
       },
       {
         onSuccess: () => {
@@ -195,6 +197,8 @@ export const CommentSection = ({
                       comment={comment}
                       postId={postId}
                       memeId={memeId}
+                      postOwnerId={post?.user_id}
+                      memeOwnerId={post?.user_id}
                     />
                   ))
                 )}

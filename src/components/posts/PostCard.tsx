@@ -30,6 +30,12 @@ import { useState, useRef, useEffect } from 'react';
 import { CommentSection } from './CommentSection';
 import { EditPostModal } from './EditPostModal';
 
+interface PostMedia {
+  media_url: string;
+  media_type: string;
+  order_index?: number;
+}
+
 interface Post {
   id: string;
   user_id: string;
@@ -48,6 +54,7 @@ interface Post {
     avatar: string;
   };
   media_type?: string;
+  media?: PostMedia[];
   repost_by?: {
     username: string;
     displayName: string;
@@ -104,7 +111,7 @@ export const PostCard = ({ post }: PostCardProps) => {
     isLiked: isLikedPost = false,
     toggleLike: togglePostLike,
     loading: likesLoading,
-  } = useLikes('post', post.id);
+  } = useLikes('post', post.id, post.user_id);
 
   const {
     bookmarks,
@@ -120,6 +127,7 @@ export const PostCard = ({ post }: PostCardProps) => {
   const [showComments, setShowComments] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Efek untuk memastikan video di-pause saat tidak terlihat (misal: scroll)
@@ -273,9 +281,81 @@ export const PostCard = ({ post }: PostCardProps) => {
       </div>
 
       {/* Content: Media or Text */}
-      {post.image_url ? (
+      {post.image_url || (post.media && post.media.length > 0) ? (
         <div className="aspect-square overflow-hidden bg-black flex items-center justify-center relative group">
-          {post.media_type === 'video' ? (
+          {/* Display current media */}
+          {post.media && post.media.length > 0 ? (
+            <>
+              {post.media[currentMediaIndex]?.media_type === 'video' ? (
+                <>
+                  <video
+                    ref={videoRef}
+                    src={post.media[currentMediaIndex]?.media_url}
+                    loop
+                    playsInline
+                    className="w-full h-full object-contain cursor-pointer"
+                    onClick={() => {
+                      if (videoRef.current?.paused) {
+                        videoRef.current?.play();
+                        setIsVideoPlaying(true);
+                      } else {
+                        videoRef.current?.pause();
+                        setIsVideoPlaying(false);
+                      }
+                    }}
+                  />
+                  {!isVideoPlaying && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 pointer-events-none">
+                      <div className="bg-black/50 rounded-full p-3">
+                        <Play className="h-10 w-10 text-white fill-white" />
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <img
+                  src={post.media[currentMediaIndex]?.media_url}
+                  alt={post.content || 'Post content'}
+                  className="w-full h-full object-contain"
+                  loading="lazy"
+                />
+              )}
+              
+              {/* Navigation arrows for multiple media */}
+              {post.media.length > 1 && (
+                <>
+                  {currentMediaIndex > 0 && (
+                    <button
+                      onClick={() => setCurrentMediaIndex(prev => prev - 1)}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-all opacity-0 group-hover:opacity-100"
+                    >
+                      ‹
+                    </button>
+                  )}
+                  {currentMediaIndex < post.media.length - 1 && (
+                    <button
+                      onClick={() => setCurrentMediaIndex(prev => prev + 1)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-all opacity-0 group-hover:opacity-100"
+                    >
+                      ›
+                    </button>
+                  )}
+                  
+                  {/* Dots indicator */}
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                    {post.media.map((_, index) => (
+                      <div
+                        key={index}
+                        className={`h-1.5 w-1.5 rounded-full transition-all ${
+                          index === currentMediaIndex ? 'bg-white w-3' : 'bg-white/50'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          ) : post.media_type === 'video' ? (
             <>
               <video
                 ref={videoRef}
@@ -306,6 +386,7 @@ export const PostCard = ({ post }: PostCardProps) => {
               src={post.image_url}
               alt={post.content || 'Post content'}
               className="w-full h-full object-contain"
+              loading="lazy"
             />
           )}
         </div>

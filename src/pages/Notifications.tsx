@@ -345,6 +345,19 @@ export const Notifications = () => {
                 Stay updated with your latest activities
               </p>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => markAllRead.mutate()}
+              disabled={markAllRead.isPending}
+            >
+              {markAllRead.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCheck className="h-4 w-4 mr-2" />
+              )}
+              Mark All Read
+            </Button>
           </div>
 
           {isLoading && (

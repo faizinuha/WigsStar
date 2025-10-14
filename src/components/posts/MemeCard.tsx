@@ -98,7 +98,7 @@ const AddBadgePopover = ({ meme }: { meme: Meme }) => {
 export const MemeCard = ({ meme }: MemeCardProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { likesCount, isLiked, toggleLike } = useLikes('meme', meme.id);
+  const { likesCount, isLiked, toggleLike } = useLikes('meme', meme.id, meme.user_id);
   const { data: commentsForMeme = [] } = useMemeComments(meme.id);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showFullCaption, setShowFullCaption] = useState(false);

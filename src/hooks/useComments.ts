@@ -151,12 +151,16 @@ export function useCreateComment() {
       content, 
       postId, 
       memeId, 
-      parentCommentId 
+      parentCommentId,
+      postOwnerId,
+      memeOwnerId
     }: { 
       content: string; 
       postId?: string; 
       memeId?: string; 
-      parentCommentId?: string; 
+      parentCommentId?: string;
+      postOwnerId?: string;
+      memeOwnerId?: string;
     }) => {
       if (!user) throw new Error("User not authenticated");
 
@@ -173,6 +177,20 @@ export function useCreateComment() {
         .single();
 
       if (error) throw error;
+
+      // Create notification for post/meme owner (don't notify yourself)
+      const ownerId = postOwnerId || memeOwnerId;
+      if (ownerId && ownerId !== user.id) {
+        await supabase.from("notifications").insert({
+          user_id: ownerId,
+          from_user_id: user.id,
+          type: "comment",
+          post_id: postId,
+          meme_id: memeId,
+          comment_id: data.id,
+        });
+      }
+
       return data;
     },
     onSuccess: (_, variables) => {

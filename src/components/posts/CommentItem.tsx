@@ -13,14 +13,16 @@ interface CommentItemProps {
   postId?: string;
   memeId?: string;
   level?: number;
+  postOwnerId?: string;
+  memeOwnerId?: string;
 }
 
-export const CommentItem = ({ comment, postId, memeId, level = 0 }: CommentItemProps) => {
+export const CommentItem = ({ comment, postId, memeId, level = 0, postOwnerId, memeOwnerId }: CommentItemProps) => {
   const { user } = useAuth();
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyContent, setReplyContent] = useState("");
   const { mutate: createComment, isPending: isCreatingComment } = useCreateComment();
-  const { likesCount, isLiked, toggleLike } = useLikes('comment', comment.id);
+  const { likesCount, isLiked, toggleLike } = useLikes('comment', comment.id, comment.user_id);
 
   const handleReply = () => {
     if (!replyContent.trim()) return;
@@ -31,6 +33,8 @@ export const CommentItem = ({ comment, postId, memeId, level = 0 }: CommentItemP
         postId,
         memeId,
         parentCommentId: comment.id,
+        postOwnerId,
+        memeOwnerId,
       },
       {
         onSuccess: () => {
@@ -130,6 +134,8 @@ export const CommentItem = ({ comment, postId, memeId, level = 0 }: CommentItemP
                 postId={postId}
                 memeId={memeId}
                 level={level + 1}
+                postOwnerId={postOwnerId}
+                memeOwnerId={memeOwnerId}
               />
             ))}
           </div>
