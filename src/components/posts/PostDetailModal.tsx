@@ -44,9 +44,8 @@ const CommentItem = ({
   isCaption?: boolean;
 }) => (
   <div
-    className={`flex items-start space-x-3 ${
-      isCaption ? 'pb-4 border-b mb-4' : ''
-    }`}
+    className={`flex items-start space-x-3 ${isCaption ? 'pb-4 border-b mb-4' : ''
+      }`}
   >
     <Avatar className="h-8 w-8">
       <AvatarImage src={comment.user.avatar || comment.user.avatar_url} />
@@ -110,7 +109,7 @@ export const PostDetailModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl md:max-w-5xl lg:max-w-6xl h-[90vh] p-0 gap-0 overflow-hidden">
-        <div className="flex h-full flex-col md:flex-row">
+        <div className="flex h-full flex-col md:flex-row overflow-hidden">
           {/* Left Column: Media */}
           {postMedia.length > 0 ? (
             <div className="w-full md:w-2/3 bg-black flex items-center justify-center h-[50vh] md:h-full">
@@ -192,9 +191,8 @@ export const PostDetailModal = ({
                     onClick={() => toggleLike()}
                   >
                     <Heart
-                      className={`h-6 w-6 ${
-                        isLiked ? 'fill-red-500 text-red-500' : ''
-                      }`}
+                      className={`h-6 w-6 ${isLiked ? 'fill-red-500 text-red-500' : ''
+                        }`}
                     />
                   </Button>
                   <Button variant="ghost" size="icon">

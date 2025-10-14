@@ -21,6 +21,7 @@ import {
   UsernameField,
 } from '../contexts/AuthFormFields';
 import starMarLogo from '../../assets/Logo/StarMar-.png';
+import loginSound from '../../assets/sounds/login.wav';
 import { DownloadProofModal } from '../components/DownloadProofModal';
 import { generateAndDownloadProofFile } from '../lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -103,11 +104,11 @@ export function Auth() {
       const { error } = isLogin
         ? await addAccount(formData.email, formData.password)
         : await signUp(
-            formData.email,
-            formData.password,
-            formData.username,
-            formData.displayName
-          );
+          formData.email,
+          formData.password,
+          formData.username,
+          formData.displayName
+        );
 
       if (error) {
         setErrors({ general: error.message });
@@ -117,6 +118,8 @@ export function Auth() {
             'Sign up successful! Please check your email to verify your account.'
           );
           setIsLogin(true);
+        } else if (isLogin) {
+          new Audio(loginSound).play();
         } else {
           navigate('/');
         }
@@ -128,9 +131,39 @@ export function Auth() {
     }
   };
 
+  const validateField = (name: string, value: string, currentData = formData) => {
+    // If the field is empty, clear the error. The final check for required fields will be on submit.
+    if (!value) return '';
+
+    switch (name) {
+      case 'email':
+        // if (!value) return 'Email is required'; // This check is now handled on submit
+        if (!/\S+@\S+\.\S+/.test(value)) return 'Email is invalid';
+        return '';
+      case 'password':
+        // if (!value) return 'Password is required';
+        if (value.length < 6) return 'Password must be at least 6 characters';
+        return '';
+      case 'username':
+        // if (!isLogin && !value) return 'Username is required';
+        if (!isLogin && value.length < 3) return 'Username must be at least 3 characters';
+        return '';
+      case 'displayName':
+        // if (!isLogin && !value) return 'Display name is required';
+        return '';
+      case 'confirmPassword':
+        if (!isLogin && currentData.password !== value) return "Passwords don't match";
+        return '';
+      default:
+        return '';
+    }
+  };
+
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
+    const updatedFormData = { ...formData, [field]: value };
+    setFormData(updatedFormData);
+    const error = validateField(field, value, updatedFormData);
+    setErrors((prev) => ({ ...prev, [field]: error }));
   };
 
   const handleForgotPassword = async () => {
@@ -290,7 +323,7 @@ export function Auth() {
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {!isLogin && (
-                    <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <DisplayNameField
                         value={formData.displayName}
                         onChange={(e) =>
@@ -303,42 +336,45 @@ export function Auth() {
                         onChange={(e) =>
                           handleInputChange(
                             'username',
-                            e.target.value
-                              .replace(/[^a-zA-Z0-9_]/g, '')
-                              .toLowerCase()
+                            e.target.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase()
                           )
                         }
                         error={errors.username}
                       />
-                    </>
+                    </div>
                   )}
-                  <EmailField
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    error={errors.email}
-                  />
-                  <PasswordField
-                    id="password"
-                    label="Password"
-                    value={formData.password}
-                    onChange={(e) =>
-                      handleInputChange('password', e.target.value)
-                    }
-                    error={errors.password}
-                    showPassword={showPassword}
-                    toggleShowPassword={() => setShowPassword(!showPassword)}
-                  />
-                  {!isLogin && (
-                    <PasswordField
-                      id="confirmPassword"
-                      label="Confirm Password"
-                      value={formData.confirmPassword}
-                      onChange={(e) =>
-                        handleInputChange('confirmPassword', e.target.value)
-                      }
-                      error={errors.confirmPassword}
+                  <div className={`grid grid-cols-1 ${!isLogin ? 'sm:grid-cols-2' : ''} gap-4`}>
+                    <EmailField
+                      value={formData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      error={errors.email}
                     />
-                  )}
+                    {!isLogin && <div></div>} {/* Placeholder for grid alignment */}
+                  </div>
+                  <div className={`grid grid-cols-1 ${!isLogin ? 'sm:grid-cols-2' : ''} gap-4`}>
+                    <PasswordField
+                      id="password"
+                      label="Password"
+                      value={formData.password}
+                      onChange={(e) =>
+                        handleInputChange('password', e.target.value)
+                      }
+                      error={errors.password}
+                      showPassword={showPassword}
+                      toggleShowPassword={() => setShowPassword(!showPassword)}
+                    />
+                    {!isLogin && (
+                      <PasswordField
+                        id="confirmPassword"
+                        label="Confirm Password"
+                        value={formData.confirmPassword}
+                        onChange={(e) =>
+                          handleInputChange('confirmPassword', e.target.value)
+                        }
+                        error={errors.confirmPassword}
+                      />
+                    )}
+                  </div>
                   <Button
                     type="submit"
                     className="w-full gradient-button"
@@ -347,10 +383,10 @@ export function Auth() {
                     {isLoading
                       ? 'Please wait...'
                       : isLogin
-                      ? user
-                        ? 'Add Account'
-                        : 'Sign In'
-                      : 'Create Account'}
+                        ? user
+                          ? 'Add Account'
+                          : 'Sign In'
+                        : 'Create Account'}
                   </Button>
                 </form>
 

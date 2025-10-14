@@ -278,18 +278,29 @@ export const Notifications = () => {
 
   // 🔹 Handle notification click for navigation
   const handleNotificationClick = (notification: CombinedNotification) => {
-    // 1. Mark as read
+    // 1. Mark notification as read
     markAsRead.mutate(notification);
 
-    // 2. Navigate
-    if ('post_id' in notification && notification.post_id && (notification.type === 'like' || notification.type === 'comment')) {
-      // Jika notifikasi terkait post, ambil data post dan buka modal
-      fetchPostForModal.mutate(notification.post_id);
-    } else if ('from_user_id' in notification && notification.from_user_id) {
-      // Jika tidak ada post_id tapi ada from_user (misal: follow), navigasi ke profil
-      navigate(`/profile/${notification.from_user_id}`);
+    // 2. Navigate based on notification type
+    switch (notification.type) {
+      case 'like':
+      case 'comment':
+        // For likes and comments, if there's a post_id, fetch the post and open the detail modal.
+        if ('post_id' in notification && notification.post_id) {
+          fetchPostForModal.mutate(notification.post_id);
+        }
+        break;
+      case 'follow':
+        // For follows, if there's a from_user_id, navigate to that user's profile.
+        if ('from_user_id' in notification && notification.from_user_id) {
+          navigate(`/profile/${notification.from_user_id}`);
+        }
+        break;
+      // System notifications or other types will intentionally do nothing.
+      default:
+        console.log(`Unhandled notification type: ${notification.type}`);
+        break;
     }
-    // Untuk notifikasi sistem tanpa target, tidak melakukan apa-apa
   };
 
   // 🔹 Icons
