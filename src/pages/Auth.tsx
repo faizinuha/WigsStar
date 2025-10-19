@@ -80,8 +80,8 @@ export function Auth() {
     else if (!/\S+@\S+\.\S+/.test(formData.email))
       newErrors.email = 'Email is invalid';
     if (!formData.password) newErrors.password = 'Password is required';
-    else if (formData.password.length < 6)
-      newErrors.password = 'Password must be at least 6 characters';
+    else if (formData.password.length < 8)
+      newErrors.password = 'Password must be at least 8 characters';
     if (!isLogin) {
       if (!formData.username) newErrors.username = 'Username is required';
       else if (formData.username.length < 3)
@@ -142,7 +142,7 @@ export function Auth() {
         return '';
       case 'password':
         // if (!value) return 'Password is required';
-        if (value.length < 6) return 'Password must be at least 6 characters';
+        if (value.length < 8) return 'Password must be at least 8 characters';
         return '';
       case 'username':
         // if (!isLogin && !value) return 'Username is required';
@@ -375,6 +375,11 @@ export function Auth() {
                       />
                     )}
                   </div>
+                  {!isLogin && (
+                    <p className="text-sm text-muted-foreground">
+                        Password must be at least 8 characters.
+                    </p>
+                  )}
                   <Button
                     type="submit"
                     className="w-full gradient-button"

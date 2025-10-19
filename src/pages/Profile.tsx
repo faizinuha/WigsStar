@@ -24,6 +24,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFollowStatus, useToggleFollow } from '@/hooks/useFollow';
+import { FollowListModal } from '@/components/profile/FollowListModal';
 import {
   Post,
   useDeletePost,
@@ -147,9 +148,8 @@ const PostCard = ({ post, authUser }) => {
           <button onClick={handleLike} className="flex items-center space-x-1">
             <Heart
               fill={isLiked ? 'currentColor' : 'none'}
-              className={`h-4 w-4 transition-colors ${
-                isLiked ? 'text-red-500' : ''
-              }`}
+              className={`h-4 w-4 transition-colors ${isLiked ? 'text-red-500' : ''
+                }`}
             />
             <span>{post.likes}</span>
           </button>
@@ -175,6 +175,7 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [followListType, setFollowListType] = useState<'followers' | 'following' | null>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { mutate: createConversation } = useCreateConversation();
@@ -210,9 +211,9 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
 
   const userPosts: (Post & { timestamp: string })[] = posts
     ? posts.map((post) => ({
-        ...post,
-        timestamp: format(new Date(post.created_at), 'PP'),
-      }))
+      ...post,
+      timestamp: format(new Date(post.created_at), 'PP'),
+    }))
     : [];
 
   const bookmarkedPosts = userPosts.filter((post) =>
@@ -274,9 +275,8 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
 
                       try {
                         const ext = file.name.split('.').pop();
-                        const filePath = `${
-                          authUser.id
-                        }/cover-${Date.now()}.${ext}`;
+                        const filePath = `${authUser.id
+                          }/cover-${Date.now()}.${ext}`;
                         const { error: uploadErr } = await supabase.storage
                           .from('avatars')
                           .upload(filePath, file, { upsert: true });
@@ -348,9 +348,8 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
 
                             try {
                               const ext = file.name.split('.').pop();
-                              const filePath = `${
-                                authUser.id
-                              }/avatar-${Date.now()}.${ext}`;
+                              const filePath = `${authUser.id
+                                }/avatar-${Date.now()}.${ext}`;
                               const { error: uploadErr } =
                                 await supabase.storage
                                   .from('avatars')
@@ -415,8 +414,8 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
                       >
                         {isFollowing ? 'Following' : 'Follow'}
                       </Button>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="icon"
                         onClick={() => {
                           createConversation(
@@ -488,13 +487,13 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
                     </p>
                     <p className="text-sm text-muted-foreground">Posts</p>
                   </div>
-                  <div className="text-center cursor-pointer hover:text-primary transition-colors">
+                  <div className="text-center cursor-pointer hover:text-primary transition-colors" onClick={() => setFollowListType('followers')}>
                     <p className="font-bold text-lg">
                       {profile.followers_count.toLocaleString()}
                     </p>
                     <p className="text-sm text-muted-foreground">Followers</p>
                   </div>
-                  <div className="text-center cursor-pointer hover:text-primary transition-colors">
+                  <div className="text-center cursor-pointer hover:text-primary transition-colors" onClick={() => setFollowListType('following')}>
                     <p className="font-bold text-lg">
                       {profile.following_count.toLocaleString()}
                     </p>
@@ -598,6 +597,16 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
         isOpen={!!selectedPost}
         onClose={() => setSelectedPost(null)}
       />
+      
+      {/* Follow List Modal */}
+      {followListType && (
+        <FollowListModal
+          isOpen={!!followListType}
+          onClose={() => setFollowListType(null)}
+          userId={profile.user_id}
+          type={followListType}
+        />
+      )}
     </div>
   );
 };
