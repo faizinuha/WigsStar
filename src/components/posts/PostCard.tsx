@@ -8,14 +8,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { usePostComments as useComments } from '@/hooks/useComments';
 import { useLikes } from '@/hooks/useLikes';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { useDeletePost } from '@/hooks/useProfile';
-import { usePostTags } from '@/hooks/useTags';
 import {
   Bookmark,
   Heart,
@@ -29,6 +27,7 @@ import {
 import { useState, useRef, useEffect } from 'react';
 import { CommentSection } from './CommentSection';
 import { EditPostModal } from './EditPostModal';
+import { PostCaption } from './PostCaption'; // Import the new component
 
 interface PostMedia {
   media_url: string;
@@ -97,7 +96,7 @@ export const PostCard = ({ post }: PostCardProps) => {
   const { toast } = useToast();
   const deletePostMutation = useDeletePost();
 
-  const { data: commentsForPost = [], isLoading: areCommentsLoading } =
+  const { data: commentsForPost = [] } =
     useComments(post.id);
 
   const latestComment = commentsForPost.length
@@ -121,8 +120,6 @@ export const PostCard = ({ post }: PostCardProps) => {
   } = useBookmarks();
   const isBookmarked = bookmarks?.some((bookmark) => bookmark.post_id === post.id) || false;
 
-  const { data: postTags = [] } = usePostTags(post.id);
-
   const [showFullCaption, setShowFullCaption] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -130,7 +127,6 @@ export const PostCard = ({ post }: PostCardProps) => {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Efek untuk memastikan video di-pause saat tidak terlihat (misal: scroll)
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -283,7 +279,6 @@ export const PostCard = ({ post }: PostCardProps) => {
       {/* Content: Media or Text */}
       {post.image_url || (post.media && post.media.length > 0) ? (
         <div className="aspect-square overflow-hidden bg-black flex items-center justify-center relative group">
-          {/* Display current media */}
           {post.media && post.media.length > 0 ? (
             <>
               {post.media[currentMediaIndex]?.media_type === 'video' ? (
@@ -321,7 +316,6 @@ export const PostCard = ({ post }: PostCardProps) => {
                 />
               )}
               
-              {/* Navigation arrows for multiple media */}
               {post.media.length > 1 && (
                 <>
                   {currentMediaIndex > 0 && (
@@ -341,7 +335,6 @@ export const PostCard = ({ post }: PostCardProps) => {
                     </button>
                   )}
                   
-                  {/* Dots indicator */}
                   <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
                     {post.media.map((_, index) => (
                       <div
@@ -392,9 +385,7 @@ export const PostCard = ({ post }: PostCardProps) => {
         </div>
       ) : (
         <div className="px-4 pb-2 min-h-[150px] flex items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10">
-          <p className="text-base text-center whitespace-pre-wrap p-4">
-            {post.content}
-          </p>
+          <PostCaption content={post.content} />
         </div>
       )}
 
@@ -460,7 +451,7 @@ export const PostCard = ({ post }: PostCardProps) => {
         {post.image_url && post.content && (
           <div className="text-sm space-y-1">
             <span className="font-semibold">@{post.user.username}</span>{' '}
-            <span className="whitespace-pre-wrap">{displayContent}</span>
+            <PostCaption content={displayContent} />
             {isLongCaption && !showFullCaption && (
               <button
                 className="text-muted-foreground hover:text-foreground ml-1"
@@ -469,20 +460,6 @@ export const PostCard = ({ post }: PostCardProps) => {
                 more
               </button>
             )}
-          </div>
-        )}
-
-        {/* Hashtags */}
-        {postTags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {postTags.map((tag: string, idx: number) => (
-              <span
-                key={idx}
-                className="text-xs text-primary bg-primary/10 rounded px-2 py-1 font-mono"
-              >
-                {tag}
-              </span>
-            ))}
           </div>
         )}
 

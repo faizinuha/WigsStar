@@ -4,12 +4,13 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Hash } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-interface TrendingTagsProps {
+interface post_hashtags {
+  name?: string;
   limit?: number;
   className?: string;
 }
 
-export const TrendingTags = ({ limit = 10, className }: TrendingTagsProps) => {
+export const TrendingTags = ({ limit = 10, className }: post_hashtags) => {
   const { data: tags = [], isLoading } = useTrendingTags(limit);
   const navigate = useNavigate();
 
@@ -29,7 +30,7 @@ export const TrendingTags = ({ limit = 10, className }: TrendingTagsProps) => {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => (
+            {Array.from({ length: 40 }).map((_, i) => (
               <div key={i} className="h-8 bg-secondary/50 rounded animate-pulse" />
             ))}
           </div>
@@ -51,7 +52,7 @@ export const TrendingTags = ({ limit = 10, className }: TrendingTagsProps) => {
           <div className="text-center py-4">
             <Hash className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">
-              No trending tags yet. Start creating posts with hashtags!
+             {tags.length === 0 ? 'No trending tags yet. Start creating posts with hashtags!' : ''}
             </p>
           </div>
         </CardContent>
@@ -71,9 +72,9 @@ export const TrendingTags = ({ limit = 10, className }: TrendingTagsProps) => {
         <div className="space-y-3">
           {tags.map((tag, index) => (
             <div
-              key={tag.hashtag}
+              key={tag.name}
               className="flex items-center justify-between p-2 rounded-lg hover:bg-secondary/50 cursor-pointer transition-colors group"
-              onClick={() => handleTagClick(tag.hashtag)}
+              onClick={() => handleTagClick(tag.name || '')}
             >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
@@ -83,7 +84,7 @@ export const TrendingTags = ({ limit = 10, className }: TrendingTagsProps) => {
                 </div>
                 <div>
                   <p className="font-medium group-hover:text-primary transition-colors">
-                    {tag.hashtag}
+                    {tag.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {tag.post_count} post{tag.post_count !== 1 ? 's' : ''}

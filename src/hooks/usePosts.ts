@@ -1,7 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ReactNode } from 'react';
 
 export interface Post {
   id: string;
@@ -47,41 +46,15 @@ export function useCreatePost() {
         throw new Error('Post content or an image is required.');
       }
 
-      let imageUrl: string | undefined;
-      let mediaType: string | undefined;
-
-      // 1. Upload image if it exists
-      if (selectedImage) {
-        const fileExt = selectedImage.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('posts')
-          .upload(filePath, selectedImage, {
-            cacheControl: '3600',
-            upsert: false,
-          });
-
-        if (uploadError) {
-          throw new Error(`Image upload failed: ${uploadError.message}`);
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('posts')
-          .getPublicUrl(filePath);
-
-        imageUrl = publicUrlData.publicUrl;
-        mediaType = selectedImage.type;
-      }
-
-      // 2. Insert the post to get its ID
+      // 1. Insert the post to get its ID
       const { data: post, error: postError } = await supabase
         .from('posts')
         .insert({
           user_id: user.id,
           caption: content.trim(),
           location: location || null,
+          likes_count: 0, // Explicitly set default value
+          comments_count: 0, // Explicitly set default value
         })
         .select()
         .single();
@@ -92,28 +65,66 @@ export function useCreatePost() {
 
       const postId = post.id;
 
-      // 3. If there was an image, link it in post_media
-      if (imageUrl) {
-        const { error: mediaError } = await supabase.from('post_media').insert({
-          post_id: postId,
-          media_url: imageUrl,
-          media_type: mediaType,
-        });
-        if (mediaError) {
-          console.error('Failed to link media to post:', mediaError);
-          // You might want to handle this more gracefully, e.g., by deleting the post
+      // 2. Upload image if it exists and link it
+      if (selectedImage) {
+        const fileExt = selectedImage.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('posts')
+          .upload(filePath, selectedImage);
+
+        if (uploadError) {
+          console.error('Image upload failed, but post was created.', uploadError);
+        } else {
+          const { data: publicUrlData } = supabase.storage
+            .from('posts')
+            .getPublicUrl(filePath);
+
+          const { error: mediaError } = await supabase.from('post_media').insert({
+            post_id: postId,
+            media_url: publicUrlData.publicUrl,
+            media_type: selectedImage.type,
+          });
+          if (mediaError) {
+            console.error('Failed to link media to post:', mediaError);
+          }
         }
       }
 
-      // 4. Extract hashtags using existing RPC function
+      // 3. Handle hashtags client-side
       if (content) {
-        try {
-          await supabase.rpc('extract_and_store_hashtags', { 
-            post_content: content, 
-            post_id: postId 
-          });
-        } catch (e) {
-          console.error('Error extracting hashtags:', e);
+        const hashtagRegex = /#(\w+)/g;
+        const hashtags = content.match(hashtagRegex)?.map(tag => tag.substring(1).toLowerCase()) || [];
+        const uniqueHashtags = [...new Set(hashtags)];
+
+        if (uniqueHashtags.length > 0) {
+          try {
+            const upsertedTags = await Promise.all(uniqueHashtags.map(async (tag) => {
+              const { data: hashtagData, error: upsertError } = await supabase
+                .from('hashtags')
+                .upsert({ name: tag }, { onConflict: 'name' })
+                .select('id')
+                .single();
+              if (upsertError) throw upsertError;
+              return hashtagData;
+            }));
+
+            const postHashtagRelations = upsertedTags.map(tag => ({
+              post_id: postId,
+              hashtag_id: tag.id,
+            }));
+
+            const { error: relationError } = await supabase
+              .from('post_hashtags')
+              .insert(postHashtagRelations);
+
+            if (relationError) throw relationError;
+
+          } catch (e) {
+            console.error('Error processing hashtags:', e);
+          }
         }
       }
 
@@ -156,7 +167,7 @@ export function useUserPosts(userId?: string) {
             media_type,
             order_index
           ),
-          user_likes: likes(user_id)
+          likes(user_id)
         `
         )
         .eq('user_id', targetUserId)
@@ -202,7 +213,7 @@ export function useUserPosts(userId?: string) {
             likes: post.likes_count || 0,
             likes_count: post.likes_count || 0,
             comments: post.comments_count || 0,
-            isLiked: post.user_likes.some(
+            isLiked: post.likes.some(
               (like: { user_id: string }) => like.user_id === user?.id
             ),
             isBookmarked: false,
@@ -253,7 +264,7 @@ export function useAllPosts() {
             media_type,
             order_index
           ),
-          user_likes: likes(user_id)
+          likes(user_id)
         `
         )
         .order('created_at', { ascending: false });
@@ -298,7 +309,7 @@ export function useAllPosts() {
             likes: post.likes_count || 0,
             likes_count: post.likes_count || 0,
             comments: post.comments_count || 0,
-            isLiked: post.user_likes.some(
+            isLiked: post.likes.some(
               (like: { user_id: string }) => like.user_id === user?.id
             ),
             isBookmarked: false,
@@ -410,17 +421,46 @@ export function useUpdatePost() {
         throw postError;
       }
 
-      // --- START HASHTAG SYNCING ---
-      // Use the existing extract_and_store_hashtags function
+      // --- START CLIENT-SIDE HASHTAG SYNCING ---
       try {
-        await supabase.rpc('extract_and_store_hashtags', { 
-          post_content: content, 
-          post_id: postId 
-        });
-      } catch(e) { 
-        console.error('Error syncing hashtags:', e) 
+        // First, delete all existing hashtag relations for this post
+        const { error: deleteError } = await supabase
+          .from('post_hashtags')
+          .delete()
+          .eq('post_id', postId);
+        if (deleteError) throw deleteError;
+
+        // Now, add the new ones
+        const hashtagRegex = /#(\w+)/g;
+        const hashtags = content.match(hashtagRegex)?.map(tag => tag.substring(1).toLowerCase()) || [];
+        const uniqueHashtags = [...new Set(hashtags)];
+
+        if (uniqueHashtags.length > 0) {
+          const upsertedTags = await Promise.all(uniqueHashtags.map(async (tag) => {
+            const { data: hashtagData, error: upsertError } = await supabase
+              .from('hashtags')
+              .upsert({ name: tag }, { onConflict: 'name' })
+              .select('id')
+              .single();
+            if (upsertError) throw upsertError;
+            return hashtagData;
+          }));
+
+          const postHashtagRelations = upsertedTags.map(tag => ({
+            post_id: postId,
+            hashtag_id: tag.id,
+          }));
+
+          const { error: relationError } = await supabase
+            .from('post_hashtags')
+            .insert(postHashtagRelations);
+
+          if (relationError) throw relationError;
+        }
+      } catch (e) {
+        console.error('Error syncing hashtags during update:', e);
       }
-      // --- END HASHTAG SYNCING ---
+      // --- END CLIENT-SIDE HASHTAG SYNCING ---
 
       return post;
     },
@@ -460,7 +500,7 @@ export function usePostById(postId: string) {
             media_url,
             media_type
           ),
-          user_likes: likes(user_id)
+          likes(user_id)
         `
         )
         .eq('id', postId)
@@ -507,7 +547,7 @@ export function usePostById(postId: string) {
         likes: data.likes_count || 0,
         likes_count: data.likes_count || 0,
         comments: data.comments_count || 0,
-        isLiked: data.user_likes.some(
+        isLiked: data.likes.some(
           (like: { user_id: string }) => like.user_id === user?.id
         ),
         isBookmarked: false,

@@ -37,12 +37,10 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
   const [selectedBadges, setSelectedBadges] = useState<number[]>([]);
   const { data: availableBadges, isLoading: isLoadingBadges } = useBadges();
 
-  // Hashtag suggest
   const { data: trendingTags = [] } = useTrendingTags(10);
   const [showTagSuggest, setShowTagSuggest] = useState(false);
   const [tagQuery, setTagQuery] = useState('');
 
-  // Reset state when tab changes
   useEffect(() => {
     setFiles([]);
     setPreviews([]);
@@ -94,7 +92,6 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
     setFiles([]);
     setPreviews([]);
     setSelectedBadges([]);
-    // activeTab is reset via useEffect
   };
 
   const handleSubmit = async () => {
@@ -154,7 +151,13 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
       } else {
         const { data: post, error: postError } = await supabase
           .from('posts')
-          .insert({ user_id: user.id, caption, location: location || null })
+          .insert({ 
+            user_id: user.id, 
+            caption, 
+            location: location || null,
+            likes_count: 0,
+            comments_count: 0
+          })
           .select('id')
           .single();
 
@@ -175,19 +178,44 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
           .insert(mediaInserts);
         if (mediaError) throw mediaError;
 
-        // --- START HASHTAG PROCESSING ---
-        // Extract hashtags using existing RPC function
+        // --- START CLIENT-SIDE HASHTAG PROCESSING ---
         if (caption) {
-          try {
-            await supabase.rpc('extract_and_store_hashtags', { 
-              post_content: caption, 
-              post_id: post.id 
-            });
-          } catch (e) {
-            console.error('Error extracting hashtags:', e);
+          const hashtagRegex = /#(\w+)/g;
+          const hashtags = caption.match(hashtagRegex)?.map(tag => tag.substring(1).toLowerCase()) || [];
+          const uniqueHashtags = [...new Set(hashtags)];
+
+          if (uniqueHashtags.length > 0) {
+            try {
+              // 1. Upsert hashtags to ensure they exist and get their IDs
+              const upsertedTags = await Promise.all(uniqueHashtags.map(async (tag) => {
+                const { data: hashtagData, error: upsertError } = await supabase
+                  .from('hashtags')
+                  .upsert({ name: tag }, { onConflict: 'name' })
+                  .select('id')
+                  .single();
+                if (upsertError) throw upsertError;
+                return hashtagData;
+              }));
+
+              // 2. Create the post-hashtag relationships
+              const postHashtagRelations = upsertedTags.map(tag => ({
+                post_id: post.id,
+                hashtag_id: tag.id,
+              }));
+
+              const { error: relationError } = await supabase
+                .from('post_hashtag')
+                .insert(postHashtagRelations);
+
+              if (relationError) throw relationError;
+
+            } catch (e) {
+              console.error('Error processing hashtags:', e);
+              // We don't re-throw here, as failing to add hashtags shouldn't block post creation
+            }
           }
         }
-        // --- END HASHTAG PROCESSING ---
+        // --- END CLIENT-SIDE HASHTAG PROCESSING ---
       }
 
       toast({
@@ -311,7 +339,6 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
                     value={caption}
                     onChange={(e) => {
                       setCaption(e.target.value);
-                      // Detect if user is typing hashtag
                       const match = e.target.value.match(/#(\w*)$/);
                       if (match) {
                         setTagQuery(match[1].toLowerCase());
@@ -323,36 +350,33 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
                     }}
                     className="mt-2"
                   />
-                  {/* Hashtag suggest dropdown */}
                   {showTagSuggest && tagQuery.length > 0 && (
                     <div className="absolute left-0 right-0 z-10 bg-white border rounded shadow mt-1 max-h-40 overflow-y-auto">
                       {trendingTags
                         .filter((tag) =>
-                          tag.hashtag.toLowerCase().includes(tagQuery)
+                          tag.name.toLowerCase().includes(tagQuery)
                         )
                         .map((tag) => (
                           <button
-                            key={tag.hashtag}
+                            key={tag.name}
                             type="button"
                             className="block w-full text-left px-3 py-2 hover:bg-muted"
                             onClick={() => {
-                              // Replace last hashtag in caption with selected
                               setCaption((prev) =>
-                                prev.replace(/#(\w*)$/, `#${tag.hashtag} `)
+                                prev.replace(/#(\w*)$/, `#${tag.name} `)
                               );
                               setShowTagSuggest(false);
                               setTagQuery('');
                             }}
                           >
-                            #{tag.hashtag}
+                            #{tag.name}
                             <span className="ml-2 text-xs text-muted-foreground">
                               {tag.post_count} posts
                             </span>
                           </button>
                         ))}
-                      {/* If no match, show info */}
                       {trendingTags.filter((tag) =>
-                        tag.hashtag.toLowerCase().includes(tagQuery)
+                        tag.name.toLowerCase().includes(tagQuery)
                       ).length === 0 && (
                         <div className="px-3 py-2 text-muted-foreground text-xs">
                           No trending hashtag found
@@ -504,7 +528,7 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
             {uploading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" /> Uploading...
-              </>
+              </> 
             ) : (
               `Create ${activeTab}`
             )}

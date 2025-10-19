@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { ReactNode } from "react";
 
 export interface TrendingTag {
-  hashtag: string;
+  name: ReactNode;
   post_count: number;
 }
 
@@ -10,13 +11,26 @@ export function useTrendingTags(limit: number = 10) {
   return useQuery({
     queryKey: ["trendingTags", limit],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_trending_hashtags', { 
-        limit_count: limit 
-      });
+      const { data, error } = await supabase
+        .from('hashtags')
+        .select('name, posts_count')
+        .gt('posts_count', 0) // Only fetch tags with more than 0 posts
+        .order('posts_count', { ascending: false })
+        .limit(limit);
 
-      if (error) throw error;
-      
-      return data as TrendingTag[];
+      if (error) {
+        console.error("Error fetching trending tags:", error);
+        throw error;
+      }
+
+      // The table has 'posts_count', but the interface expects 'post_count'.
+      // We map the data to match the interface.
+      const formattedData = data.map(tag => ({
+        name: tag.name,
+        post_count: tag.posts_count,
+      }));
+
+      return formattedData as TrendingTag[];
     },
   });
 }
