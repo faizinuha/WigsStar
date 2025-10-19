@@ -463,13 +463,13 @@ ALTER FUNCTION "public"."get_user_posts"("p_user_id" "uuid") OWNER TO "postgres"
 
 CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
-    AS $$
+    AS $
 BEGIN
-    INSERT INTO public.profiles (id, username)
-    VALUES (new.id, new.raw_user_meta_data->>'username');
+    INSERT INTO public.profiles (user_id, username, display_name)
+    VALUES (new.id, new.raw_user_meta_data->>'username', new.raw_user_meta_data->>'display_name');
     RETURN new;
 END;
-$$;
+$;
 
 
 ALTER FUNCTION "public"."handle_new_user"() OWNER TO "postgres";
