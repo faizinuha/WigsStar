@@ -17,6 +17,7 @@ import { Settings } from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import PrivateRoute from "./components/PrivateRoute";
+import AdminRoute from "./components/AdminRoute";
 import Chat from "./pages/Chat";
 import ChatDetail from "./pages/ChatDetail";
 import  MusicPage  from "./contexts/Music";
@@ -59,7 +60,7 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/profile" element={<Profile />} /> {/* This route is likely for the current user's profile */}
-                <Route path="/spotify/music" element={<MusicPage />} />
+                <Route path="/mymusic/music" element={<MusicPage />} />
                 <Route path="/play/:trackId" element={<PlayPage />} />
                 <Route path="/profile/:userId" element={<Profile />} />
                 <Route path="/explore" element={<Explore />} />
@@ -85,9 +86,9 @@ const App = () => (
                 <Route
                   path="/Admin_Dashbord"
                   element={
-                    <PrivateRoute>
+                    <AdminRoute>
                       <Admin />
-                    </PrivateRoute>
+                    </AdminRoute>
                   }
                 />
                 <Route path="*" element={<NotFound />} />

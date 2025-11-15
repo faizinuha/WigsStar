@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMessages, useSendMessage } from '@/hooks/useMessages';
+import { useConversations } from '@/hooks/useConversations';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Send, MoreVertical, Phone, Video, Paperclip, X, Image as ImageIcon, FileText, Music, Mic, Square, Play } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, Send, MoreVertical, Phone, Video, Paperclip, X, Image as ImageIcon, FileText, Music, Mic, Square, Play, MessageCircle, Users } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -16,6 +18,7 @@ export default function ChatDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { messages, isLoading } = useMessages(chatId);
+  const { conversations } = useConversations();
   const { mutate: sendMessage } = useSendMessage();
   const [newMessage, setNewMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -117,10 +120,82 @@ export default function ChatDetail() {
 
   const otherUser = messages[0]?.sender_id !== user?.id ? messages[0]?.sender : messages[1]?.sender;
 
+  const getConversationName = (conv: any) => {
+    if (conv.is_group) return conv.name || 'Group Chat';
+    const otherMember = conv.members.find((m: any) => m.user_id !== user?.id);
+    return otherMember?.display_name || otherMember?.username || 'Unknown';
+  };
+
+  const getConversationAvatar = (conv: any) => {
+    if (conv.is_group) return null;
+    const otherMember = conv.members.find((m: any) => m.user_id !== user?.id);
+    return otherMember?.avatar_url;
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-background">
-      {/* Header - Instagram Style */}
-      <div className="border-b p-3 flex items-center justify-between bg-background sticky top-0 z-10">
+    <div className="flex h-screen w-full overflow-hidden">
+      {/* Chat List Sidebar - Desktop only */}
+      <div className="hidden md:flex w-96 border-r flex-col bg-background">
+        <div className="p-4 border-b">
+          <h2 className="text-xl font-bold">Messages</h2>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {conversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+              <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-sm text-muted-foreground">No conversations</p>
+            </div>
+          ) : (
+            conversations.map((conversation) => (
+              <div
+                key={conversation.id}
+                onClick={() => navigate(`/chat/${conversation.id}`)}
+                className={`flex items-center gap-3 p-4 hover:bg-accent cursor-pointer transition-colors border-b ${
+                  conversation.id === chatId ? 'bg-accent' : ''
+                }`}
+              >
+                <Avatar className="h-12 w-12 border-2 border-border">
+                  <AvatarImage src={getConversationAvatar(conversation) || undefined} />
+                  <AvatarFallback className="bg-muted">
+                    {conversation.is_group ? (
+                      <Users className="h-5 w-5" />
+                    ) : (
+                      getConversationName(conversation)[0]?.toUpperCase()
+                    )}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="font-semibold truncate text-sm">
+                      {getConversationName(conversation)}
+                    </h3>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(conversation.last_message_at), {
+                        addSuffix: false,
+                      })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs truncate flex-1 text-muted-foreground">
+                      {conversation.last_message || 'Start conversation'}
+                    </p>
+                    {conversation.unread_count > 0 && conversation.id !== chatId && (
+                      <Badge variant="default" className="h-4 min-w-[16px] flex items-center justify-center px-1 text-xs rounded-full">
+                        {conversation.unread_count}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Chat Detail Area */}
+      <div className="flex flex-col flex-1 bg-background">
+        {/* Header - Instagram Style */}
+        <div className="border-b p-3 flex items-center justify-between bg-background sticky top-0 z-10">
         <div className="flex items-center gap-3 flex-1">
           <Button
             variant="ghost"
@@ -365,6 +440,7 @@ export default function ChatDetail() {
         {isRecording && (
           <p className="text-xs text-center text-muted-foreground mt-2">Merekam... Lepas untuk mengirim</p>
         )}
+      </div>
       </div>
     </div>
   );

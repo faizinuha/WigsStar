@@ -52,8 +52,8 @@ export const useMessages = (conversationId: string | undefined) => {
         ...msg,
         sender: profilesMap.get(msg.sender_id) || {
           user_id: msg.sender_id,
-          username: 'Unknown',
-          display_name: 'Unknown',
+          username: 'Anonymous',
+          display_name: 'Anonymous',
           avatar_url: '',
         },
       }));

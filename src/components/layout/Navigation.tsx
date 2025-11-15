@@ -95,10 +95,34 @@ export const Navigation = () => {
     },
     {
       icon: Music,
-      label: 'Spotify',
-      path: '/spotify/music',
-      active: location.pathname === '/spotify/music',
+      label: 'MyMusic',
+      path: '/mymusic/music',
+      active: location.pathname === '/mymusic/music',
     }
+  ];
+
+  // Mobile bottom navbar items (only 4 items: Home, Explore, Create, Memes)
+  const mobileBottomNavItems = [
+    { icon: Home, label: 'Home', path: '/', active: location.pathname === '/' },
+    {
+      icon: Search,
+      label: 'Explore',
+      path: '/explore',
+      active: location.pathname === '/explore',
+    },
+    {
+      icon: PlusSquare,
+      label: 'Create',
+      path: '#',
+      active: false,
+      onClick: () => setShowCreateModal(true),
+    },
+    {
+      icon: Laugh,
+      label: 'Memes',
+      path: '/memes',
+      active: location.pathname === '/memes',
+    },
   ];
 
   // Don't render navigation if user is not authenticated
@@ -234,105 +258,25 @@ export const Navigation = () => {
             </span>
           </div>
 
-          <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-80">
-              <SheetHeader>
-                <SheetTitle className="text-left">Menu</SheetTitle>
-              </SheetHeader>
-
-              <div className="mt-8 space-y-6">
-                {/* Profile Section & Account Switcher */}
-                <div className="flex items-center justify-between p-4 rounded-2xl bg-secondary">
-                  <div
-                    className="flex items-center space-x-3 cursor-pointer flex-1 min-w-0"
-                    onClick={handleProfileClick}
-                  >
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={profile?.avatar_url || '/assets/placeholder/cewek.png'} />
-                      <AvatarFallback>{user?.user_metadata?.display_name?.charAt(0) || user?.email?.charAt(0) || "U"}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{user?.user_metadata?.display_name || user?.email?.split('@')[0] || "yourname"}</p>
-                      <p className="text-sm text-muted-foreground truncate">@{user?.user_metadata?.username || user?.email?.split('@')[0] || "yourname"}</p>
-                    </div>
-                  </div>
-                  <AccountSwitcher />
-                </div>
-
-
-
-                <div className="space-y-2">
-                  {navItems.map((item, index) => {
-                    const Icon = item.icon;
-                    return (
-                      <Button
-                        key={index}
-                        variant={item.active ? 'secondary' : 'ghost'}
-                        className="w-full justify-start space-x-3 h-12"
-                        onClick={() =>
-                          handleNavigation(item.path, item.onClick)
-                        }
-                      >
-                        <div className="relative">
-                          <Icon className="h-6 w-6" />
-                          {item.badge && (
-                            <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs starmar-gradient border-0">
-                              {item.badge}
-                            </Badge>
-                          )}
-                        </div>
-                        <span>{item.label}</span>
-                      </Button>
-                    );
-                  })}
-                </div>
-
-                <hr className="border-border" />
-
-                {/* Settings & Logout are now in AccountSwitcher */}
-                <div className="space-y-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start space-x-3 h-12"
-                      >
-                        <Menu className="h-6 w-6" />
-                        <span>More</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-64" side="right" align="start">
-                      {profile?.role === 'admin' && (
-                        <DropdownMenuItem
-                          onClick={() => {
-                            navigate('/Admin_Dashbord');
-                            setIsMenuOpen(false);
-                          }}
-                        >
-                          <Home className="mr-2 h-4 w-4" />
-                          <span>Dashboard Admin</span>
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem onClick={handleSettingsClick}>
-                        <Settings className="mr-2 h-4 w-4" />
-                        <span>Settings</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            </SheetContent>
-          </Sheet>
+          {/* Message Icon with Badge */}
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className="relative"
+            onClick={() => navigate('/chat')}
+          >
+            <MessageCircle className={`h-6 w-6 ${location.pathname.startsWith('/chat') ? 'text-primary' : ''}`} />
+            {totalUnread > 0 && (
+              <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs starmar-gradient border-0">
+                {totalUnread}
+              </Badge>
+            )}
+          </Button>
         </header>
 
-        {/* Bottom Navigation */}
+        {/* Bottom Navigation - Only 4 items */}
         <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-2 flex justify-around z-40">
-          {navItems.slice(0, 5).map((item, index) => {
+          {mobileBottomNavItems.map((item, index) => {
             const Icon = item.icon;
             return (
               <Button
@@ -345,11 +289,6 @@ export const Navigation = () => {
                 <Icon
                   className={`h-6 w-6 ${item.active ? 'text-primary' : ''}`}
                 />
-                {item.badge && (
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs starmar-gradient border-0">
-                    {item.badge}
-                  </Badge>
-                )}
               </Button>
             );
           })}

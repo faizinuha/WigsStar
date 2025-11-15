@@ -26,5 +26,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "supabase/functions/spotify-track-by-id/index.ts"]
+  "include": ["src", "supabase/functions/deezer-track-by-id/index.ts"]
 }

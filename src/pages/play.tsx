@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getTrackById, Track } from '../lib/spotify';
+import { getTrackById, Track } from '../lib/api/mymusic';
 
 export default function PlayPage() {
   const { trackId } = useParams<{ trackId: string }>();
   const [track, setTrack] = useState<Track | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchTrack = async () => {
@@ -21,6 +24,33 @@ export default function PlayPage() {
         setError(null);
         const data = await getTrackById(trackId);
         setTrack(data);
+
+        const source = data.preview || data.audio || data.music_url;
+        if (source) {
+          // Pastikan audioRef.current ada sebelum mengaksesnya
+          if (!audioRef.current) {
+            audioRef.current = new Audio(source);
+          } else {
+            audioRef.current.src = source;
+          }
+
+          const audio = audioRef.current;
+
+          const handlePlaying = () => setIsPlaying(true);
+          const handlePause = () => setIsPlaying(false);
+
+          audio.addEventListener('playing', handlePlaying);
+          audio.addEventListener('pause', handlePause);
+          audio.addEventListener('ended', handlePause); // Juga berhenti saat lagu selesai
+
+          // Cleanup listeners saat komponen di-unmount atau trackId berubah
+          return () => {
+            audio.pause();
+            audio.removeEventListener('playing', handlePlaying);
+            audio.removeEventListener('pause', handlePause);
+            audio.removeEventListener('ended', handlePause);
+          };
+        }
       } catch (err: any) {
         console.error('Error fetching track details:', err);
         setError(err.message || 'Gagal memuat detail lagu.');
@@ -31,6 +61,20 @@ export default function PlayPage() {
 
     fetchTrack();
   }, [trackId]);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      // Play bisa gagal jika user belum berinteraksi dengan halaman
+      audioRef.current.play().catch(err => {
+        console.error("Gagal memulai pemutaran:", err);
+        setIsPlaying(false); // Pastikan state kembali ke false jika play gagal
+      });
+    }
+  };
 
   return (
     <div className="bg-[#121212] min-h-screen text-white p-8 flex flex-col items-center justify-center">
@@ -56,14 +100,12 @@ export default function PlayPage() {
             <p className="text-lg text-gray-300 truncate">{track.artist}</p>
             <p className="text-md text-gray-400 truncate mb-6">{track.album_title}</p>
 
-            <a
-              href={`https://open.spotify.com/track/${track.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={togglePlay}
               className="bg-green-500 text-white font-bold py-3 px-8 rounded-full hover:bg-green-600 transition inline-flex items-center"
             >
-              Dengarkan di Spotify
-            </a>
+              {isPlaying ? "⏸️ Pause" : "▶️ Play"}
+            </button>
           </div>
         )}
       </div>

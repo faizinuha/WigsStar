@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 // Import fungsi getRecommendations dan type Track dari Supabase
 import { useNavigate } from "react-router-dom";
-import { getRecommendations, Track } from "../lib/spotify"; 
+import { getRecommendations, Track } from "../lib/api/mymusic"; 
 
 export default function MusicPage() {
   // State menggunakan tipe data Track[]
@@ -38,8 +38,8 @@ export default function MusicPage() {
     // hanya variabel yang dipanggil di dalam map yang disesuaikan.
     <div className="bg-[#121212] min-h-screen text-white p-8">
       <header className="flex items-center gap-3 mb-8">
-        <img src="/logo.svg" alt="Logo" className="w-10 h-10" />
-        <h1 className="text-2xl font-bold">🎵 MyMusic - Recommendations</h1>
+        <img src="../assets/Logo/StarMar-.png" alt="Logo" className="w-10 h-10" />
+        <h1 className="text-2xl font-bold">🎵 MyMusic - </h1>
       </header>
 
       {loading && <p className="text-center">Loading recommendations...</p>}
