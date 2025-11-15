@@ -62,6 +62,28 @@ CREATE TYPE "public"."app_role" AS ENUM (
 ALTER TYPE "public"."app_role" OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."create_new_post_notifications"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+  -- Masukkan notifikasi untuk setiap pengikut dari pembuat postingan
+  INSERT INTO public.notifications (user_id, from_user_id, type, post_id)
+  SELECT
+    follower_id, -- user_id dari penerima notifikasi (pengikut)
+    NEW.user_id, -- from_user_id adalah pembuat postingan
+    'new_post',    -- tipe notifikasi
+    NEW.id         -- post_id dari postingan baru
+  FROM public.followers
+  WHERE following_id = NEW.user_id;
+
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."create_new_post_notifications"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."create_welcome_notification"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -138,6 +160,22 @@ $$;
 ALTER FUNCTION "public"."decrement_likes_count"("post_id" "uuid") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."decrement_post_count"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+begin
+  update public.hashtags
+  set posts_count = posts_count - 1
+  where id = old.hashtag_id;
+  return old;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."decrement_post_count"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."delete_post"("p_post_id" "uuid") RETURNS "void"
     LANGUAGE "plpgsql"
     AS $$
@@ -212,6 +250,58 @@ $$;
 ALTER FUNCTION "public"."extract_and_store_hashtags"("post_content" "text", "post_id" "uuid") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."get_all_notifications_for_user"("p_user_id" "uuid") RETURNS TABLE("id" "uuid", "user_id" "uuid", "type" "text", "created_at" timestamp with time zone, "is_read" boolean, "post_id" "uuid", "title" "text", "message" "text", "from_user_id" "uuid", "username" "text", "display_name" "text", "avatar_url" "text")
+    LANGUAGE "sql"
+    AS $$
+  -- Ambil notifikasi standar (like, comment, follow) dan gabungkan dengan profil pengirim
+  SELECT
+    n.id,
+    n.user_id,
+    n.type,
+    n.created_at,
+    n.is_read,
+    n.post_id,
+    NULL::text AS title,
+    NULL::text AS message,
+    p.user_id AS from_user_id,
+    p.username,
+    p.display_name,
+    p.avatar_url
+  FROM
+    notifications AS n
+  JOIN
+    profiles AS p ON n.from_user_id = p.user_id
+  WHERE
+    n.user_id = p_user_id
+
+  UNION ALL
+
+  -- Ambil notifikasi sistem
+  SELECT
+    un.id,
+    un.user_id,
+    un.type,
+    un.created_at,
+    un.is_read,
+    NULL::uuid AS post_id,
+    un.title,
+    un.message,
+    NULL::uuid AS from_user_id,
+    NULL::text AS username,
+    NULL::text AS display_name,
+    NULL::text AS avatar_url
+  FROM
+    user_notifications AS un
+  WHERE
+    un.user_id = p_user_id
+
+  ORDER BY created_at DESC;
+$$;
+
+
+ALTER FUNCTION "public"."get_all_notifications_for_user"("p_user_id" "uuid") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."get_all_posts"() RETURNS TABLE("id" "uuid", "user_id" "uuid", "caption" "text", "location" "text", "likes_count" integer, "comments_count" integer, "created_at" timestamp with time zone, "username" "text", "display_name" "text", "avatar_url" "text", "media" "jsonb")
     LANGUAGE "plpgsql"
     AS $$
@@ -249,7 +339,7 @@ ALTER FUNCTION "public"."get_all_posts"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."get_conversations_with_details"("p_user_id" "uuid") RETURNS TABLE("id" "uuid", "name" "text", "is_group" boolean, "created_at" timestamp with time zone, "last_message_at" timestamp with time zone, "last_message" "text", "last_message_sender" "uuid", "members" json, "unread_count" bigint)
-    LANGUAGE "plpgsql" SECURITY DEFINER
+    LANGUAGE "plpgsql"
     SET "search_path" TO 'public'
     AS $$
 begin
@@ -284,11 +374,11 @@ begin
                 select count(*)
                 from messages m
                 where m.conversation_id = c.id
-                and m.created_at > (
+                and m.created_at > COALESCE((
                     select cm_inner.last_read_at
                     from conversation_members cm_inner
                     where cm_inner.conversation_id = c.id and cm_inner.user_id = p_user_id
-                )
+                ), '1970-01-01T00:00:00+00:00')
             ) as unread_count
         from conversations c
         where c.id in (select conversation_id from user_conversations)
@@ -463,13 +553,13 @@ ALTER FUNCTION "public"."get_user_posts"("p_user_id" "uuid") OWNER TO "postgres"
 
 CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
-    AS $
+    AS $$
 BEGIN
     INSERT INTO public.profiles (user_id, username, display_name)
     VALUES (new.id, new.raw_user_meta_data->>'username', new.raw_user_meta_data->>'display_name');
     RETURN new;
 END;
-$;
+$$;
 
 
 ALTER FUNCTION "public"."handle_new_user"() OWNER TO "postgres";
@@ -602,6 +692,22 @@ $$;
 
 
 ALTER FUNCTION "public"."increment_likes_count"("post_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."increment_post_count"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+begin
+  update public.hashtags
+  set posts_count = posts_count + 1
+  where id = new.hashtag_id;
+  return new;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."increment_post_count"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."is_conversation_member"("p_conversation_id" "uuid", "p_user_id" "uuid") RETURNS boolean
@@ -967,7 +1073,7 @@ CREATE TABLE IF NOT EXISTS "public"."notifications" (
     "comment_id" "uuid",
     "is_read" boolean DEFAULT false,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    CONSTRAINT "notifications_type_check" CHECK (("type" = ANY (ARRAY['like'::"text", 'comment'::"text", 'follow'::"text"])))
+    CONSTRAINT "notifications_type_check" CHECK (("type" = ANY (ARRAY['like'::"text", 'comment'::"text", 'follow'::"text", 'new_post'::"text"])))
 );
 
 
@@ -1457,6 +1563,18 @@ CREATE OR REPLACE TRIGGER "on_like_insert" AFTER INSERT ON "public"."likes" FOR 
 
 
 
+CREATE OR REPLACE TRIGGER "on_new_post_created" AFTER INSERT ON "public"."posts" FOR EACH ROW EXECUTE FUNCTION "public"."create_new_post_notifications"();
+
+
+
+CREATE OR REPLACE TRIGGER "on_post_hashtag_delete" AFTER DELETE ON "public"."post_hashtags" FOR EACH ROW EXECUTE FUNCTION "public"."decrement_post_count"();
+
+
+
+CREATE OR REPLACE TRIGGER "on_post_hashtag_insert" AFTER INSERT ON "public"."post_hashtags" FOR EACH ROW EXECUTE FUNCTION "public"."increment_post_count"();
+
+
+
 CREATE OR REPLACE TRIGGER "trg_create_welcome_notification" AFTER INSERT ON "public"."profiles" FOR EACH ROW EXECUTE FUNCTION "public"."create_welcome_notification"();
 
 
@@ -1767,6 +1885,10 @@ CREATE POLICY "Enable insert for authenticated users only" ON "public"."comments
 
 
 
+CREATE POLICY "Enable insert for authenticated users only" ON "public"."conversation_members" FOR INSERT TO "authenticated" WITH CHECK (true);
+
+
+
 CREATE POLICY "Enable insert for authenticated users only" ON "public"."likes" FOR INSERT TO "authenticated" WITH CHECK (true);
 
 
@@ -1811,11 +1933,11 @@ CREATE POLICY "Enable read access for all users" ON "public"."comments" FOR SELE
 
 
 
-CREATE POLICY "Enable read access for all users" ON "public"."conversation_members" FOR SELECT USING (true);
+CREATE POLICY "Enable read access for all users" ON "public"."conversation_members" FOR SELECT TO "authenticated" USING (true);
 
 
 
-CREATE POLICY "Enable read access for all users" ON "public"."conversations" FOR SELECT USING (true);
+CREATE POLICY "Enable read access for all users" ON "public"."conversations" FOR SELECT TO "authenticated" USING (true);
 
 
 
@@ -2348,6 +2470,12 @@ GRANT USAGE ON SCHEMA "public" TO "service_role";
 
 
 
+GRANT ALL ON FUNCTION "public"."create_new_post_notifications"() TO "anon";
+GRANT ALL ON FUNCTION "public"."create_new_post_notifications"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."create_new_post_notifications"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."create_welcome_notification"() TO "anon";
 GRANT ALL ON FUNCTION "public"."create_welcome_notification"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."create_welcome_notification"() TO "service_role";
@@ -2378,6 +2506,12 @@ GRANT ALL ON FUNCTION "public"."decrement_likes_count"("post_id" "uuid") TO "ser
 
 
 
+GRANT ALL ON FUNCTION "public"."decrement_post_count"() TO "anon";
+GRANT ALL ON FUNCTION "public"."decrement_post_count"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."decrement_post_count"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."delete_post"("p_post_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."delete_post"("p_post_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."delete_post"("p_post_id" "uuid") TO "service_role";
@@ -2393,6 +2527,12 @@ GRANT ALL ON FUNCTION "public"."delete_user_data"("target_user_id" "uuid") TO "s
 GRANT ALL ON FUNCTION "public"."extract_and_store_hashtags"("post_content" "text", "post_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."extract_and_store_hashtags"("post_content" "text", "post_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."extract_and_store_hashtags"("post_content" "text", "post_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."get_all_notifications_for_user"("p_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."get_all_notifications_for_user"("p_user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_all_notifications_for_user"("p_user_id" "uuid") TO "service_role";
 
 
 
@@ -2489,6 +2629,12 @@ GRANT ALL ON FUNCTION "public"."increment_following_count"("user_id" "uuid") TO 
 GRANT ALL ON FUNCTION "public"."increment_likes_count"("post_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."increment_likes_count"("post_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."increment_likes_count"("post_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."increment_post_count"() TO "anon";
+GRANT ALL ON FUNCTION "public"."increment_post_count"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."increment_post_count"() TO "service_role";
 
 
 
