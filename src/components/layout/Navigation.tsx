@@ -157,7 +157,7 @@ export const Navigation = () => {
           {/* Logo */}
           <div className="flex items-center space-x-3">
             <img
-              src="/assets/Logo/StarMar.png"
+              src="/assets/Logo/StarMar-.png"
               alt="StarMar"
               className="w-10 h-10 object-contain"
             />
