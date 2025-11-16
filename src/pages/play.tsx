@@ -1,114 +1,184 @@
-import { useEffect, useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { getTrackById, Track } from '../lib/api/mymusic';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { getRecommendations, Track } from '../lib/api/mymusic';
+import { useMusic } from '@/contexts/Music';
+import { MusicSkeleton } from '@/components/skeletons/MusicSkeleton';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+// import { Navigation } from "@/components/layout/Navigation";
 
+// Komponen untuk menampilkan satu item lagu dalam daftar
+const TrackItem = ({ track, onTrackSelect, isCurrent, isPlaying }: { track: Track, onTrackSelect: () => void, isCurrent: boolean, isPlaying: boolean }) => (
+  <div
+    className={`flex items-center p-2 rounded-lg cursor-pointer transition-colors duration-200 ${isCurrent ? 'bg-green-500 bg-opacity-20' : 'hover:bg-gray-800'}`}
+    onClick={onTrackSelect}
+  >
+    <img src={track.image_url} alt={track.name} className="w-12 h-12 rounded-md mr-4 object-cover" />
+    <div className="flex-1 min-w-0">
+      <p className={`font-semibold truncate ${isCurrent ? 'text-green-400' : 'text-white'}`}>{track.name}</p>
+      <p className="text-sm text-gray-400 truncate">{track.artist}</p>
+    </div>
+    {isCurrent && isPlaying && (
+      <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse ml-3"></div>
+    )}
+  </div>
+);
+
+const SONGS_PER_PAGE = 15;
+
+// Halaman utama pemutar musik
 export default function PlayPage() {
-  const { trackId } = useParams<{ trackId: string }>();
-  const [track, setTrack] = useState<Track | null>(null);
+  const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [index, setIndex] = useState(0);
+  const { playTrack, currentTrackId, isPlaying } = useMusic();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortOrder, setSortOrder] = useState('default');
+
+  const observer = useRef<IntersectionObserver>();
+  const lastTrackElementRef = useCallback(node => {
+    if (loading) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore && !loadingMore && searchTerm === '') {
+        loadMoreTracks();
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [loading, loadingMore, hasMore, searchTerm]);
+
+
+  const loadMoreTracks = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const { tracks: newTracks, total } = await getRecommendations({ index: index + SONGS_PER_PAGE, limit: SONGS_PER_PAGE });
+      setTracks(prevTracks => [...prevTracks, ...newTracks]);
+      setIndex(prevIndex => prevIndex + SONGS_PER_PAGE);
+      setHasMore(tracks.length + newTracks.length < total);
+    } catch (err: any) {
+      setError(err.message || 'Gagal memuat lebih banyak lagu.');
+      console.error("Error fetching more recommendations:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [index, loadingMore, hasMore, tracks.length]);
 
   useEffect(() => {
-    const fetchTrack = async () => {
-      if (!trackId) {
-        setError('Track ID tidak ditemukan.');
-        setLoading(false);
-        return;
-      }
-
+    const fetchInitialRecommendations = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        setLoading(true);
-        setError(null);
-        const data = await getTrackById(trackId);
-        setTrack(data);
-
-        const source = data.preview || data.audio || data.music_url;
-        if (source) {
-          // Pastikan audioRef.current ada sebelum mengaksesnya
-          if (!audioRef.current) {
-            audioRef.current = new Audio(source);
-          } else {
-            audioRef.current.src = source;
-          }
-
-          const audio = audioRef.current;
-
-          const handlePlaying = () => setIsPlaying(true);
-          const handlePause = () => setIsPlaying(false);
-
-          audio.addEventListener('playing', handlePlaying);
-          audio.addEventListener('pause', handlePause);
-          audio.addEventListener('ended', handlePause); // Juga berhenti saat lagu selesai
-
-          // Cleanup listeners saat komponen di-unmount atau trackId berubah
-          return () => {
-            audio.pause();
-            audio.removeEventListener('playing', handlePlaying);
-            audio.removeEventListener('pause', handlePause);
-            audio.removeEventListener('ended', handlePause);
-          };
-        }
+        const { tracks: initialTracks, total } = await getRecommendations({ index: 0, limit: SONGS_PER_PAGE });
+        setTracks(initialTracks);
+        setIndex(0);
+        setHasMore(initialTracks.length < total);
       } catch (err: any) {
-        console.error('Error fetching track details:', err);
-        setError(err.message || 'Gagal memuat detail lagu.');
+        setError(err.message || 'Gagal memuat rekomendasi lagu.');
+        console.error("Error fetching recommendations:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTrack();
-  }, [trackId]);
+    fetchInitialRecommendations();
+  }, []);
 
-  const togglePlay = () => {
-    if (!audioRef.current) return;
-
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      // Play bisa gagal jika user belum berinteraksi dengan halaman
-      audioRef.current.play().catch(err => {
-        console.error("Gagal memulai pemutaran:", err);
-        setIsPlaying(false); // Pastikan state kembali ke false jika play gagal
+  const filteredAndSortedTracks = useMemo(() => {
+    return tracks
+      .filter(track =>
+        track.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        track.artist.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .sort((a, b) => {
+        if (sortOrder === 'title-asc') {
+          return a.name.localeCompare(b.name);
+        }
+        if (sortOrder === 'artist-asc') {
+          return a.artist.localeCompare(b.artist);
+        }
+        return 0; // 'default' order
       });
-    }
-  };
+  }, [tracks, searchTerm, sortOrder]);
+
+
+  if (loading) {
+    return <MusicSkeleton />;
+  }
 
   return (
-    <div className="bg-[#121212] min-h-screen text-white p-8 flex flex-col items-center justify-center">
-      <div className="w-full max-w-sm">
-        <header className="mb-8 text-center">
-          <Link to="/" className="text-gray-400 hover:text-white transition mb-4 inline-block">
-            &larr; Kembali ke Rekomendasi
-          </Link>
-          <h1 className="text-3xl font-bold">Now Playing</h1>
-        </header>
+    <div className="bg-black min-h-screen text-white p-8 pb-40">
+      <header className="mb-8 mt-8">
+      {/* <Navigation /> */}
+        <h1 className="text-4xl font-bold">Rekomendasi Lagu</h1>
+        <p className="text-gray-400">Lagu-lagu pilihan yang mungkin Anda suka.</p>
+        <p className="text-gray-400">Mohon Maaf Jika music kami sediakan 30 detik | Update</p>
+        
+        <div className="mt-6 flex flex-col sm:flex-row gap-4">
+          <Input
+            type="text"
+            placeholder="Cari lagu atau artis..."
+            className="w-full sm:w-72 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <Select value={sortOrder} onValueChange={setSortOrder}>
+            <SelectTrigger className="w-full sm:w-48 bg-gray-800 border-gray-700 text-white">
+              <SelectValue placeholder="Urutkan" />
+            </SelectTrigger>
+            <SelectContent className="bg-gray-800 border-gray-700 text-white">
+              <SelectItem value="default">Default</SelectItem>
+              <SelectItem value="title-asc">Judul (A-Z)</SelectItem>
+              <SelectItem value="artist-asc">Artis (A-Z)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </header>
 
-        {loading && <p className="text-center">Loading track...</p>}
-        {error && <p className="text-center text-red-500">Error: {error}</p>}
+      <main>
+        {error && !loading && <p className="text-center text-red-500 mt-4">Error: {error}</p>}
+        
+        <div className="space-y-2">
+          {filteredAndSortedTracks.map((track, i) => {
+            // The ref for infinite scroll is only attached if there's no search term
+            if (filteredAndSortedTracks.length === i + 1 && searchTerm === '') {
+              return (
+                <div ref={lastTrackElementRef} key={track.id}>
+                  <TrackItem
+                    track={track}
+                    onTrackSelect={() => playTrack(track, tracks)}
+                    isCurrent={currentTrackId === track.id}
+                    isPlaying={isPlaying}
+                  />
+                </div>
+              );
+            } else {
+              return (
+                <TrackItem
+                  key={track.id}
+                  track={track}
+                  onTrackSelect={() => playTrack(track, tracks)}
+                  isCurrent={currentTrackId === track.id}
+                  isPlaying={isPlaying}
+                />
+              );
+            }
+          })}
+        </div>
 
-        {track && (
-          <div className="bg-[#181818] p-6 rounded-xl text-center">
-            <img
-              src={track.image_url}
-              alt={track.name}
-              className="rounded-lg mb-4 w-full mx-auto"
-            />
-            <p className="text-2xl font-bold truncate">{track.name}</p>
-            <p className="text-lg text-gray-300 truncate">{track.artist}</p>
-            <p className="text-md text-gray-400 truncate mb-6">{track.album_title}</p>
-
-            <button
-              onClick={togglePlay}
-              className="bg-green-500 text-white font-bold py-3 px-8 rounded-full hover:bg-green-600 transition inline-flex items-center"
-            >
-              {isPlaying ? "⏸️ Pause" : "▶️ Play"}
-            </button>
-          </div>
+        {loadingMore && searchTerm === '' && <p className="text-center mt-4 text-gray-400">Memuat lebih banyak...</p>}
+        {!hasMore && searchTerm === '' && tracks.length > 0 && <p className="text-center mt-8 text-gray-500">Anda telah mencapai akhir daftar.</p>}
+        {filteredAndSortedTracks.length === 0 && !loading && !error && (
+            <p className="text-center text-gray-400 mt-8">
+                {searchTerm ? 'Lagu tidak ditemukan.' : 'Tidak ada rekomendasi yang ditemukan.'}
+            </p>
         )}
-      </div>
+      </main>
     </div>
   );
 }

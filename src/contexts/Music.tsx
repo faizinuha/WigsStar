@@ -1,77 +1,183 @@
-import { useEffect, useState } from "react";
-// Import fungsi getRecommendations dan type Track dari Supabase
-import { useNavigate } from "react-router-dom";
-import { getRecommendations, Track } from "../lib/api/mymusic"; 
+import React, { createContext, useContext, useState, useRef, useEffect, ReactNode } from 'react';
+import { Track } from '@/lib/api/mymusic';
 
-export default function MusicPage() {
-  // State menggunakan tipe data Track[]
-  const [tracks, setTracks] = useState<Track[]>([]); 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
+interface MusicContextType {
+  isPlaying: boolean;
+  currentTrack: Track | null;
+  currentTrackId: string | null;
+  playTrack: (track: Track, playlist?: Track[]) => void;
+  togglePlayPause: () => void;
+  playNext: () => void;
+  playPrev: () => void;
+  duration: number;
+  currentTime: number;
+  seek: (time: number) => void;
+}
+
+const MusicContext = createContext<MusicContextType | undefined>(undefined);
+
+// Helper function to update media session
+const updateMediaSession = (track: Track, playbackHandlers: {
+  play: () => void;
+  pause: () => void;
+  next: () => void;
+  prev: () => void;
+}) => {
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.name,
+      artist: track.artist,
+      album: track.album_title,
+      artwork: [
+        { src: track.image_url, sizes: '96x96', type: 'image/jpeg' },
+        { src: track.image_url, sizes: '128x128', type: 'image/jpeg' },
+        { src: track.image_url, sizes: '192x192', type: 'image/jpeg' },
+        { src: track.image_url, sizes: '256x256', type: 'image/jpeg' },
+        { src: track.image_url, sizes: '384x384', type: 'image/jpeg' },
+        { src: track.image_url, sizes: '512x512', type: 'image/jpeg' },
+      ],
+    });
+
+    navigator.mediaSession.setActionHandler('play', playbackHandlers.play);
+    navigator.mediaSession.setActionHandler('pause', playbackHandlers.pause);
+    navigator.mediaSession.setActionHandler('nexttrack', playbackHandlers.next);
+    navigator.mediaSession.setActionHandler('previoustrack', playbackHandlers.prev);
+  }
+};
+
+const updatePositionState = (duration: number, currentTime: number) => {
+    if ('mediaSession' in navigator && navigator.mediaSession.metadata) {
+        navigator.mediaSession.setPositionState({
+            duration: duration,
+            playbackRate: 1,
+            position: currentTime,
+        });
+    }
+};
+
+
+export const MusicProvider = ({ children }: { children: ReactNode }) => {
+  const [playlist, setPlaylist] = useState<Track[]>([]);
+  const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
 
   useEffect(() => {
-    const fetchRecommendations = async () => {
-      try {
-        setLoading(true);
-        setError(null); 
-        
-        // Panggilan yang type-safe
-        const data: Track[] = await getRecommendations(); 
-        
-        setTracks(data); 
-
-      } catch (err: any) {
-        console.error('Error fetching recommendations:', err);
-        setError(err.message || 'Gagal memuat rekomendasi dari database');
-        setTracks([]); 
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRecommendations();
+    if (typeof window !== 'undefined') {
+        audioRef.current = new Audio();
+    }
   }, []);
 
-  return (
-    // Struktur UI (JSX) Anda SAMA PERSIS dengan sebelumnya, 
-    // hanya variabel yang dipanggil di dalam map yang disesuaikan.
-    <div className="bg-[#121212] min-h-screen text-white p-8">
-      <header className="flex items-center gap-3 mb-8">
-        <img src="../assets/Logo/StarMar-.png" alt="Logo" className="w-10 h-10" />
-        <h1 className="text-2xl font-bold">🎵 MyMusic - </h1>
-      </header>
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
 
-      {loading && <p className="text-center">Loading recommendations...</p>}
-      {error && <p className="text-center text-red-500">Error: {error}</p>}
-      
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
-        {tracks.map((track) => (
-          <div 
-            key={track.id} 
-            className="bg-[#181818] p-4 rounded-xl hover:bg-[#282828] transition cursor-pointer group"
-            onClick={() => navigate(`/play/${track.id}`)}
-          >
-            <div className="relative">
-              <img 
-                src={track.image_url} 
-                alt={track.name} 
-                className="rounded-lg mb-3 w-full" 
-              />
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition bg-black/50 rounded-lg">
-                <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                </svg>
-              </div>
-            </div>
-            
-            <p className="font-medium truncate">{track.name}</p>
-            <p className="text-sm text-gray-400 truncate">
-              {track.artist} - {track.album_title}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
+    const handleTimeUpdate = () => {
+        setCurrentTime(audio.currentTime);
+        updatePositionState(audio.duration, audio.currentTime);
+    };
+    const handleLoadedMetadata = () => setDuration(audio.duration);
+    const handleEnded = () => playNext();
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [currentTrack]);
+
+  const playTrack = (track: Track, newPlaylist: Track[] = []) => {
+    if (newPlaylist.length > 0) {
+      setPlaylist(newPlaylist);
+    }
+    setCurrentTrack(track);
+    
+    const audio = audioRef.current;
+    if (audio) {
+      const source = track.preview || track.audio || track.music_url;
+      if (source) {
+        audio.src = source;
+        audio.play().then(() => {
+            setIsPlaying(true);
+            updateMediaSession(track, {
+                play: togglePlayPause,
+                pause: togglePlayPause,
+                next: playNext,
+                prev: playPrev,
+            });
+        }).catch(e => console.error("Error playing audio:", e));
+      }
+    }
+  };
+
+  const togglePlayPause = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+    } else {
+      if (audio.src) {
+        audio.play().then(() => {
+            setIsPlaying(true);
+            if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+        }).catch(e => console.error("Error resuming audio:", e));
+      }
+    }
+  };
+
+  const playNext = () => {
+    if (playlist.length === 0) return;
+    const currentIndex = playlist.findIndex(t => t.id === currentTrack?.id);
+    const nextIndex = (currentIndex + 1) % playlist.length;
+    playTrack(playlist[nextIndex]);
+  };
+
+  const playPrev = () => {
+    if (playlist.length === 0) return;
+    const currentIndex = playlist.findIndex(t => t.id === currentTrack?.id);
+    const prevIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+    playTrack(playlist[prevIndex]);
+  };
+
+  const seek = (time: number) => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.currentTime = time;
+    }
+  };
+
+  return (
+    <MusicContext.Provider value={{ 
+      isPlaying, 
+      currentTrack,
+      currentTrackId: currentTrack?.id || null,
+      playTrack, 
+      togglePlayPause,
+      playNext,
+      playPrev,
+      duration,
+      currentTime,
+      seek
+    }}>
+      {children}
+    </MusicContext.Provider>
   );
-}
+};
+
+export const useMusic = () => {
+  const context = useContext(MusicContext);
+  if (context === undefined) {
+    throw new Error('useMusic must be used within a MusicProvider');
+  }
+  return context;
+};

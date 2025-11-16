@@ -11,6 +11,6 @@ export default defineConfig({
   ],
   
   // Jika Anda menggunakan Vercel, pastikan adapter sudah benar
-  // output: 'server',
-  // adapter: vercel(), 
+  output: 'server',
+  adapter: vercel(), 
 });

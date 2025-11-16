@@ -18,9 +18,10 @@ import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import PrivateRoute from "./components/PrivateRoute";
 import AdminRoute from "./components/AdminRoute";
-import Chat from "./pages/Chat";
+import Chat from "./pages/Chat"; // Assuming Chat is a default export
 import ChatDetail from "./pages/ChatDetail";
-import  MusicPage  from "./contexts/Music";
+import { GlobalPlayer } from "./components/layout/GlobalPlayer";
+import { MusicProvider } from "./contexts/Music"; // Correctly import MusicProvider
 import PlayPage from "./pages/play";
 
 const queryClient = new QueryClient({
@@ -55,44 +56,48 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <AuthProvider>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-                <Route path="/profile" element={<Profile />} /> {/* This route is likely for the current user's profile */}
-                <Route path="/mymusic/music" element={<MusicPage />} />
-                <Route path="/play/:trackId" element={<PlayPage />} />
-                <Route path="/profile/:userId" element={<Profile />} />
-                <Route path="/explore" element={<Explore />} />
-                <Route path="/memes" element={<Memes />} />
-                <Route path="/notifications" element={<Notifications />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route
-                  path="/chat"
-                  element={
-                    <PrivateRoute>
-                      <Chat />
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path="/chat/:chatId"
-                  element={
-                    <PrivateRoute>
-                      <ChatDetail />
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path="/Admin_Dashbord"
-                  element={
-                    <AdminRoute>
-                      <Admin />
-                    </AdminRoute>
-                  }
-                />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+              <MusicProvider>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
+                  <Route path="/profile" element={<Profile />} />{" "}
+                  {/* This route is likely for the current user's profile */}
+                  <Route path="/mymusic/music" element={<PlayPage />} />
+                  <Route path="/play/:trackId" element={<PlayPage />} />
+                  <Route path="/profile/:userId" element={<Profile />} />
+                  <Route path="/explore" element={<Explore />} />
+                  <Route path="/memes" element={<Memes />} />
+                  <Route path="/notifications" element={<Notifications />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route
+                    path="/chat"
+                    element={
+                      <PrivateRoute>
+                        <Chat />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/chat/:chatId"
+                    element={
+                      <PrivateRoute>
+                        <ChatDetail />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/Admin_Dashbord"
+                    element={
+                      <AdminRoute>
+                        <Admin />
+                      </AdminRoute>
+                    }
+                  />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                <GlobalPlayer />
+              </MusicProvider>
             </AuthProvider>
           </BrowserRouter>
         </TooltipProvider>
