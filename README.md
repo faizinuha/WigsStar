@@ -22,98 +22,146 @@
   </a>
 </p>
 
-StarMar adalah aplikasi media sosial modern dan kaya fitur yang dirancang untuk menghubungkan orang dan membangun komunitas. Ini memungkinkan pengguna untuk berbagi postingan, cerita, dan meme, berinteraksi dengan teman, dan menjelajahi konten yang sedang tren.
+StarMar adalah platform media sosial modern yang dirancang untuk menghubungkan orang, berbagi kreativitas, dan membangun komunitas. Pengguna dapat memposting cerita, berbagi meme, membuat postingan, terhubung dengan teman, dan menjelajahi tren terbaru.
 
-**Demo Langsung:** [https://starmar2.vercel.app](https://starmar2.vercel.app)
+**Demo:** [https://starmar2.vercel.app](https://starmar2.vercel.app)
+**Domain Tambahan:** [https://wigstar.vercel.app](https://wigstar.vercel.app)
 
-## Fitur
+---
 
--   **Autentikasi:** Autentikasi pengguna yang aman dengan email/kata sandi, serta penyedia OAuth seperti Google dan GitHub.
--   **Postingan:** Buat, baca, perbarui, dan hapus postingan. Pengguna dapat menyukai dan mengomentari postingan.
--   **Cerita:** Bagikan cerita sementara dengan pengikut Anda.
--   **Meme:** Bagian khusus untuk berbagi dan menelusuri meme.
--   **Profil Pengguna:** Lihat dan sesuaikan profil pengguna Anda dengan gambar profil, bio, dan nama tampilan.
--   **Sistem Mengikuti:** Ikuti dan diikuti oleh pengguna lain.
--   **Notifikasi:** Terima notifikasi untuk suka, komentar, dan pengikut baru.
--   **Halaman Jelajahi:** Temukan konten baru dan sedang tren dari pengguna lain.
--   **Dasbor Admin:** Dasbor bagi administrator untuk mengelola pengguna dan konten.
--   **Desain Responsif:** Antarmuka pengguna yang indah dan responsif yang berfungsi di semua perangkat.
--   **Pencarian:** Cari pengguna dan postingan.
--   **Pesan Langsung:** Kirim pesan langsung ke pengguna lain.
--   **Tagar:** Gunakan tagar untuk mengkategorikan postingan dan menemukan konten terkait.
--   **Bookmark:** Simpan postingan untuk dilihat nanti.
--   **Mode Gelap/Terang:** Beralih antara mode gelap dan terang untuk pengalaman menonton yang nyaman.
+## 🚀 Fitur Utama
 
-## Teknologi yang Digunakan
+* **Autentikasi:** Email/password + OAuth (Google & GitHub)
+* **Postingan:** CRUD, likes, komentar, dan interaksi real-time
+* **Cerita (Story):** Konten sementara ala Instagram Stories
+* **Meme:** Ruang khusus untuk berbagi dan menjelajahi meme
+* **Profil:** Avatar, bio, dan personalisasi
+* **Followers System:** Ikuti & diikuti
+* **Notifikasi:** Like, follow, komentar, mention
+* **Explore Page:** Temukan postingan trending
+* **Admin Panel:** Kelola user & konten
+* **Direct Message:** Chat langsung antar pengguna
+* **Tagar (Hashtag):** Indexing konten agar mudah ditemukan
+* **Bookmark:** Simpan postingan
+* **Mode Gelap/Terang:** UI nyaman untuk semua kondisi
+* **SEO Friendly:** Canonical otomatis untuk dua domain (Starmar & Wigstar)
 
--   **Frontend:**
-    -   [React](https://reactjs.org/)
-    -   [Vite](https://vitejs.dev/)
-    -   [TypeScript](https://www.typescriptlang.org/)
-    -   [Tailwind CSS](https://tailwindcss.com/)
-    -   [shadcn/ui](https://ui.shadcn.com/)
--   **Backend & Basis Data:**
-    -   [Supabase](https://supabase.io/) - untuk autentikasi, basis data, dan penyimpanan.
--   **Deployment:**
-    -   [Vercel](https://vercel.com/)
+---
 
-## Memulai
+## 🛠️ Teknologi
 
-Untuk mendapatkan salinan lokal dan menjalankannya, ikuti langkah-langkah sederhana ini.
+### Frontend
+
+* React + Vite
+* TypeScript
+* Tailwind CSS
+* shadcn/ui
+
+### Backend
+
+* Supabase (Auth, Database, Storage)
+
+### Deployment
+
+* Vercel (mendukung multi-domain + canonical dinamis)
+
+---
+
+## ⚙️ Cara Memulai
 
 ### Prasyarat
 
--   Node.js dan npm (atau yarn/pnpm)
--   Akun Supabase
+* Node.js
+* Akun Supabase
 
 ### Instalasi
 
-1.  **Kloning repositori:**
-    ```sh
-    git clone <URL_GIT_ANDA>
-    cd star-snap-social
-    ```
+1. Clone:
 
-2.  **Instal dependensi:**
-    ```sh
-    npm install
-    ```
+```sh
+git clone <URL_REPO_ANDA>
+cd StarMar2
+```
 
-3.  **Siapkan variabel lingkungan:**
-    Buat file `.env` di root proyek Anda dan tambahkan variabel lingkungan berikut. Anda bisa mendapatkannya dari pengaturan proyek Supabase Anda.
+2. Instal dependensi:
 
-    ```env
-    VITE_SUPABASE_URL=URL_SUPABASE_ANDA
-    VITE_SUPABASE_ANON_KEY=KUNCI_ANON_SUPABASE_ANDA
-    VITE_SITE_URL=http://localhost:5173
-    ```
+```sh
+npm install
+```
 
-4.  **Konfigurasi Supabase:**
-    -   Aktifkan penyedia autentikasi Google dan GitHub di dasbor proyek Supabase Anda di bawah **Autentikasi > Penyedia**.
-    -   Tambahkan URL pengalihan berikut ke pengaturan autentikasi proyek Supabase Anda di bawah **Autentikasi > Konfigurasi URL**:
-        -   `http://localhost:5173/auth/callback`
-        -   `https://url-produksi-anda.com/auth/callback`
+3. Tambahkan **.env**:
 
-5.  **Jalankan server pengembangan:**
-    ```sh
-    npm run dev
-    ```
+```env
+VITE_SUPABASE_URL=URL_SUPABASE
+VITE_SUPABASE_ANON_KEY=ANON_KEY
+VITE_SITE_URL=http://localhost:5173
+```
 
-    Aplikasi akan tersedia di `http://localhost:5173`.
+4. Setup auth callback di Supabase:
 
-## Deployment
+* [http://localhost:5173/auth/callback](http://localhost:5173/auth/callback)
+* [https://starmar2.vercel.app/auth/callback](https://starmar2.vercel.app/auth/callback)
+* [https://wigstar.vercel.app/auth/callback](https://wigstar.vercel.app/auth/callback)
 
-Proyek ini di-deploy di [Vercel](https://vercel.com/). Untuk men-deploy versi Anda sendiri, Anda dapat menghubungkan repositori GitHub Anda ke Vercel dan mengkonfigurasi variabel lingkungan di pengaturan proyek Vercel.
+5. Jalankan:
 
-## Berkontribusi
+```sh
+npm run dev
+```
 
-Kontribusi adalah hal yang membuat komunitas sumber terbuka menjadi tempat yang luar biasa untuk belajar, menginspirasi, dan berkreasi. Setiap kontribusi yang Anda buat **sangat dihargai**.
+---
 
-Jika Anda memiliki saran yang akan membuat ini lebih baik, silakan fork repo dan buat pull request. Anda juga bisa langsung membuka isu dengan tag "peningkatan".
-Jangan lupa beri bintang pada proyek ini! Terima kasih lagi!
+## 🌍 SEO – Sudah Siap Dicari Google
 
-1.  Fork Proyek
-2.  Buat Cabang Fitur Anda (`git checkout -b feature/FiturLuarBiasa`)
-3.  Commit Perubahan Anda (`git commit -m 'Tambahkan beberapa FiturLuarBiasa'`)
-4.  Push ke Cabang (`git push origin feature/FiturLuarBiasa`)
-5.  Buka Pull Request
+StarMar sudah dioptimalkan dengan:
+
+* Canonical otomatis untuk dua domain (starmar2 & wigstar)
+* OG tags dinamis (URL menyesuaikan domain)
+* Sitemap valid
+* robots.txt sesuai best practices
+* Meta tags lengkap (title, description, author)
+* Hashtag indexing dengan sistem tag bawaan
+* Category & tag dapat terbaca crawler Google
+* Page sudah diverifikasi Google Search Console
+
+Google dapat menemukan StarMar melalui:
+
+* Nama brand: **StarMar** atau **Wigstar**
+* Hashtag di postingan (#fun, #meme, #story, dst.)
+* Kategori (meme, explore, stories, trending)
+
+---
+
+## 📦 Deployment di Vercel
+
+Proyek ini sudah mendukung **dua domain** sekaligus:
+
+* starmar2.vercel.app
+* wigstar.vercel.app
+
+Canonical otomatis memastikan keduanya dapat terindex Google tanpa duplikasi.
+
+---
+
+## 🤝 Kontribusi
+
+1. Fork repositori
+2. Buat branch fitur
+
+```sh
+git checkout -b feature/FiturBaru
+```
+
+3. Commit
+
+```sh
+git commit -m "Tambah fitur baru"
+```
+
+4. Push & Pull Request
+
+Jangan lupa kasih ⭐ di GitHub ya 💙
+
+---
+
+© 2025 StarMar | Dibangun dengan cinta dan kreativitas.
