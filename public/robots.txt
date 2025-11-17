@@ -4,10 +4,3 @@ Disallow: /private/
 
 
 Sitemap: https://starmar2.vercel.app/sitemap.xml
-
-
-User-Agent: *
-Allow: /
-Disallow: /private/
-Sitemap: https://wigstar.vercel.app/sitemap.xml
-
