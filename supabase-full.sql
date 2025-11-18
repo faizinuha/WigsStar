@@ -881,11 +881,24 @@ ALTER TABLE "public"."badges" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY
 
 
 
+CREATE TABLE IF NOT EXISTS "public"."bookmark_folders" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "name" "text" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."bookmark_folders" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."bookmarks" (
     "id" bigint NOT NULL,
     "user_id" "uuid" DEFAULT "auth"."uid"() NOT NULL,
     "post_id" "uuid" DEFAULT "auth"."uid"(),
-    "created_at" timestamp with time zone
+    "created_at" timestamp with time zone,
+    "folder_id" "uuid"
 );
 
 
@@ -1117,7 +1130,10 @@ CREATE TABLE IF NOT EXISTS "public"."posts" (
     "is_repost" boolean DEFAULT false,
     "reposted_by" "uuid",
     "original_post_id" "uuid",
-    "isBookmarked" "text"
+    "isBookmarked" "text",
+    "delete_reason" "text",
+    "deleted_by" "uuid",
+    "deleted_at" timestamp with time zone
 );
 
 
@@ -1144,6 +1160,25 @@ CREATE TABLE IF NOT EXISTS "public"."profiles" (
 
 
 ALTER TABLE "public"."profiles" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."reports" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "reporter_id" "uuid" NOT NULL,
+    "reported_user_id" "uuid",
+    "post_id" "uuid",
+    "comment_id" "uuid",
+    "meme_id" "uuid",
+    "reason" "text" NOT NULL,
+    "description" "text",
+    "status" "text" DEFAULT 'pending'::"text",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "resolved_at" timestamp with time zone,
+    "resolved_by" "uuid"
+);
+
+
+ALTER TABLE "public"."reports" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."stories" (
@@ -1176,7 +1211,10 @@ CREATE TABLE IF NOT EXISTS "public"."tracks" (
     "artist" "text",
     "album_title" "text",
     "image_url" "text",
-    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "music_url" "text",
+    "audio" "text",
+    "preview" "text"
 );
 
 
@@ -1209,6 +1247,17 @@ CREATE TABLE IF NOT EXISTS "public"."user_notifications" (
 
 
 ALTER TABLE "public"."user_notifications" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."user_roles" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "role" "public"."app_role" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."user_roles" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."user_sessions" (
@@ -1249,6 +1298,11 @@ ALTER TABLE ONLY "public"."badges"
 
 ALTER TABLE ONLY "public"."badges"
     ADD CONSTRAINT "badges_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."bookmark_folders"
+    ADD CONSTRAINT "bookmark_folders_pkey" PRIMARY KEY ("id");
 
 
 
@@ -1387,6 +1441,11 @@ ALTER TABLE ONLY "public"."profiles"
 
 
 
+ALTER TABLE ONLY "public"."reports"
+    ADD CONSTRAINT "reports_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."stories"
     ADD CONSTRAINT "stories_pkey" PRIMARY KEY ("id");
 
@@ -1424,6 +1483,16 @@ ALTER TABLE ONLY "public"."user_logs"
 
 ALTER TABLE ONLY "public"."user_notifications"
     ADD CONSTRAINT "user_notifications_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."user_roles"
+    ADD CONSTRAINT "user_roles_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."user_roles"
+    ADD CONSTRAINT "user_roles_user_id_role_key" UNIQUE ("user_id", "role");
 
 
 
@@ -1615,6 +1684,16 @@ CREATE OR REPLACE TRIGGER "update_user_settings_updated_at" BEFORE UPDATE ON "pu
 
 
 
+ALTER TABLE ONLY "public"."bookmark_folders"
+    ADD CONSTRAINT "bookmark_folders_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."bookmarks"
+    ADD CONSTRAINT "bookmarks_folder_id_fkey" FOREIGN KEY ("folder_id") REFERENCES "public"."bookmark_folders"("id") ON DELETE SET NULL;
+
+
+
 ALTER TABLE ONLY "public"."bookmarks"
     ADD CONSTRAINT "bookmarks_post_id_fkey" FOREIGN KEY ("post_id") REFERENCES "public"."posts"("id");
 
@@ -1756,6 +1835,11 @@ ALTER TABLE ONLY "public"."post_media"
 
 
 ALTER TABLE ONLY "public"."posts"
+    ADD CONSTRAINT "posts_deleted_by_fkey" FOREIGN KEY ("deleted_by") REFERENCES "auth"."users"("id");
+
+
+
+ALTER TABLE ONLY "public"."posts"
     ADD CONSTRAINT "posts_original_post_id_fkey" FOREIGN KEY ("original_post_id") REFERENCES "public"."posts"("id") ON DELETE CASCADE;
 
 
@@ -1775,6 +1859,36 @@ ALTER TABLE ONLY "public"."profiles"
 
 
 
+ALTER TABLE ONLY "public"."reports"
+    ADD CONSTRAINT "reports_comment_id_fkey" FOREIGN KEY ("comment_id") REFERENCES "public"."comments"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."reports"
+    ADD CONSTRAINT "reports_meme_id_fkey" FOREIGN KEY ("meme_id") REFERENCES "public"."memes"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."reports"
+    ADD CONSTRAINT "reports_post_id_fkey" FOREIGN KEY ("post_id") REFERENCES "public"."posts"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."reports"
+    ADD CONSTRAINT "reports_reported_user_id_fkey" FOREIGN KEY ("reported_user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."reports"
+    ADD CONSTRAINT "reports_reporter_id_fkey" FOREIGN KEY ("reporter_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."reports"
+    ADD CONSTRAINT "reports_resolved_by_fkey" FOREIGN KEY ("resolved_by") REFERENCES "auth"."users"("id");
+
+
+
 ALTER TABLE ONLY "public"."stories"
     ADD CONSTRAINT "stories_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("user_id") ON DELETE CASCADE;
 
@@ -1787,6 +1901,11 @@ ALTER TABLE ONLY "public"."user_logs"
 
 ALTER TABLE ONLY "public"."user_notifications"
     ADD CONSTRAINT "user_notifications_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("user_id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."user_roles"
+    ADD CONSTRAINT "user_roles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
 
 
@@ -1810,6 +1929,14 @@ CREATE POLICY "Admins can create maintenance tasks" ON "public"."maintenance_tas
 
 
 
+CREATE POLICY "Admins can delete roles" ON "public"."user_roles" FOR DELETE TO "authenticated" USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
+
+
+
+CREATE POLICY "Admins can insert roles" ON "public"."user_roles" FOR INSERT TO "authenticated" WITH CHECK ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
+
+
+
 CREATE POLICY "Admins can manage maintenance" ON "public"."maintenance_mode" USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
 
 
@@ -1817,6 +1944,26 @@ CREATE POLICY "Admins can manage maintenance" ON "public"."maintenance_mode" USI
 CREATE POLICY "Admins can update maintenance tasks" ON "public"."maintenance_tasks" FOR UPDATE USING ((EXISTS ( SELECT 1
    FROM "public"."profiles"
   WHERE (("profiles"."user_id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text")))));
+
+
+
+CREATE POLICY "Admins can update reports" ON "public"."reports" FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."user_id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text")))));
+
+
+
+CREATE POLICY "Admins can update roles" ON "public"."user_roles" FOR UPDATE TO "authenticated" USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
+
+
+
+CREATE POLICY "Admins can view all reports" ON "public"."reports" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."user_id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text")))));
+
+
+
+CREATE POLICY "Admins can view all roles" ON "public"."user_roles" FOR SELECT TO "authenticated" USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
 
 
 
@@ -1913,15 +2060,15 @@ CREATE POLICY "Enable insert for authenticated users only" ON "public"."stories"
 
 
 
+CREATE POLICY "Enable insert for authenticated users only" ON "public"."tracks" FOR INSERT TO "authenticated" WITH CHECK (true);
+
+
+
 CREATE POLICY "Enable insert for authenticated users only" ON "public"."user_logs" FOR INSERT TO "authenticated" WITH CHECK (true);
 
 
 
 CREATE POLICY "Enable insert for authenticated users only" ON "public"."user_settings" FOR INSERT TO "authenticated" WITH CHECK (true);
-
-
-
-CREATE POLICY "Enable read access for all " ON "public"."conversations" FOR SELECT TO "authenticated" USING (true);
 
 
 
@@ -1934,10 +2081,6 @@ CREATE POLICY "Enable read access for all users" ON "public"."comments" FOR SELE
 
 
 CREATE POLICY "Enable read access for all users" ON "public"."conversation_members" FOR SELECT TO "authenticated" USING (true);
-
-
-
-CREATE POLICY "Enable read access for all users" ON "public"."conversations" FOR SELECT TO "authenticated" USING (true);
 
 
 
@@ -1977,7 +2120,7 @@ CREATE POLICY "Enable read access for all users" ON "public"."stories" FOR SELEC
 
 
 
-CREATE POLICY "Enable read access for all users" ON "public"."tracks" FOR SELECT USING (true);
+CREATE POLICY "Enable read access for all users" ON "public"."tracks" FOR SELECT TO "authenticated" USING (true);
 
 
 
@@ -2089,6 +2232,14 @@ CREATE POLICY "Users can create media for their own posts" ON "public"."post_med
 
 
 
+CREATE POLICY "Users can create reports" ON "public"."reports" FOR INSERT WITH CHECK (("auth"."uid"() = "reporter_id"));
+
+
+
+CREATE POLICY "Users can create their own folders" ON "public"."bookmark_folders" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
 CREATE POLICY "Users can create their own memes" ON "public"."memes" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
 
 
@@ -2102,6 +2253,10 @@ CREATE POLICY "Users can create their own stories" ON "public"."stories" FOR INS
 
 
 CREATE POLICY "Users can delete their own comments" ON "public"."comments" FOR DELETE USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can delete their own folders" ON "public"."bookmark_folders" FOR DELETE USING (("auth"."uid"() = "user_id"));
 
 
 
@@ -2161,6 +2316,10 @@ CREATE POLICY "Users can update their own comments" ON "public"."comments" FOR U
 
 
 
+CREATE POLICY "Users can update their own folders" ON "public"."bookmark_folders" FOR UPDATE USING (("auth"."uid"() = "user_id"));
+
+
+
 CREATE POLICY "Users can update their own memes" ON "public"."memes" FOR UPDATE USING (("auth"."uid"() = "user_id"));
 
 
@@ -2193,6 +2352,10 @@ CREATE POLICY "Users can update their own settings" ON "public"."user_settings" 
 
 
 
+CREATE POLICY "Users can view their own folders" ON "public"."bookmark_folders" FOR SELECT USING (("auth"."uid"() = "user_id"));
+
+
+
 CREATE POLICY "Users can view their own memberships" ON "public"."conversation_members" FOR SELECT USING (("auth"."uid"() = "user_id"));
 
 
@@ -2202,6 +2365,10 @@ CREATE POLICY "Users can view their own notifications" ON "public"."notification
 
 
 CREATE POLICY "Users can view their own notifications" ON "public"."user_notifications" FOR SELECT USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can view their own reports" ON "public"."reports" FOR SELECT USING (("auth"."uid"() = "reporter_id"));
 
 
 
@@ -2220,6 +2387,9 @@ CREATE POLICY "Users can''t delete badge connections." ON "public"."meme_badges"
 ALTER TABLE "public"."badges" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."bookmark_folders" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."bookmarks" ENABLE ROW LEVEL SECURITY;
 
 
@@ -2236,6 +2406,12 @@ ALTER TABLE "public"."followers" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."hashtags" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "insert_only_if_member" ON "public"."messages" FOR INSERT TO "authenticated" WITH CHECK ((("sender_id" = "auth"."uid"()) AND (EXISTS ( SELECT 1
+   FROM "public"."conversation_members" "cm"
+  WHERE (("cm"."conversation_id" = "messages"."conversation_id") AND ("cm"."user_id" = "auth"."uid"()))))));
+
 
 
 ALTER TABLE "public"."likes" ENABLE ROW LEVEL SECURITY;
@@ -2271,6 +2447,27 @@ ALTER TABLE "public"."posts" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."reports" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "require_member_to_view_conversation" ON "public"."conversations" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM "public"."conversation_members" "cm"
+  WHERE (("cm"."conversation_id" = "conversations"."id") AND ("cm"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "select_messages_for_member" ON "public"."messages" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM "public"."conversation_members" "cm"
+  WHERE (("cm"."conversation_id" = "messages"."conversation_id") AND ("cm"."user_id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "select_messages_of_own_chat" ON "public"."messages" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM "public"."conversation_members" "cm"
+  WHERE (("cm"."conversation_id" = "messages"."conversation_id") AND ("cm"."user_id" = "auth"."uid"())))));
+
+
+
 ALTER TABLE "public"."stories" ENABLE ROW LEVEL SECURITY;
 
 
@@ -2284,6 +2481,9 @@ ALTER TABLE "public"."user_logs" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."user_notifications" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."user_roles" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."user_sessions" ENABLE ROW LEVEL SECURITY;
@@ -2695,6 +2895,12 @@ GRANT ALL ON SEQUENCE "public"."badges_id_seq" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."bookmark_folders" TO "anon";
+GRANT ALL ON TABLE "public"."bookmark_folders" TO "authenticated";
+GRANT ALL ON TABLE "public"."bookmark_folders" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."bookmarks" TO "anon";
 GRANT ALL ON TABLE "public"."bookmarks" TO "authenticated";
 GRANT ALL ON TABLE "public"."bookmarks" TO "service_role";
@@ -2803,6 +3009,12 @@ GRANT ALL ON TABLE "public"."profiles" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."reports" TO "anon";
+GRANT ALL ON TABLE "public"."reports" TO "authenticated";
+GRANT ALL ON TABLE "public"."reports" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."stories" TO "anon";
 GRANT ALL ON TABLE "public"."stories" TO "authenticated";
 GRANT ALL ON TABLE "public"."stories" TO "service_role";
@@ -2830,6 +3042,12 @@ GRANT ALL ON TABLE "public"."user_logs" TO "service_role";
 GRANT ALL ON TABLE "public"."user_notifications" TO "anon";
 GRANT ALL ON TABLE "public"."user_notifications" TO "authenticated";
 GRANT ALL ON TABLE "public"."user_notifications" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."user_roles" TO "anon";
+GRANT ALL ON TABLE "public"."user_roles" TO "authenticated";
+GRANT ALL ON TABLE "public"."user_roles" TO "service_role";
 
 
 
@@ -2906,4 +3124,3 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 
 
 
-RESET ALL;
