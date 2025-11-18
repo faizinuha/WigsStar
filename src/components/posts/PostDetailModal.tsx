@@ -24,7 +24,7 @@ import {
 import { useLikes } from '@/hooks/useLikes';
 
 import { Post } from '@/hooks/usePosts';
-import { MorePosts } from './MorePosts';
+// import { MorePosts } from './MorePosts';
 
 interface PostDetailModalProps {
   post: Post | null;
@@ -181,8 +181,8 @@ export const PostDetailModal = ({
                 )}
               </div>
 
-              {/* More Posts Section */}
-              <MorePosts userId={post.user_id} currentPostId={post.id} />
+              {/* More Posts Section
+              <MorePosts userId={post.user_id} currentPostId={post.id} /> */}
             </ScrollArea>
 
             {/* Actions and Likes (Moved outside ScrollArea) */}
