@@ -1,27 +1,34 @@
-import { Navigation } from '@/components/layout/Navigation';
-import { PostDetailModal } from '@/components/posts/PostDetailModal';
-import { TrendingTags } from '@/components/posts/TrendingTags';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/contexts/AuthContext';
-import { useFollowStatus, useToggleFollow } from '@/hooks/useFollow';
-import { Post } from '@/hooks/usePosts';
-import { usePostsByTag, useTrendingTags } from '@/hooks/useTags';
-import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Navigation } from "@/components/layout/Navigation";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TrendingTags } from "@/components/posts/TrendingTags";
+import { useTrendingTags, usePostsByTag } from "@/hooks/useTags";
+import { useFollowStatus, useToggleFollow } from "@/hooks/useFollow";
+import { useAuth } from "@/contexts/AuthContext";
 import {
-  Hash,
-  Heart,
-  Loader2,
-  MapPin,
-  MessageCircle,
+  Search,
   TrendingUp,
+  Hash,
+  MapPin,
   Users,
-} from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+  Image as ImageIcon,
+  Video,
+  Heart,
+  MessageCircle,
+  User,
+  Loader2,
+  Compass,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Post } from "@/hooks/usePosts";
+import { PostDetailModal } from "@/components/posts/PostDetailModal";
 
 type UserProfile = {
   id: string;
@@ -33,28 +40,23 @@ type UserProfile = {
   followers_count: number;
 };
 
-const EmptyState = ({
-  icon,
-  title,
-  message,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  message: string;
-  children?: React.ReactNode;
-}) => (
+const dummyAvatar = (seed: string) => `https://api.dicebear.com/7.x/lorelei/svg?seed=${seed}`;
+
+
+const EmptyState = ({ icon, title, message, children }: { icon: React.ReactNode, title: string, message: string, children?: React.ReactNode }) => (
   <div className="text-center py-12 animate-fade-in">
     <div className="text-muted-foreground mx-auto mb-4">{icon}</div>
     <h3 className="text-lg font-semibold mb-2">{title}</h3>
-    <p className="text-muted-foreground mb-6 max-w-md mx-auto">{message}</p>
+    <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+      {message}
+    </p>
     {children}
   </div>
 );
 
 const Explore = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('trending');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("trending");
   const [searchParams] = useSearchParams();
   const tagFromUrl = searchParams.get('tag');
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -62,7 +64,7 @@ const Explore = () => {
   // Set active tab to hashtags if tag is provided
   useEffect(() => {
     if (tagFromUrl) {
-      setActiveTab('hashtags');
+      setActiveTab("hashtags");
     }
   }, [tagFromUrl]);
 
@@ -83,37 +85,21 @@ const Explore = () => {
           </div>
 
           {/* Tabs */}
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="space-y-8"
-          >
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
             <TabsList className="grid w-full grid-cols-4 lg:w-96">
-              <TabsTrigger
-                value="trending"
-                className="flex items-center space-x-2"
-              >
+              <TabsTrigger value="trending" className="flex items-center space-x-2">
                 <TrendingUp className="h-4 w-4" />
                 <span className="hidden sm:inline">Trending</span>
               </TabsTrigger>
-              <TabsTrigger
-                value="people"
-                className="flex items-center space-x-2"
-              >
+              <TabsTrigger value="people" className="flex items-center space-x-2">
                 <Users className="h-4 w-4" />
                 <span className="hidden sm:inline">People</span>
               </TabsTrigger>
-              <TabsTrigger
-                value="hashtags"
-                className="flex items-center space-x-2"
-              >
+              <TabsTrigger value="hashtags" className="flex items-center space-x-2">
                 <Hash className="h-4 w-4" />
                 <span className="hidden sm:inline">Tags</span>
               </TabsTrigger>
-              <TabsTrigger
-                value="places"
-                className="flex items-center space-x-2"
-              >
+              <TabsTrigger value="places" className="flex items-center space-x-2">
                 <MapPin className="h-4 w-4" />
                 <span className="hidden sm:inline">Places</span>
               </TabsTrigger>
@@ -132,11 +118,7 @@ const Explore = () => {
             </TabsContent>
 
             <TabsContent value="places" className="space-y-6">
-              <EmptyState
-                icon={<MapPin className="h-12 w-12 text-muted-foreground" />}
-                title="Explore Places"
-                message="Discover popular locations and see what's happening around the world."
-              >
+              <EmptyState icon={<MapPin className="h-12 w-12 text-muted-foreground" />} title="Explore Places" message="Discover popular locations and see what's happening around the world.">
                 <Button className="gradient-button">
                   Enable Location Services
                 </Button>
@@ -154,19 +136,14 @@ const Explore = () => {
   );
 };
 
-const TrendingContent = ({
-  onPostClick,
-}: {
-  onPostClick: (post: Post) => void;
-}) => {
+const TrendingContent = ({ onPostClick }: { onPostClick: (post: Post) => void }) => {
   const { user } = useAuth();
-  const { data: posts, isLoading } = useQuery<Post[]>({
-    queryKey: ['trending_posts'],
+  const { data: posts, isLoading } = useQuery<Post[]>({ 
+    queryKey: ["trending_posts"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('posts')
-        .select(
-          `
+        .from("posts")
+        .select(`
           id,
           user_id,
           caption,
@@ -184,12 +161,11 @@ const TrendingContent = ({
             media_type
           ),
           user_likes: likes(user_id)
-        `
-        )
-        .order('likes_count', { ascending: false })
+        `)
+        .order("likes_count", { ascending: false })
         .limit(18);
       if (error) throw error;
-
+      
       return data.map((post: any) => ({
         id: post.id,
         content: post.caption || '',
@@ -197,16 +173,13 @@ const TrendingContent = ({
         created_at: post.created_at,
         likes: post.likes_count || 0,
         comments: post.comments_count || 0,
-        isLiked: post.user_likes.some(
-          (like: { user_id: string }) => like.user_id === user?.id
-        ),
+        isLiked: post.user_likes.some((like: { user_id: string }) => like.user_id === user?.id),
         isBookmarked: false,
         image_url: post.post_media?.[0]?.media_url,
         media_type: post.post_media?.[0]?.media_type,
         user: {
           username: post.profiles?.username || '',
-          displayName:
-            post.profiles?.display_name || post.profiles?.username || '',
+          displayName: post.profiles?.display_name || post.profiles?.username || '',
           avatar: post.profiles?.avatar_url || '',
         },
         user_id: post.user_id,
@@ -214,20 +187,8 @@ const TrendingContent = ({
     },
   });
 
-  if (isLoading)
-    return (
-      <div className="flex justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  if (!posts || posts.length === 0)
-    return (
-      <EmptyState
-        icon={<TrendingUp className="h-12 w-12" />}
-        title="No Trending Posts"
-        message="Check back later to see what's popular."
-      />
-    );
+  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (!posts || posts.length === 0) return <EmptyState icon={<TrendingUp className="h-12 w-12" />} title="No Trending Posts" message="Check back later to see what's popular." />;
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -237,11 +198,7 @@ const TrendingContent = ({
         const caption = post.content || '';
 
         return (
-          <div
-            key={post.id}
-            className="relative aspect-square group cursor-pointer overflow-hidden rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 bg-gray-50 flex items-center justify-center"
-            onClick={() => onPostClick(post)}
-          >
+          <div key={post.id} className="relative aspect-square group cursor-pointer overflow-hidden rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 bg-gray-50 flex items-center justify-center" onClick={() => onPostClick(post)}>
             {isVideo ? (
               <video
                 src={post.image_url}
@@ -258,9 +215,7 @@ const TrendingContent = ({
             ) : caption ? (
               <div className="p-4 text-left w-full h-full flex items-center justify-center">
                 <div className="bg-white/80 rounded-xl p-4 w-full h-full flex items-center justify-center text-center">
-                  <p className="text-sm text-foreground line-clamp-6 px-2">
-                    {caption}
-                  </p>
+                  <p className="text-sm text-foreground line-clamp-6 px-2">{caption}</p>
                 </div>
               </div>
             ) : (
@@ -275,9 +230,7 @@ const TrendingContent = ({
               <div className="flex items-center space-x-6 text-white font-semibold">
                 <div className="flex items-center space-x-2">
                   <Heart className="h-5 w-5" />
-                  <span className="text-sm">
-                    {post.likes?.toLocaleString?.() ?? 0}
-                  </span>
+                  <span className="text-sm">{post.likes?.toLocaleString?.() ?? 0}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <MessageCircle className="h-5 w-5" />
@@ -295,12 +248,11 @@ const TrendingContent = ({
 const PeopleContent = () => {
   const { user: currentUser } = useAuth();
   const { data: realUsers, isLoading } = useQuery<UserProfile[]>({
-    queryKey: ['suggested_users'],
+    queryKey: ["suggested_users"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('profiles')
-        .select(
-          `
+        .from("profiles")
+        .select(`
           id,
           user_id,
           username,
@@ -308,9 +260,8 @@ const PeopleContent = () => {
           avatar_url,
           bio,
           followers_count
-        `
-        )
-        .order('followers_count', { ascending: false });
+        `)
+        .order("followers_count", { ascending: false })
       if (error) throw error;
       return data;
     },
@@ -318,20 +269,8 @@ const PeopleContent = () => {
 
   const users = realUsers || [];
 
-  if (isLoading)
-    return (
-      <div className="flex justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  if (!users || users.length === 0)
-    return (
-      <EmptyState
-        icon={<Users className="h-12 w-12" />}
-        title="No Suggested Users"
-        message="We'll suggest people to follow here soon."
-      />
-    );
+  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (!users || users.length === 0) return <EmptyState icon={<Users className="h-12 w-12" />} title="No Suggested Users" message="We'll suggest people to follow here soon." />;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -343,16 +282,14 @@ const PeopleContent = () => {
 };
 
 const UserCard = ({ user, currentUser }) => {
-  const { data: isFollowing = false } = useFollowStatus(
-    user.user_id || user.id
-  );
+  const { data: isFollowing = false } = useFollowStatus(user.user_id || user.id);
   const { mutate: toggleFollow } = useToggleFollow();
 
   const handleFollow = () => {
     if (user.user_id || user.id) {
       toggleFollow({
         userId: user.user_id || user.id,
-        isFollowing,
+        isFollowing
       });
     }
   };
@@ -367,25 +304,16 @@ const UserCard = ({ user, currentUser }) => {
           </AvatarFallback>
         </Avatar>
         <div className="space-y-1 mb-4 text-center">
-          <h3
-            className="font-semibold text-lg truncate"
-            title={user.display_name || user.username}
-          >
+          <h3 className="font-semibold text-lg truncate" title={user.display_name || user.username}>
             {user.display_name || user.username}
           </h3>
           <p className="text-muted-foreground text-sm">@{user.username}</p>
-          <p className="text-sm text-muted-foreground">
-            {user.followers_count.toLocaleString()} followers
-          </p>
+          <p className="text-sm text-muted-foreground">{user.followers_count.toLocaleString()} followers</p>
           <p className="text-sm line-clamp-2 h-12 mt-2">{user.bio}</p>
         </div>
         {user.user_id !== currentUser?.id && user.id !== currentUser?.id && (
           <Button
-            className={`w-full mt-auto rounded-full py-3 ${
-              isFollowing
-                ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                : 'gradient-button'
-            }`}
+            className={`w-full mt-auto rounded-full py-3 ${isFollowing ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80' : 'gradient-button'}`}
             onClick={(e) => {
               e.preventDefault();
               handleFollow();
@@ -399,14 +327,13 @@ const UserCard = ({ user, currentUser }) => {
   );
 };
 
+
+
 const HashtagsContent = () => {
   const [searchParams] = useSearchParams();
   const tagFromUrl = searchParams.get('tag');
-  const { data: trendingTags = [], isLoading: tagsLoading } =
-    useTrendingTags(20);
-  const { data: postsForTag = [], isLoading: postsLoading } = usePostsByTag(
-    tagFromUrl || ''
-  );
+  const { data: trendingTags = [], isLoading: tagsLoading } = useTrendingTags(20);
+  const { data: postsForTag = [], isLoading: postsLoading } = usePostsByTag(tagFromUrl || '');
 
   // Show posts for specific tag if coming from URL parameter
   if (tagFromUrl) {
@@ -422,9 +349,7 @@ const HashtagsContent = () => {
       <div className="space-y-6">
         <div className="flex items-center gap-3 p-4 bg-secondary/50 rounded-lg">
           <Hash className="h-6 w-6 text-primary" />
-          <h2 className="text-xl font-semibold">
-            Posts tagged with {tagFromUrl}
-          </h2>
+          <h2 className="text-xl font-semibold">Posts tagged with {tagFromUrl}</h2>
         </div>
 
         {postsForTag.length === 0 ? (
@@ -445,19 +370,14 @@ const HashtagsContent = () => {
                   />
                 )}
                 <div className="space-y-2">
-                  <Link
-                    to={`/profile/${post.user.username}`}
-                    className="flex items-center gap-2"
-                  >
+                  <Link to={`/profile/${post.user.username}`} className="flex items-center gap-2">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={post.user.avatar} />
                       <AvatarFallback>
                         {post.user.displayName?.[0] || post.user.username?.[0]}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="font-medium">
-                      {post.user.displayName || post.user.username}
-                    </span>
+                    <span className="font-medium">{post.user.displayName || post.user.username}</span>
                   </Link>
                   <p className="text-sm">{post.content}</p>
                   <div className="flex items-center gap-4 text-muted-foreground text-sm">
