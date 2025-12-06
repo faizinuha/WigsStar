@@ -12,6 +12,8 @@ import { useCreateConversation } from '@/hooks/useConversations';
 import { useFollowStatus, useToggleFollow } from '@/hooks/useFollow';
 import { Post, useUserPosts } from '@/hooks/usePosts';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
+import { useLikedPosts } from '@/hooks/useLikedPosts';
+import { useBookmarkedPosts } from '@/hooks/useBookmarkedPosts';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -30,7 +32,6 @@ import {
 import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useBookmarks } from '../hooks/useBookmarks';
 
 const ProfilePageContent = ({ profile, isLoading, error }) => {
   const { user: authUser } = useAuth();
@@ -51,9 +52,12 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
   const { data: isFollowing = false, isLoading: followLoading } =
     useFollowStatus(profile?.user_id || '');
   const { mutate: toggleFollow } = useToggleFollow();
-  const { bookmarks, isLoading: bookmarksLoading } = useBookmarks();
+  
+  // Liked and Bookmarked posts
+  const { data: likedPosts = [], isLoading: likedLoading } = useLikedPosts(profile?.user_id);
+  const { data: bookmarkedPosts = [], isLoading: bookmarkedLoading } = useBookmarkedPosts(profile?.user_id);
 
-  const pageLoading = isLoading || postsLoading || followLoading;
+  const pageLoading = isLoading || postsLoading || followLoading || likedLoading || bookmarkedLoading;
 
   if (pageLoading) {
     return (
@@ -80,10 +84,6 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
         timestamp: format(new Date(post.created_at), 'PP'),
       }))
     : [];
-
-  const bookmarkedPosts = userPosts.filter((post) =>
-    bookmarks?.some((bookmark) => bookmark.post_id === post.id)
-  );
 
   const isOwnProfile = authUser?.id === profile?.user_id;
   const showContent = !profile.is_private || isOwnProfile || isFollowing;
@@ -345,6 +345,28 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
                     </span>
                   </div>
                 </div>
+                
+                {/* Social Media Links */}
+                {(() => {
+                  const socialLinks = (profile as any).social_links;
+                  const links = Array.isArray(socialLinks) ? socialLinks : [];
+                  if (links.length === 0) return null;
+                  return (
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {links.map((link: { platform: string; url: string }, index: number) => (
+                        <a
+                          key={index}
+                          href={link.url.startsWith('http') ? link.url : `https://${link.url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/50 hover:bg-muted text-sm transition-colors"
+                        >
+                          <span className="capitalize">{link.platform}</span>
+                        </a>
+                      ))}
+                    </div>
+                  );
+                })()}
 
                 {/* Stats */}
                 <div className="flex items-center space-x-6 pt-2">
@@ -433,7 +455,7 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
             <TabsContent value="saved" className="space-y-6">
               {bookmarkedPosts.length > 0 ? (
                 <PostGrid
-                  posts={bookmarkedPosts}
+                  posts={bookmarkedPosts as any}
                   onPostClick={(post) => setSelectedPost(post)}
                 />
               ) : (
@@ -450,15 +472,22 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
             </TabsContent>
 
             <TabsContent value="liked" className="space-y-6">
-              <div className="text-center py-12">
-                <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">
-                  No liked posts yet
-                </h3>
-                <p className="text-muted-foreground">
-                  Posts you like will appear here so you can find them again.
-                </p>
-              </div>
+              {likedPosts.length > 0 ? (
+                <PostGrid
+                  posts={likedPosts as any}
+                  onPostClick={(post) => setSelectedPost(post)}
+                />
+              ) : (
+                <div className="text-center py-12">
+                  <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">
+                    No liked posts yet
+                  </h3>
+                  <p className="text-muted-foreground">
+                    Posts you like will appear here so you can find them again.
+                  </p>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>

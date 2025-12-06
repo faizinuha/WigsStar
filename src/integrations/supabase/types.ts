@@ -169,21 +169,27 @@ export type Database = {
       }
       conversation_members: {
         Row: {
+          added_by: string | null
           conversation_id: string
+          created_at: string | null
           id: string
           joined_at: string | null
           last_read_at: string | null
           user_id: string
         }
         Insert: {
+          added_by?: string | null
           conversation_id: string
+          created_at?: string | null
           id?: string
           joined_at?: string | null
           last_read_at?: string | null
           user_id: string
         }
         Update: {
+          added_by?: string | null
           conversation_id?: string
+          created_at?: string | null
           id?: string
           joined_at?: string | null
           last_read_at?: string | null
@@ -337,6 +343,44 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      group_invitations: {
+        Row: {
+          conversation_id: string
+          created_at: string | null
+          id: string
+          invited_by: string
+          invited_user_id: string
+          responded_at: string | null
+          status: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          invited_by: string
+          invited_user_id: string
+          responded_at?: string | null
+          status?: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          invited_by?: string
+          invited_user_id?: string
+          responded_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_invitations_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -846,6 +890,7 @@ export type Database = {
           is_verified: string | null
           posts_count: number | null
           role: string | null
+          social_links: Json | null
           updated_at: string
           user_id: string
           username: string | null
@@ -863,6 +908,7 @@ export type Database = {
           is_verified?: string | null
           posts_count?: number | null
           role?: string | null
+          social_links?: Json | null
           updated_at?: string
           user_id: string
           username?: string | null
@@ -880,6 +926,7 @@ export type Database = {
           is_verified?: string | null
           posts_count?: number | null
           role?: string | null
+          social_links?: Json | null
           updated_at?: string
           user_id?: string
           username?: string | null
