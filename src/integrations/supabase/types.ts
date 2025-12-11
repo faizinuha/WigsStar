@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_logs: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          target_meme_id: string | null
+          target_post_id: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          target_meme_id?: string | null
+          target_post_id?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          target_meme_id?: string | null
+          target_post_id?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       badges: {
         Row: {
           created_at: string | null
@@ -29,6 +62,48 @@ export type Database = {
           created_at?: string | null
           id?: never
           name?: string
+        }
+        Relationships: []
+      }
+      ban_appeals: {
+        Row: {
+          admin_response: string | null
+          contact_email: string | null
+          created_at: string
+          evidence: string | null
+          explanation: string
+          id: string
+          responded_at: string | null
+          responded_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_response?: string | null
+          contact_email?: string | null
+          created_at?: string
+          evidence?: string | null
+          explanation: string
+          id?: string
+          responded_at?: string | null
+          responded_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_response?: string | null
+          contact_email?: string | null
+          created_at?: string
+          evidence?: string | null
+          explanation?: string
+          id?: string
+          responded_at?: string | null
+          responded_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -107,6 +182,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          image_url: string | null
           likes_count: number | null
           meme_id: string | null
           parent_comment_id: string | null
@@ -118,6 +194,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          image_url?: string | null
           likes_count?: number | null
           meme_id?: string | null
           parent_comment_id?: string | null
@@ -129,6 +206,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          image_url?: string | null
           likes_count?: number | null
           meme_id?: string | null
           parent_comment_id?: string | null
@@ -879,6 +957,9 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          ban_reason: string | null
+          banned_at: string | null
+          banned_by: string | null
           bio: string | null
           cover_img: string | null
           created_at: string
@@ -886,6 +967,7 @@ export type Database = {
           followers_count: number | null
           following_count: number | null
           id: string
+          is_banned: boolean | null
           is_private: boolean | null
           is_verified: string | null
           posts_count: number | null
@@ -897,6 +979,9 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          ban_reason?: string | null
+          banned_at?: string | null
+          banned_by?: string | null
           bio?: string | null
           cover_img?: string | null
           created_at?: string
@@ -904,6 +989,7 @@ export type Database = {
           followers_count?: number | null
           following_count?: number | null
           id?: string
+          is_banned?: boolean | null
           is_private?: boolean | null
           is_verified?: string | null
           posts_count?: number | null
@@ -915,6 +1001,9 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          ban_reason?: string | null
+          banned_at?: string | null
+          banned_by?: string | null
           bio?: string | null
           cover_img?: string | null
           created_at?: string
@@ -922,6 +1011,7 @@ export type Database = {
           followers_count?: number | null
           following_count?: number | null
           id?: string
+          is_banned?: boolean | null
           is_private?: boolean | null
           is_verified?: string | null
           posts_count?: number | null
@@ -1279,6 +1369,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_update_ban_status: {
+        Args: {
+          ban_reason_val?: string
+          banned_by_val?: string
+          is_banned_val: boolean
+          target_user_id: string
+        }
+        Returns: boolean
+      }
+      admin_update_profile: {
+        Args: { target_user_id: string; update_data: Json }
+        Returns: boolean
+      }
       decrement_followers_count: {
         Args: { user_id: string }
         Returns: undefined

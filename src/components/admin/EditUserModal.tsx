@@ -61,11 +61,24 @@ export const EditUserModal = ({ user, isOpen, onClose }) => {
     setIsSaving(true);
 
     try {
-      // Update verification status in profiles
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ is_verified: isVerified ? 'verified' : null })
-        .eq('user_id', user.user_id);
+      // Determine the primary role to display in profiles table
+      let primaryRole = 'user';
+      if (roles.includes('admin')) {
+        primaryRole = 'admin';
+      } else if (roles.includes('moderator')) {
+        primaryRole = 'moderator';
+      } else if (roles.includes('user')) {
+        primaryRole = 'user';
+      }
+
+      // Use security definer function to update profile (avoids RLS recursion)
+      const { error: profileError } = await supabase.rpc('admin_update_profile', {
+        target_user_id: user.user_id,
+        update_data: {
+          is_verified: isVerified ? 'verified' : null,
+          role: primaryRole
+        }
+      });
 
       if (profileError) throw profileError;
 
@@ -92,7 +105,8 @@ export const EditUserModal = ({ user, isOpen, onClose }) => {
         description: `Roles and verification status for @${user.username} have been updated.` 
       });
       
-      onClose({ ...user, is_verified: isVerified ? 'verified' : null });
+      // Return updated user with new role
+      onClose({ ...user, is_verified: isVerified ? 'verified' : null, role: primaryRole });
     } catch (error: any) {
       console.error('Error updating user:', error);
       toast({ 

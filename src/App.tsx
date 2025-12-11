@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { LoadingProvider } from "./contexts/LoadingContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { BannedUserRedirect } from "./components/BannedUserRedirect";
 import Index from "./pages/Index";
 import { Auth } from "./pages/Auth";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -17,11 +18,13 @@ import { Notifications } from "./pages/Notifications";
 import { Settings } from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
+import Checkpoint from "./pages/Checkpoint";
+import Onboarding from "./pages/Onboarding";
 import PrivateRoute from "./components/PrivateRoute";
 import AdminRoute from "./components/AdminRoute";
-import Chat from "./pages/Chat"; // Assuming Chat is a default export
+import Chat from "./pages/Chat";
 import { GlobalPlayer } from "./components/layout/GlobalPlayer";
-import { MusicProvider } from "./contexts/Music"; // Correctly import MusicProvider
+import { MusicProvider } from "./contexts/Music";
 import PlayPage from "./pages/play";
 
 const queryClient = new QueryClient({
@@ -57,6 +60,7 @@ const App = () => (
           <BrowserRouter>
             <AuthProvider>
               <MusicProvider>
+                <BannedUserRedirect />
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/auth" element={<Auth />} />
@@ -95,6 +99,8 @@ const App = () => (
                       </AdminRoute>
                     }
                   />
+                  <Route path="/checkpoint" element={<Checkpoint />} />
+                  <Route path="/onboarding" element={<Onboarding />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
                 <GlobalPlayer />
