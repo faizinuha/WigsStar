@@ -1,7 +1,7 @@
 # StarMar - Platform Media Sosial
 
 <p align="center">
-  <img src="assets/Logo/StarMar-.png" alt="Logo StarMar" width="220"/>
+  <img src="src/assets/Logo/StarMar-.png" alt="Logo StarMar" width="220"/>
 </p>
 
 <p align="center">

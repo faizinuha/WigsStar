@@ -111,7 +111,7 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
                 src={
                   profile.cover_img ||
                   profile.avatar_url ||
-                  '/assets/Place/cewek.png'
+                  'src/assets/Place/cewek.png'
                 }
                 alt="Cover"
                 className="w-full h-full object-cover"
@@ -185,7 +185,7 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
                   <div className="relative inline-block">
                     <Avatar className="h-32 w-32 border-4 border-background shadow-xl">
                       <AvatarImage
-                        src={profile.avatar_url || '/assets/Place/cewek.png'}
+                        src={profile.avatar_url || 'src/assets/Place/cewek.png'}
                         alt={profile.display_name}
                       />
                       <AvatarFallback className="text-2xl">

@@ -21,6 +21,7 @@ import {
   MessageCircle,
   MoreHorizontal,
   Music,
+  Play,
   PlusSquare,
   Search,
   Settings,
@@ -113,8 +114,8 @@ export const Navigation = () => {
     {
       icon: Play,
       label: 'Play',
-      path: '/Reelms',
-      active: location.pathname === '/Reelms',
+      path: '/reelms',
+      active: location.pathname === '/reelms',
     },
     {
       icon: PlusSquare,
