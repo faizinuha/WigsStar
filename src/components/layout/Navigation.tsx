@@ -1,3 +1,4 @@
+import starMarLogo from '@/assets/Logo/StarMar-.png';
 import { CreatePostModal } from '@/components/posts/CreatePostModal';
 import { NavigationSkeleton } from '@/components/skeletons/NavigationSkeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,7 +18,6 @@ import {
   Heart,
   Home,
   Laugh,
-  Menu,
   MessageCircle,
   MoreHorizontal,
   Music,
@@ -158,7 +158,7 @@ export const Navigation = () => {
           {/* Logo */}
           <div className="flex items-center space-x-3">
             <img
-              src="/assets/Logo/StarMar-.png"
+              src={starMarLogo}
               alt="StarMar"
               className="w-10 h-10 object-contain"
             />
@@ -190,7 +190,7 @@ export const Navigation = () => {
                 </Button>
               );
             })}
-            
+
             {/* More Menu - Only show if there are additional items */}
             {hasMoreItems && (
               <DropdownMenu>
@@ -254,7 +254,7 @@ export const Navigation = () => {
         <header className="fixed top-0 left-0 right-0 bg-card border-b border-border p-4 flex items-center justify-between z-50">
           <div className="flex items-center space-x-3">
             <img
-              src="/assets/Logo/StarMar-.png"
+              src={starMarLogo}
               alt="StarMar"
               className="w-8 h-8 object-contain"
             />
@@ -278,7 +278,7 @@ export const Navigation = () => {
                 </Badge>
               )}
             </Button>
-            
+
             {/* Settings Icon */}
             <Button
               variant="ghost"

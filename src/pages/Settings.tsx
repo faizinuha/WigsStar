@@ -372,7 +372,7 @@ export const Settings = () => {
       setShowLinkEmailDialog(false);
       // Refresh providers list
       const { data } = await supabase.auth.getUser();
-      // @ts-ignore
+      
       const ids = data.user?.identities || [];
       const provs = [] as string[];
       if (data.user?.email) provs.push('email');
@@ -479,6 +479,7 @@ export const Settings = () => {
                 <div>
                   <p className="font-semibold">@{profile.username}</p>
                   <p className="text-sm text-muted-foreground">{user.email}</p>
+                  <Label htmlFor="role">Role: {profile.role}</Label>
                 </div>
               </div>
 
@@ -513,10 +514,7 @@ export const Settings = () => {
                   maxLinks={6}
                 />
                 
-                <div>
-                  <Label htmlFor="bio">Role: {profile.role}</Label>
-                </div>
-
+ 
                 <Button
                   onClick={handleProfileUpdate}
                   disabled={updateProfile.isPending}

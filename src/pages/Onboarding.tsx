@@ -9,7 +9,7 @@ import { Camera, MapPin, User, Users, ChevronRight, Check, X } from 'lucide-reac
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import starMarLogo from '../../assets/Logo/StarMar-.png';
+import starMarLogo from '@/assets/Logo/StarMar-.png';
 
 type Step = 'username' | 'avatar' | 'location' | 'suggested';
 

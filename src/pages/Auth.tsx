@@ -1,3 +1,5 @@
+import starMarLogo from '@/assets/Logo/StarMar-.png';
+import loginSound from '@/assets/sounds/login.wav';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -12,8 +14,6 @@ import { Separator } from '@/components/ui/separator';
 import { Chrome, Github } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import starMarLogo from '../../assets/Logo/StarMar-.png';
-import loginSound from '../../assets/sounds/login.wav';
 import { DownloadProofModal } from '../components/DownloadProofModal';
 import { DiscordIcon } from '../components/ui/icons/DiscordIcon';
 import { SpotifyIcon } from '../components/ui/icons/SpotifyIcon';
