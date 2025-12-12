@@ -61,6 +61,12 @@ export const Navigation = () => {
       active: location.pathname === '/explore',
     },
     {
+      icon: Play,
+      label: 'Play',
+      path: '/Reelms',
+      active: location.pathname === '/Reelms',
+    },
+    {
       icon: PlusSquare,
       label: 'Create',
       path: '#',
@@ -103,6 +109,12 @@ export const Navigation = () => {
       label: 'Explore',
       path: '/explore',
       active: location.pathname === '/explore',
+    },
+    {
+      icon: Play,
+      label: 'Play',
+      path: '/Reelms',
+      active: location.pathname === '/Reelms',
     },
     {
       icon: PlusSquare,
