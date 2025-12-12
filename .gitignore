@@ -28,7 +28,9 @@ dist-ssr
 .env.development
 .env.test
 .env.production
-
+.mailmap
+.supabase-full.sql
+.supabase-full.sql
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -40,3 +42,4 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
