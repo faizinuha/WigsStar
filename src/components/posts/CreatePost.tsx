@@ -20,7 +20,7 @@ export const CreatePost = ({ defaultTab = 'post' }: CreatePostProps) => {
         <div className="flex items-center space-x-3">
           <Avatar className="h-10 w-10">
             <AvatarImage
-              src={userProfile?.avatar_url || '/assets/placeholder/cewek.png'}
+              src={userProfile?.avatar_url || '/assets/Place/cewek.png'}
             />
             <AvatarFallback>
               {userProfile?.username?.charAt(0) || 'U'}
