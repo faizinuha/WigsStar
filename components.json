@@ -1,3 +1,4 @@
+  
 {
   "$schema": "https://ui.shadcn.com/schema.json",
   "style": "default",
@@ -10,6 +11,7 @@
     "cssVariables": true,
     "prefix": ""
   },
+  
   "aliases": {
     "components": "@/components",
     "utils": "@/lib/utils",
