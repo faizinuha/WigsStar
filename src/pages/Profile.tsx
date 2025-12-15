@@ -262,7 +262,7 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
                         {profile.display_name || profile.username}
                       </h1>
                       {profile.is_verified && (
-                        <Badge className="starmar-gradient text-white border-0">
+                        <Badge className="starmar-gradient text-white border-0 mt-2">
                           ✓ Verified
                         </Badge>
                       )}

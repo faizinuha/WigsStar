@@ -8,29 +8,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePostComments as useComments } from '@/hooks/useComments';
 import { useLikes } from '@/hooks/useLikes';
-import { useBookmarks } from '@/hooks/useBookmarks';
 import { useDeletePost } from '@/hooks/useProfile';
 import {
   Bookmark,
+  Flag,
   Heart,
   Laugh,
   MessageCircle,
   MoreHorizontal,
   Play,
   Repeat,
-  Share,
-  Flag,
+  Share
 } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
-import { UnifiedCommentModal } from './UnifiedCommentModal';
+import { useEffect, useRef, useState } from 'react';
+import { BookmarkFolderDialog } from './BookmarkFolderDialog';
 import { EditPostModal } from './EditPostModal';
 import { PostCaption } from './PostCaption';
-import { BookmarkFolderDialog } from './BookmarkFolderDialog';
 import { ReportDialog } from './ReportDialog';
+import { UnifiedCommentModal } from './UnifiedCommentModal';
 
 interface PostMedia {
   media_url: string;
@@ -55,6 +55,7 @@ interface Post {
     username: string;
     displayName: string;
     avatar: string;
+    is_verified?: string | null;
   };
   media_type?: string;
   media?: PostMedia[];
@@ -234,6 +235,13 @@ export const PostCard = ({ post }: PostCardProps) => {
             <div className="flex items-center gap-2">
               <p className="font-semibold text-sm">{post.user.displayName}</p>
               <Laugh className="h-4 w-4 text-primary" />
+              {post.user.is_verified === 'verified' && (
+                <span className="inline-flex items-center gap-0.2 text-xs text-blue-500 font-medium">
+                  <svg className="h-5 w-5 fill-current" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </span>
+              )}
             </div>
             <div className="flex items-center space-x-1 text-xs text-muted-foreground">
               <span>@{post.user.username}</span>
@@ -315,7 +323,7 @@ export const PostCard = ({ post }: PostCardProps) => {
                   loading="lazy"
                 />
               )}
-              
+
               {post.media.length > 1 && (
                 <>
                   {currentMediaIndex > 0 && (
@@ -334,14 +342,13 @@ export const PostCard = ({ post }: PostCardProps) => {
                       ›
                     </button>
                   )}
-                  
+
                   <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
                     {post.media.map((_, index) => (
                       <div
                         key={index}
-                        className={`h-1.5 w-1.5 rounded-full transition-all ${
-                          index === currentMediaIndex ? 'bg-white w-3' : 'bg-white/50'
-                        }`}
+                        className={`h-1.5 w-1.5 rounded-full transition-all ${index === currentMediaIndex ? 'bg-white w-3' : 'bg-white/50'
+                          }`}
                       />
                     ))}
                   </div>
@@ -396,11 +403,10 @@ export const PostCard = ({ post }: PostCardProps) => {
             <button
               onClick={handleLike}
               disabled={likesLoading}
-              className={`flex items-center gap-2 text-sm transition-colors ${
-                isLikedPost
-                  ? 'text-red-500'
-                  : 'text-muted-foreground hover:text-red-500'
-              }`}
+              className={`flex items-center gap-2 text-sm transition-colors ${isLikedPost
+                ? 'text-red-500'
+                : 'text-muted-foreground hover:text-red-500'
+                }`}
             >
               <Heart
                 className={`h-6 w-6 ${isLikedPost ? 'fill-red-500' : ''}`}
@@ -438,11 +444,10 @@ export const PostCard = ({ post }: PostCardProps) => {
             disabled={bookmarksLoading}
           >
             <Bookmark
-              className={`h-6 w-6 transition-colors ${
-                isBookmarked
-                  ? 'fill-orange-500 text-orange-500'
-                  : 'hover:text-orange-500'
-              }`}
+              className={`h-6 w-6 transition-colors ${isBookmarked
+                ? 'fill-orange-500 text-orange-500'
+                : 'hover:text-orange-500'
+                }`}
             />
           </Button>
         </div>
@@ -501,7 +506,7 @@ export const PostCard = ({ post }: PostCardProps) => {
           post={post}
         />
       )}
-      
+
       <BookmarkFolderDialog
         isOpen={showBookmarkDialog}
         onClose={() => setShowBookmarkDialog(false)}

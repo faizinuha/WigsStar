@@ -1,17 +1,26 @@
-import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import starMarLogo from '@/assets/Logo/StarMar-.png';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Camera, MapPin, User, Users, ChevronRight, Check, X } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import starMarLogo from '@/assets/Logo/StarMar-.png';
+import { supabase } from '@/integrations/supabase/client';
+import { Camera, Check, ChevronRight, MapPin, User, Users } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 type Step = 'username' | 'avatar' | 'location' | 'suggested';
+
+// Interface untuk data OAuth dari AuthCallback
+interface OAuthUserData {
+  displayName?: string;
+  username?: string;
+  avatarUrl?: string;
+  email?: string;
+  provider?: string;
+}
 
 interface SuggestedUser {
   user_id: string;
@@ -20,41 +29,100 @@ interface SuggestedUser {
   avatar_url: string | null;
 }
 
+// Fungsi helper untuk mengekstrak data OAuth dari user metadata 
+function getOAuthDataFromUser(user: { user_metadata?: Record<string, unknown>; app_metadata?: { provider?: string }; email?: string } | null): OAuthUserData {
+  const metadata = (user?.user_metadata || {}) as Record<string, string | undefined>;
+  const provider = user?.app_metadata?.provider || '';
+
+  let displayName = '';
+  let username = '';
+  let avatarUrl = '';
+  const email = user?.email || metadata.email || '';
+
+  switch (provider) {
+    case 'google':
+      displayName = metadata.full_name || metadata.name || '';
+      username = metadata.email?.split('@')[0] || '';
+      avatarUrl = metadata.avatar_url || metadata.picture || '';
+      break;
+    case 'github':
+      displayName = metadata.name || metadata.full_name || '';
+      username = metadata.user_name || metadata.preferred_username || '';
+      avatarUrl = metadata.avatar_url || '';
+      break;
+    case 'discord':
+      displayName = metadata.full_name || metadata.global_name || metadata.name || '';
+      username = metadata.name || metadata.custom_username || '';
+      avatarUrl = metadata.avatar_url || '';
+      break;
+    default:
+      displayName = metadata.full_name || metadata.name || '';
+      username = metadata.user_name || metadata.preferred_username || email?.split('@')[0] || '';
+      avatarUrl = metadata.avatar_url || '';
+  }
+
+  return {
+    displayName,
+    username: username.toLowerCase().replace(/[^a-zA-Z0-9_]/g, ''),
+    avatarUrl,
+    email,
+    provider,
+  };
+}
+
 export default function Onboarding() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Ambil data OAuth dari location state atau ekstrak dari user
+  const oauthDataFromState = (location.state as { oauthData?: OAuthUserData })?.oauthData;
+  const oauthData = oauthDataFromState || getOAuthDataFromUser(user);
+
   const [step, setStep] = useState<Step>('username');
-  const [username, setUsername] = useState('');
+  // Initialize state dengan data dari OAuth jika tersedia
+  const [username, setUsername] = useState(oauthData?.username || '');
+  const [displayName, setDisplayName] = useState(oauthData?.displayName || '');
   const [usernameError, setUsernameError] = useState('');
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  // Gunakan avatar dari OAuth sebagai default
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(oauthData?.avatarUrl || null);
+  const [oauthAvatarUrl] = useState<string | null>(oauthData?.avatarUrl || null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [location, setLocation] = useState('');
+  const [locationValue, setLocationValue] = useState('');
   const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
   const [isLoadingSuggested, setIsLoadingSuggested] = useState(false);
+
+  // Validasi username yang sudah terisi dari OAuth saat mount
+  useEffect(() => {
+    const initialUsername = oauthData?.username || '';
+    if (initialUsername && initialUsername.length >= 3) {
+      checkUsernameAvailability(initialUsername);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Hanya jalankan sekali saat mount
 
   // Check if user already has username
   useEffect(() => {
     const checkExistingProfile = async () => {
       if (!user) return;
-      
+
       const { data: profile } = await supabase
         .from('profiles')
         .select('username')
         .eq('user_id', user.id)
         .single();
-      
+
       // If user already has a username, skip onboarding
       if (profile?.username) {
         navigate('/');
       }
     };
-    
+
     checkExistingProfile();
   }, [user, navigate]);
 
@@ -63,19 +131,20 @@ export default function Onboarding() {
     if (step === 'suggested') {
       loadSuggestedUsers();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
   const loadSuggestedUsers = async () => {
     if (!user) return;
     setIsLoadingSuggested(true);
-    
+
     try {
       const { data } = await supabase
         .from('profiles')
         .select('user_id, username, display_name, avatar_url')
         .neq('user_id', user.id)
         .limit(7);
-      
+
       if (data) {
         setSuggestedUsers(data);
       }
@@ -95,7 +164,7 @@ export default function Onboarding() {
 
   const checkUsernameAvailability = async (username: string) => {
     if (!username || validateUsername(username)) return;
-    
+
     setIsCheckingUsername(true);
     try {
       const { data } = await supabase
@@ -103,7 +172,7 @@ export default function Onboarding() {
         .select('username')
         .eq('username', username.toLowerCase())
         .single();
-      
+
       if (data) {
         setUsernameError('Username is already taken');
       } else {
@@ -122,7 +191,7 @@ export default function Onboarding() {
     setUsername(cleanValue);
     const error = validateUsername(cleanValue);
     setUsernameError(error);
-    
+
     // Debounce username check
     if (!error && cleanValue.length >= 3) {
       const timer = setTimeout(() => checkUsernameAvailability(cleanValue), 500);
@@ -140,18 +209,18 @@ export default function Onboarding() {
 
   const uploadAvatar = async () => {
     if (!avatarFile || !user) return null;
-    
+
     setIsUploading(true);
     try {
       const fileExt = avatarFile.name.split('.').pop();
       const filePath = `${user.id}/avatar.${fileExt}`;
-      
+
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, avatarFile, { upsert: true });
-      
+
       if (uploadError) throw uploadError;
-      
+
       return filePath;
     } catch (error) {
       console.error('Error uploading avatar:', error);
@@ -164,9 +233,9 @@ export default function Onboarding() {
 
   const handleFollowUser = async (userId: string) => {
     if (!user) return;
-    
+
     const isFollowing = followedUsers.has(userId);
-    
+
     if (isFollowing) {
       // Unfollow
       await supabase
@@ -174,7 +243,7 @@ export default function Onboarding() {
         .delete()
         .eq('follower_id', user.id)
         .eq('following_id', userId);
-      
+
       setFollowedUsers(prev => {
         const newSet = new Set(prev);
         newSet.delete(userId);
@@ -185,37 +254,54 @@ export default function Onboarding() {
       await supabase
         .from('followers')
         .insert({ follower_id: user.id, following_id: userId });
-      
+
       setFollowedUsers(prev => new Set(prev).add(userId));
     }
   };
 
   const saveAndContinue = async () => {
     if (!user) return;
-    
+
     try {
-      // Upload avatar if selected
-      let avatarPath = null;
+      // Upload avatar if selected, otherwise use OAuth avatar
+      let finalAvatarUrl: string | null = null;
       if (avatarFile) {
-        avatarPath = await uploadAvatar();
+        finalAvatarUrl = await uploadAvatar();
+      } else if (oauthAvatarUrl) {
+        // Gunakan avatar dari OAuth jika tidak ada upload baru
+        finalAvatarUrl = oauthAvatarUrl;
       }
-      
-      // Update profile
-      const updateData: Record<string, any> = { username };
-      if (avatarPath) updateData.avatar_url = avatarPath;
-      if (location) updateData.bio = `📍 ${location}`;
-      
+
+      // Update profile dengan data lengkap
+      const updateData: Record<string, string> = { username };
+
+      // Tambahkan display_name jika ada
+      if (displayName) {
+        updateData.display_name = displayName;
+      }
+
+      // Tambahkan avatar_url
+      if (finalAvatarUrl) {
+        updateData.avatar_url = finalAvatarUrl;
+      }
+
+      // Tambahkan bio dengan lokasi jika diisi
+      if (locationValue) {
+        updateData.bio = `📍 ${locationValue}`;
+      }
+
       const { error } = await supabase
         .from('profiles')
         .update(updateData)
         .eq('user_id', user.id);
-      
+
       if (error) throw error;
-      
+
       toast({ title: 'Welcome!', description: 'Your profile has been set up' });
       navigate('/');
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+      toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
     }
   };
 
@@ -258,7 +344,7 @@ export default function Onboarding() {
               <h2 className="text-2xl font-bold">Choose your username</h2>
               <p className="text-muted-foreground mt-2">This is how others will find you</p>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
               <div className="relative">
@@ -283,7 +369,7 @@ export default function Onboarding() {
                 </p>
               )}
             </div>
-            
+
             <Button
               onClick={handleNextStep}
               disabled={usernameError !== '' || username.length < 3 || isCheckingUsername}
@@ -302,7 +388,7 @@ export default function Onboarding() {
               <h2 className="text-2xl font-bold">Add a profile photo</h2>
               <p className="text-muted-foreground mt-2">Help others recognize you</p>
             </div>
-            
+
             <div className="flex flex-col items-center space-y-4">
               <Avatar className="h-32 w-32 cursor-pointer ring-4 ring-primary/20" onClick={() => fileInputRef.current?.click()}>
                 <AvatarImage src={avatarUrl || ''} />
@@ -322,7 +408,7 @@ export default function Onboarding() {
                 {avatarUrl ? 'Change Photo' : 'Upload Photo'}
               </Button>
             </div>
-            
+
             <div className="flex gap-3">
               <Button variant="ghost" onClick={handleSkip} className="flex-1">
                 Skip
@@ -342,17 +428,17 @@ export default function Onboarding() {
               <h2 className="text-2xl font-bold">Where are you from?</h2>
               <p className="text-muted-foreground mt-2">This helps us connect you with nearby users</p>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="location">Location (optional)</Label>
               <Input
                 id="location"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                value={locationValue}
+                onChange={(e) => setLocationValue(e.target.value)}
                 placeholder="e.g., Jakarta, Indonesia"
               />
             </div>
-            
+
             <div className="flex gap-3">
               <Button variant="ghost" onClick={handleSkip} className="flex-1">
                 Skip
@@ -372,7 +458,7 @@ export default function Onboarding() {
               <h2 className="text-2xl font-bold">People you might know</h2>
               <p className="text-muted-foreground mt-2">Follow some accounts to get started</p>
             </div>
-            
+
             <div className="space-y-3 max-h-80 overflow-y-auto">
               {isLoadingSuggested ? (
                 <div className="text-center py-4 text-muted-foreground">Loading...</div>
@@ -413,7 +499,7 @@ export default function Onboarding() {
                 ))
               )}
             </div>
-            
+
             <div className="flex gap-3">
               <Button variant="ghost" onClick={handleSkip} className="flex-1">
                 Skip
@@ -438,15 +524,14 @@ export default function Onboarding() {
           <img src={starMarLogo} alt="StarMar" className="w-16 h-16 mx-auto mb-2" />
           <CardTitle className="text-xl">Complete Your Profile</CardTitle>
           <CardDescription>Step {currentStepIndex + 1} of {steps.length}</CardDescription>
-          
+
           {/* Progress bar */}
           <div className="flex gap-1 mt-4">
             {steps.map((s, i) => (
               <div
                 key={s}
-                className={`h-1 flex-1 rounded-full transition-colors ${
-                  i <= currentStepIndex ? 'bg-primary' : 'bg-muted'
-                }`}
+                className={`h-1 flex-1 rounded-full transition-colors ${i <= currentStepIndex ? 'bg-primary' : 'bg-muted'
+                  }`}
               />
             ))}
           </div>
