@@ -22,7 +22,7 @@ export interface Meme {
     username: string;
     displayName: string;
     avatar: string;
-    is_verified: boolean;
+    is_verified: string;
   };
   badges: Badge[];
 }
@@ -93,7 +93,7 @@ async function useAllMemes_fallback() {
       username: meme.profiles?.username || '',
       displayName: meme.profiles?.display_name || meme.profiles?.username || '',
       avatar: meme.profiles?.avatar_url || '',
-      is_verified: meme.profiles?.is_verified || false,
+      is_verified: meme.profiles?.is_verified,
     },
     badges: [], // Return empty badges array
   })) as Meme[];
@@ -149,7 +149,7 @@ export function useUserMemes(userId?: string) {
           displayName:
             meme.profiles?.display_name || meme.profiles?.username || '',
           avatar: meme.profiles?.avatar_url || '',
-          is_verified: meme.profiles?.is_verified || false,
+          is_verified: meme.profiles?.is_verified ,
         },
         badges: [], // Badges are not fetched for user-specific memes yet
       })) as Meme[];

@@ -6,6 +6,7 @@ export interface UserProfile {
   username: string;
   display_name: string;
   avatar_url: string;
+  is_verified?: string | null;
 }
 
 export function useAllProfiles() {
@@ -14,7 +15,7 @@ export function useAllProfiles() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('user_id, username, display_name, avatar_url')
+        .select('user_id, username, display_name, avatar_url, is_verified')
         .order('display_name', { ascending: true });
 
       if (error) throw error;
@@ -36,7 +37,7 @@ export function useSearchProfiles(searchQuery: string) {
       const query = searchQuery.toLowerCase();
       const { data, error } = await supabase
         .from('profiles')
-        .select('user_id, username, display_name, avatar_url')
+        .select('user_id, username, display_name, avatar_url, is_verified')
         .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
         .limit(20);
 
