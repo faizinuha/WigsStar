@@ -1,5 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { useStories } from "@/hooks/useStories";
+import { useOptimizedStories } from "@/hooks/useOptimizedStories";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { CreateStoryModal } from "./CreateStoryModal";
@@ -7,7 +7,7 @@ import { StoryViewer } from "./StoryViewer";
 
 export const StoriesSection = () => {
   const { user } = useAuth();
-  const { data: stories = [] } = useStories();
+  const { data: stories = [] } = useOptimizedStories();
   const [selectedStoryIndex, setSelectedStoryIndex] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 

@@ -6,10 +6,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
-import { useCreateStory } from '@/hooks/useStories';
-import { Camera, Contrast, Sun, Upload, Wind, X, Zap } from 'lucide-react';
+import { useCreateOptimizedStory } from '@/hooks/useOptimizedStories';
+import { Camera, Upload, X, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { EffectsPicker } from './EffectsPicker';
+import { LocationPicker } from './LocationPicker';
+import { applyEffect } from '@/lib/effects';
 
 interface CreateStoryModalProps {
   isOpen: boolean;
@@ -97,9 +102,29 @@ const CameraView = ({ onCapture, onClose }: { onCapture: (file: File) => void, o
   );
 };
 
-const EditView = ({ file, onSave, onCancel }: { file: File, onSave: (file: File) => void, onCancel: () => void }) => {
+const EditView = ({ 
+  file, 
+  onSave, 
+  onCancel,
+  onCaptionChange,
+  onLocationChange,
+  onLocationEnable,
+  caption,
+  location,
+  locationEnabled
+}: { 
+  file: File, 
+  onSave: (file: File, caption?: string, location?: string) => void, 
+  onCancel: () => void,
+  onCaptionChange: (caption: string) => void,
+  onLocationChange: (location: string) => void,
+  onLocationEnable: (enabled: boolean) => void,
+  caption: string,
+  location: string,
+  locationEnabled: boolean
+}) => {
   const [preview, setPreview] = useState<string | null>(null);
-  const [filter, setFilter] = useState('none');
+  const [selectedEffect, setSelectedEffect] = useState<string>();
   const isVideo = file.type.startsWith('video/');
 
   useEffect(() => {
@@ -110,37 +135,45 @@ const EditView = ({ file, onSave, onCancel }: { file: File, onSave: (file: File)
     }
   }, [file]);
 
-  const filters = [
-    { name: 'Normal', value: 'none', icon: <X className="h-4 w-4" /> },
-    { name: 'Clarendon', value: 'contrast(1.2) saturate(1.3)', icon: <Zap className="h-4 w-4" /> },
-    { name: 'Gingham', value: 'brightness(1.05) hue-rotate(-10deg)', icon: <Sun className="h-4 w-4" /> },
-    { name: 'Moon', value: 'grayscale(1) contrast(1.1) brightness(0.9)', icon: <Contrast className="h-4 w-4" /> },
-    { name: 'Lark', value: 'contrast(.9) brightness(1.1) saturate(1.1)', icon: <Wind className="h-4 w-4" /> },
-  ];
+  const handleApplyEffect = async (effectId: string) => {
+    if (!preview || isVideo) return;
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const img = new Image();
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      applyEffect(effectId, canvas);
+      setPreview(canvas.toDataURL());
+    };
+    img.src = preview;
+  };
 
   const handleSave = () => {
-    onSave(file);
+    onSave(file, caption, locationEnabled ? location : undefined);
   }
 
   if (!preview) return null;
 
   return (
     <div className="flex flex-col h-full space-y-4">
-      {/* Preview Area - Flexible Height with max constraints */}
+      {/* Preview Area */}
       <div className="flex-1 min-h-0 relative bg-black rounded-lg overflow-hidden flex items-center justify-center border border-border/50">
         {isVideo ? (
           <video
             src={preview}
             className="h-full w-full object-contain max-h-[60vh] md:max-h-[500px]"
             controls
-            style={{ filter: filter }}
           />
         ) : (
           <img
             src={preview}
             alt="Story preview"
             className="h-full w-full object-contain max-h-[60vh] md:max-h-[500px]"
-            style={{ filter: filter }}
           />
         )}
 
@@ -154,29 +187,42 @@ const EditView = ({ file, onSave, onCancel }: { file: File, onSave: (file: File)
         </Button>
       </div>
 
-      {/* Filters and Actions */}
-      <div className="flex flex-col gap-4 bg-background pt-2">
+      {/* Effects and Content Controls */}
+      <div className="flex flex-col gap-4 bg-background pt-2 space-y-3">
         {!isVideo && (
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-center text-muted-foreground">Filter</p>
-            <div className="flex justify-start md:justify-center gap-2 overflow-x-auto pb-4 px-2 scrollbar-hide">
-              {filters.map(f => (
-                <button
-                  key={f.name}
-                  onClick={() => setFilter(f.value)}
-                  className={`flex flex-col items-center gap-1 min-w-[60px] p-1 rounded-md transition-all ${filter === f.value ? 'ring-2 ring-primary scale-105' : 'opacity-70 hover:opacity-100'}`}
-                >
-                  <div className="w-14 h-14 rounded-md overflow-hidden bg-muted border">
-                    <img src={preview} alt={f.name} className="w-full h-full object-cover" style={{ filter: f.value }} />
-                  </div>
-                  <span className="text-[10px] font-medium truncate w-full text-center">{f.name}</span>
-                </button>
-              ))}
-            </div>
+          <div>
+            <Label className="text-xs font-medium mb-2 block">Effect</Label>
+            <EffectsPicker
+              selectedEffect={selectedEffect}
+              onSelectEffect={(effectId) => {
+                setSelectedEffect(effectId);
+                handleApplyEffect(effectId);
+              }}
+            />
           </div>
         )}
 
-        <Button onClick={handleSave} className="w-full h-12 text-base font-semibold shadow-lg">
+        <div>
+          <Label className="text-xs font-medium mb-2 block">Caption (Optional)</Label>
+          <Textarea
+            placeholder="Add text to your story..."
+            value={caption}
+            onChange={(e) => onCaptionChange(e.target.value)}
+            className="min-h-[60px] text-sm"
+          />
+        </div>
+
+        <LocationPicker
+          value={location}
+          onChange={onLocationChange}
+          onEnableChange={onLocationEnable}
+          enabled={locationEnabled}
+        />
+
+        <Button 
+          onClick={handleSave} 
+          className="w-full h-12 text-base font-semibold shadow-lg"
+        >
           <Upload className="mr-2 h-4 w-4" /> Bagikan Cerita
         </Button>
       </div>
@@ -192,8 +238,11 @@ export const CreateStoryModal = ({
   const [preview, setPreview] = useState<string | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [caption, setCaption] = useState('');
+  const [location, setLocation] = useState('');
+  const [locationEnabled, setLocationEnabled] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { mutate: createStory, isPending } = useCreateStory();
+  const { mutate: createStory, isPending } = useCreateOptimizedStory();
   const { toast } = useToast();
 
   const handleFileSelect = (file: File) => {
@@ -216,15 +265,10 @@ export const CreateStoryModal = ({
     }
 
     setSelectedFile(file);
-    if (file.type.startsWith('image/')) {
-      setIsEditing(true);
-    } else {
-      // For videos, also go to edit view to preview
-      setIsEditing(true);
-    }
+    setIsEditing(true);
   };
 
-  const handleSubmit = (fileToSubmit?: File) => {
+  const handleSubmit = (fileToSubmit?: File, newCaption?: string, newLocation?: string) => {
     const finalFile = fileToSubmit || selectedFile;
     if (!finalFile) return;
 
@@ -232,6 +276,8 @@ export const CreateStoryModal = ({
       {
         file: finalFile,
         mediaType: finalFile.type,
+        caption: newCaption,
+        location: newLocation,
       },
       {
         onSuccess: () => {
@@ -253,11 +299,13 @@ export const CreateStoryModal = ({
   };
 
   const handleClose = () => {
-    // Reset states with a small delay to allow animation if needed, or immediate
     setSelectedFile(null);
     setPreview(null);
     setIsCameraOpen(false);
     setIsEditing(false);
+    setCaption('');
+    setLocation('');
+    setLocationEnabled(false);
     onClose();
   };
 
@@ -273,7 +321,19 @@ export const CreateStoryModal = ({
     }
 
     if (isEditing && selectedFile) {
-      return <EditView file={selectedFile} onSave={handleSubmit} onCancel={() => { setIsEditing(false); setSelectedFile(null); }} />
+      return (
+        <EditView 
+          file={selectedFile} 
+          onSave={handleSubmit} 
+          onCancel={() => { setIsEditing(false); setSelectedFile(null); }}
+          onCaptionChange={setCaption}
+          onLocationChange={setLocation}
+          onLocationEnable={setLocationEnabled}
+          caption={caption}
+          location={location}
+          locationEnabled={locationEnabled}
+        />
+      );
     }
 
     return (
