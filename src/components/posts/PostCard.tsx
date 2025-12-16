@@ -30,15 +30,16 @@ import { BookmarkFolderDialog } from './BookmarkFolderDialog';
 import { EditPostModal } from './EditPostModal';
 import { PostCaption } from './PostCaption';
 import { ReportDialog } from './ReportDialog';
+import { RepostModal } from './RepostModal';
 import { UnifiedCommentModal } from './UnifiedCommentModal';
 
-interface PostMedia {
+export interface PostMedia {
   media_url: string;
   media_type: string;
   order_index?: number;
 }
 
-interface Post {
+export interface Post {
   id: string;
   user_id: string;
   content: string;
@@ -90,7 +91,7 @@ const RepostCard = ({ repost_by, children }: RepostCardProps) => (
   <div className="bg-muted/20 rounded-lg p-4 mt-2">
     <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-2">
       <Repeat className="h-4 w-4" />
-      <span>Reposted by {repost_by.displayName}</span>
+      <span>Reposted by {repost_by?.displayName}</span>
     </div>
     {children}
   </div>
@@ -132,6 +133,7 @@ export const PostCard = ({ post }: PostCardProps) => {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [showBookmarkDialog, setShowBookmarkDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showRepostModal, setShowRepostModal] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -195,6 +197,18 @@ export const PostCard = ({ post }: PostCardProps) => {
     const postUrl = `${window.location.origin}/post/${post.id}`;
     navigator.clipboard.writeText(postUrl);
     toast({ title: 'Link copied to clipboard' });
+  };
+
+  const handleRepost = () => {
+    if (!currentUser) {
+      toast({
+        title: 'Login required',
+        description: 'You need to be logged in to repost.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setShowRepostModal(true);
   };
 
   const handleShare = () => {
@@ -426,6 +440,13 @@ export const PostCard = ({ post }: PostCardProps) => {
               </span>
             </button>
 
+            <button
+              onClick={handleRepost}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-green-500 transition-colors"
+            >
+              <Repeat className="h-6 w-6" />
+            </button>
+
             <Button
               variant="ghost"
               size="icon"
@@ -503,6 +524,14 @@ export const PostCard = ({ post }: PostCardProps) => {
         <EditPostModal
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
+          post={post}
+        />
+      )}
+
+      {showRepostModal && (
+        <RepostModal
+          isOpen={showRepostModal}
+          onClose={() => setShowRepostModal(false)}
           post={post}
         />
       )}
