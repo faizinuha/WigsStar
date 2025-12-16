@@ -143,7 +143,7 @@ export default function Onboarding() {
         .from('profiles')
         .select('user_id, username, display_name, avatar_url')
         .neq('user_id', user.id)
-        .limit(7);
+        .limit(6);
 
       if (data) {
         setSuggestedUsers(data);
@@ -178,9 +178,17 @@ export default function Onboarding() {
       } else {
         setUsernameError('');
       }
-    } catch {
-      // No user found with this username - it's available
-      setUsernameError('');
+    } catch (error: any) {
+      // Check if error is because no rows found (PGRST116) or 406 Not Acceptable (which .single() returns for 0 rows sometimes)
+      if (error.code === 'PGRST116' || error.status === 406) {
+        setUsernameError('');
+      } else {
+        console.error('Error checking username:', error);
+        // Don't clear error if it's a real system error, potentially block or show generic error
+        // But for UX, maybe just let it pass or show 'Error checking availability'
+        // For now, let's assume it's available but log it, or we could set an error
+        // setUsernameError('Error checking availability');
+      }
     } finally {
       setIsCheckingUsername(false);
     }
@@ -263,43 +271,59 @@ export default function Onboarding() {
     if (!user) return;
 
     try {
+      // Fetch current profile to check for changes
+      const { data: currentProfile } = await supabase
+        .from('profiles')
+        .select('username, display_name, avatar_url, bio')
+        .eq('user_id', user.id)
+        .single();
+
       // Upload avatar if selected, otherwise use OAuth avatar
       let finalAvatarUrl: string | null = null;
       if (avatarFile) {
         finalAvatarUrl = await uploadAvatar();
-      } else if (oauthAvatarUrl) {
-        // Gunakan avatar dari OAuth jika tidak ada upload baru
+      } else if (oauthAvatarUrl && !currentProfile?.avatar_url) {
+        // Use OAuth avatar if no upload and no existing avatar
         finalAvatarUrl = oauthAvatarUrl;
       }
 
-      // Update profile dengan data lengkap
-      const updateData: Record<string, string> = { username };
+      // Prepare update data
+      const updateData: Record<string, string> = {};
 
-      // Tambahkan display_name jika ada
-      if (displayName) {
+      // Only add fields that are different or new
+      if (username && username !== currentProfile?.username) {
+        updateData.username = username;
+      }
+
+      if (displayName && displayName !== currentProfile?.display_name) {
         updateData.display_name = displayName;
       }
 
-      // Tambahkan avatar_url
-      if (finalAvatarUrl) {
+      if (finalAvatarUrl && finalAvatarUrl !== currentProfile?.avatar_url) {
         updateData.avatar_url = finalAvatarUrl;
       }
 
-      // Tambahkan bio dengan lokasi jika diisi
       if (locationValue) {
-        updateData.bio = `📍 ${locationValue}`;
+        const newBio = `📍 ${locationValue}`;
+        if (newBio !== currentProfile?.bio) {
+          updateData.bio = newBio;
+        }
       }
 
-      const { error } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('user_id', user.id);
+      // If there are changes, update the profile
+      if (Object.keys(updateData).length > 0) {
+        const { error } = await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('user_id', user.id);
 
-      if (error) throw error;
+        if (error) throw error;
+      }
 
       toast({ title: 'Welcome!', description: 'Your profile has been set up' });
       navigate('/');
     } catch (error: unknown) {
+      console.error('Error saving profile:', error);
       const errorMessage = error instanceof Error ? error.message : 'An error occurred';
       toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
     }
