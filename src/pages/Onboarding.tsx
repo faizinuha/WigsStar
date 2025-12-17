@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 import { Camera, Check, ChevronRight, MapPin, User, Users } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -76,6 +77,7 @@ export default function Onboarding() {
   const { user } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
   // Ambil data OAuth dari location state atau ekstrak dari user
   const oauthDataFromState = (location.state as { oauthData?: OAuthUserData })?.oauthData;
@@ -184,10 +186,6 @@ export default function Onboarding() {
         setUsernameError('');
       } else {
         console.error('Error checking username:', error);
-        // Don't clear error if it's a real system error, potentially block or show generic error
-        // But for UX, maybe just let it pass or show 'Error checking availability'
-        // For now, let's assume it's available but log it, or we could set an error
-        // setUsernameError('Error checking availability');
       }
     } finally {
       setIsCheckingUsername(false);
@@ -245,7 +243,6 @@ export default function Onboarding() {
     const isFollowing = followedUsers.has(userId);
 
     if (isFollowing) {
-      // Unfollow
       await supabase
         .from('followers')
         .delete()
@@ -258,7 +255,6 @@ export default function Onboarding() {
         return newSet;
       });
     } else {
-      // Follow
       await supabase
         .from('followers')
         .insert({ follower_id: user.id, following_id: userId });
@@ -278,19 +274,15 @@ export default function Onboarding() {
         .eq('user_id', user.id)
         .single();
 
-      // Upload avatar if selected, otherwise use OAuth avatar
       let finalAvatarUrl: string | null = null;
       if (avatarFile) {
         finalAvatarUrl = await uploadAvatar();
       } else if (oauthAvatarUrl && !currentProfile?.avatar_url) {
-        // Use OAuth avatar if no upload and no existing avatar
         finalAvatarUrl = oauthAvatarUrl;
       }
 
-      // Prepare update data
-      const updateData: Record<string, string> = {};
+      const updateData: Record<string, any> = {};
 
-      // Only add fields that are different or new
       if (username && username !== currentProfile?.username) {
         updateData.username = username;
       }
@@ -310,7 +302,6 @@ export default function Onboarding() {
         }
       }
 
-      // If there are changes, update the profile
       if (Object.keys(updateData).length > 0) {
         const { error } = await supabase
           .from('profiles')
@@ -319,6 +310,9 @@ export default function Onboarding() {
 
         if (error) throw error;
       }
+
+      // *** PERBAIKAN: Bersihkan cache profil sebelum navigasi ***
+      await queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
 
       toast({ title: 'Welcome!', description: 'Your profile has been set up' });
       navigate('/');
@@ -359,6 +353,7 @@ export default function Onboarding() {
   };
 
   const renderStep = () => {
+    // ... (sisa kode renderStep tetap sama)
     switch (step) {
       case 'username':
         return (
@@ -549,7 +544,6 @@ export default function Onboarding() {
           <CardTitle className="text-xl">Complete Your Profile</CardTitle>
           <CardDescription>Step {currentStepIndex + 1} of {steps.length}</CardDescription>
 
-          {/* Progress bar */}
           <div className="flex gap-1 mt-4">
             {steps.map((s, i) => (
               <div

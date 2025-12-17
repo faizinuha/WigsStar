@@ -99,6 +99,12 @@ export const Navigation = () => {
       label: 'MyMusic',
       path: '/mymusic/music',
       active: location.pathname === '/mymusic/music',
+    },
+    {
+      icon: Settings,
+      label: 'Settings',
+      path: '/settings',
+      active: location.pathname === '/settings'
     }
   ];
 
@@ -223,10 +229,6 @@ export const Navigation = () => {
                       <span>Dashboard Admin</span>
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem onClick={handleSettingsClick} className="cursor-pointer">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
