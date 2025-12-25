@@ -66,6 +66,7 @@ export default function Chat() {
   const { favorites: favConvs, toggleFavorite: toggleFavConv, isFavorite: isConvFav } = useFavoriteConversations();
   const queryClient = useQueryClient();
 
+<<<<<<< HEAD
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConvId, setDeleteConvId] = useState<string | null>(null);
   const [showGroupDialog, setShowGroupDialog] = useState(false);
@@ -136,8 +137,12 @@ export default function Chat() {
 
   const getConversationName = (conv: Conversation) => {
     if (conv.is_group) return conv.name || 'Group Chat';
+=======
+  const getConversationName = (conv: any) => {
+    if (conv.is_group) return conv.name || 'Grup Obrolan';
+>>>>>>> 99ce99e (Changes before Firebase Studio auto-run)
     const otherMember = conv.members.find((m: any) => m.user_id !== user?.id);
-    return otherMember?.display_name || otherMember?.username || 'Unknown';
+    return otherMember?.display_name || otherMember?.username || 'Tidak Dikenal';
   };
 
   const getConversationAvatar = (conv: Conversation) => {
@@ -193,6 +198,7 @@ export default function Chat() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
+<<<<<<< HEAD
       {/* Sidebar chat list - WhatsApp style */}
       <div className={`${chatId ? 'hidden md:flex' : 'flex'} w-full md:w-96 border-r flex-col bg-background`}>
         <div className="p-3 border-b">
@@ -213,9 +219,21 @@ export default function Chat() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+=======
+      {/* Sidebar - Instagram Style */}
+      <div className="w-full md:w-96 border-r flex flex-col bg-background">
+        {/* Header */}
+        <div className="p-4 border-b">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-2xl font-bold">{user?.user_metadata?.username || 'Pesan'}</h1>
+            <Button variant="ghost" size="icon">
+              <Edit className="h-5 w-5" />
+            </Button>
+>>>>>>> 99ce99e (Changes before Firebase Studio auto-run)
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+<<<<<<< HEAD
             <Input placeholder="Cari atau mulai percakapan" className="pl-9 h-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
         </div>
@@ -226,6 +244,55 @@ export default function Chat() {
             <TabsTrigger value="favorites">Favorit</TabsTrigger>
             <TabsTrigger value="groups">Grup</TabsTrigger>
           </TabsList>
+=======
+            <Input
+              placeholder="Cari pesan"
+              className="pl-9 bg-muted/50"
+            />
+          </div>
+        </div>
+
+        {/* Conversations List */}
+        <div className="flex-1 overflow-y-auto">
+          {isLoading ? (
+            <div className="space-y-1">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3 p-4">
+                  <Skeleton className="h-14 w-14 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : conversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+              <MessageCircle className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground font-medium">Belum ada percakapan</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Mulai percakapan dengan mengunjungi profil pengguna
+              </p>
+            </div>
+          ) : (
+            <div>
+              {conversations.map((conversation) => (
+                <div
+                  key={conversation.id}
+                  onClick={() => navigate(`/chat/${conversation.id}`)}
+                  className="flex items-center gap-3 p-4 hover:bg-accent cursor-pointer transition-colors border-b"
+                >
+                  <Avatar className="h-14 w-14 border-2 border-border">
+                    <AvatarImage src={getConversationAvatar(conversation) || undefined} />
+                    <AvatarFallback className="bg-muted">
+                      {conversation.is_group ? (
+                        <Users className="h-6 w-6" />
+                      ) : (
+                        getConversationName(conversation)[0]?.toUpperCase()
+                      )}
+                    </AvatarFallback>
+                  </Avatar>
+>>>>>>> 99ce99e (Changes before Firebase Studio auto-run)
 
           <ScrollArea className="flex-1">
             <TabsContent value="all" className="m-0 mt-2">
@@ -348,8 +415,38 @@ export default function Chat() {
                 >
                   <Avatar className="h-10 w-10"><AvatarImage src={u.avatar_url} /><AvatarFallback>{u.username?.[0]}</AvatarFallback></Avatar>
                   <div className="flex-1 min-w-0">
+<<<<<<< HEAD
                     <p className="text-sm font-medium truncate">{u.display_name || u.username}</p>
                     <p className="text-xs text-muted-foreground">@{u.username}</p>
+=======
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="font-semibold truncate text-sm">
+                        {getConversationName(conversation)}
+                      </h3>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+                        {formatDistanceToNow(new Date(conversation.last_message_at), {
+                          addSuffix: false,
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className={`text-sm truncate flex-1 ${
+                        conversation.unread_count > 0 
+                          ? 'font-semibold text-foreground' 
+                          : 'text-muted-foreground font-normal'
+                      }`}>
+                        {conversation.last_message || 'Mulai percakapan'}
+                      </p>
+                      {conversation.unread_count > 0 && (
+                        <Badge 
+                          variant="default" 
+                          className="h-5 min-w-[20px] flex items-center justify-center px-1.5 text-xs rounded-full bg-primary"
+                        >
+                          {conversation.unread_count}
+                        </Badge>
+                      )}
+                    </div>
+>>>>>>> 99ce99e (Changes before Firebase Studio auto-run)
                   </div>
                 </div>
               ))}
@@ -539,6 +636,7 @@ function ChatDetailArea({ conversationId, onBack }: ChatDetailAreaProps) {
         </div>
       </div>
 
+<<<<<<< HEAD
       {/* Messages */}
       <ScrollArea className="flex-1 p-4">
         {isLoading ? (
@@ -646,6 +744,16 @@ function ChatDetailArea({ conversationId, onBack }: ChatDetailAreaProps) {
             disabled={!isUserMember && isGroupChat}
           />
           <Button onClick={handleSend} size="icon" disabled={!isUserMember && isGroupChat}><Send className="h-5 w-5" /></Button>
+=======
+      {/* Main Content Area - Hidden on mobile, shown when conversation selected */}
+      <div className="hidden md:flex flex-1 items-center justify-center bg-muted/30">
+        <div className="text-center p-8">
+          <MessageCircle className="w-24 h-24 mx-auto text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Pesan Anda</h2>
+          <p className="text-muted-foreground">
+            Pilih percakapan untuk mulai mengobrol
+          </p>
+>>>>>>> 99ce99e (Changes before Firebase Studio auto-run)
         </div>
       </div>
 
