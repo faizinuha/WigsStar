@@ -6,6 +6,7 @@ import { PostCard } from "@/components/posts/PostCard";
 import { PostDetailModal } from "@/components/posts/PostDetailModal";
 import { StoriesSection } from "@/components/posts/StoriesSection";
 import { SuggestedFriends } from "@/components/posts/SuggestedFriends";
+import { SuggestedFriendsInFeed } from "@/components/posts/SuggestedFriendsInFeed";
 import { PostCardSkeleton } from "@/components/skeletons/PostCardSkeleton";
 import { StoriesSkeleton } from "@/components/skeletons/StoriesSkeleton";
 import { SuggestedFriendsSkeleton } from "@/components/skeletons/SuggestedFriendsSkeleton";
@@ -35,7 +36,7 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <main className="md:ml-72 min-h-screen pb-20 md:pb-8">
+        <main className="md:ml-64 min-h-screen pb-24 sm:pb-20 md:pb-8">
           <div className="max-w-6xl mx-auto px-4 py-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Main Content Skeleton */}
@@ -81,7 +82,7 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <main className="md:ml-72 min-h-screen pb-20 md:pb-8">
+        <main className="md:ml-64 min-h-screen pb-24 sm:pb-20 md:pb-8">
           <div className="max-w-6xl mx-auto px-4 py-8">
             <div className="text-center py-12">
               <div className="text-6xl mb-4">😞</div>
@@ -103,7 +104,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Navigation />
 
-      <main className="md:ml-72 min-h-screen pb-20 md:pb-8">
+      <main className="md:ml-64 min-h-screen pb-24 sm:pb-20 md:pb-8">
         <div className="max-w-6xl mx-auto px-4 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Content */}
@@ -125,9 +126,15 @@ const Index = () => {
               <ErrorBoundary>
                 {viewMode === 'feed' ? (
                   <div className="space-y-8">
-                    {posts.map((post) => (
+                    {posts.map((post, index) => (
                       <ErrorBoundary key={post.id}>
                         <PostCard post={post} />
+                        {/* Show suggested friends after the 3rd post */}
+                        {index === 2 && (
+                          <ErrorBoundary>
+                            <SuggestedFriendsInFeed />
+                          </ErrorBoundary>
+                        )}
                       </ErrorBoundary>
                     ))}
                   </div>

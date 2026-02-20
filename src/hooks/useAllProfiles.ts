@@ -2,12 +2,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 
 export interface UserProfile {
-  id: Key;
+  id: string;
   user_id: string;
   username: string;
   display_name: string;
   avatar_url: string;
   is_verified?: string | null;
+  bio?: string | null;
+  followers_count?: number;
+  following_count?: number;
+  created_at?: string;
 }
 
 export function useAllProfiles() {
@@ -16,7 +20,7 @@ export function useAllProfiles() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('user_id, username, display_name, avatar_url, is_verified')
+        .select('user_id, username, display_name, avatar_url, is_verified, bio, followers_count, following_count, created_at')
         .order('display_name', { ascending: true });
 
       if (error) throw error;

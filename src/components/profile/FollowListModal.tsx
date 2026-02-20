@@ -14,7 +14,7 @@ const fetchFollowList = async (userId: string, type: 'followers' | 'following') 
 
   // Step 1: Get the list of relevant user IDs from the 'follows' table.
   const targetColumn = type === 'followers' ? 'follower_id' : 'following_id';
-  const filterColumn = type === 'followers' ? 'follower_id' : 'following_id';
+  const filterColumn = type === 'followers' ? 'following_id' : 'follower_id';
 
   const { data: follows, error: followsError } = await supabase
     .from('followers')
@@ -90,7 +90,7 @@ export const FollowListModal = ({
             <div className="space-y-4 max-h-80 overflow-y-auto">
               {filteredUsers.map((user) => (
                 <div key={user.user_id} className="flex items-center justify-between">
-                  <Link to={`/profile/${user.user_id}`} onClick={onClose} className="flex items-center space-x-3">
+                  <Link to={`/profile/${user.user_id}`} onClick={onClose} className="flex items-center space-x-3 min-w-0">
                     <Avatar>
                       <AvatarImage src={user.avatar_url || undefined} />
                       <AvatarFallback>{user.display_name?.[0]}</AvatarFallback>

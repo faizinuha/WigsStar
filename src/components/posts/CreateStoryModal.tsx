@@ -177,14 +177,7 @@ const EditView = ({
           />
         )}
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-2 right-2 text-white bg-black/50 hover:bg-black/70 rounded-full"
-          onClick={onCancel}
-        >
-          <X className="h-4 w-4" />
-        </Button>
+        {/* X button removed - Dialog provides its own close button */}
       </div>
 
       {/* Effects and Content Controls */}
@@ -377,7 +370,7 @@ export const CreateStoryModal = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-md w-full max-h-[90vh] h-[800px] flex flex-col p-6 overflow-hidden sm:rounded-2xl">
         <DialogHeader className="mb-2 shrink-0">
-          <DialogTitle className="text-xl font-bold text-center">
+          <DialogTitle className="text-xl font-bold">
             {isCameraOpen ? 'Ambil Foto' : isEditing ? 'Edit Cerita' : 'Buat Cerita Baru'}
           </DialogTitle>
         </DialogHeader>

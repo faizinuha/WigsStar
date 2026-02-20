@@ -7,8 +7,10 @@ import AdminRoute from "./components/AdminRoute";
 import { BannedUserRedirect } from "./components/BannedUserRedirect";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { GlobalPlayer } from "./components/layout/GlobalPlayer";
+import { MaintenanceGuard } from "./components/MaintenanceGuard";
 import PrivateRoute from "./components/PrivateRoute";
 import { AuthProvider } from "./contexts/AuthContext";
+import { LanguageProvider } from "./contexts/LanguageContext";
 import { LoadingProvider } from "./contexts/LoadingContext";
 import { MusicProvider } from "./contexts/Music";
 import Admin from "./pages/Admin";
@@ -60,8 +62,10 @@ const App = () => (
             <Toaster />
             <Sonner />
             <AuthProvider>
+              <LanguageProvider>
               <MusicProvider>
                 <BannedUserRedirect />
+                <MaintenanceGuard>
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/auth" element={<Auth />} />
@@ -105,8 +109,10 @@ const App = () => (
                   <Route path="/onboarding" element={<Onboarding />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
+                </MaintenanceGuard>
                 <GlobalPlayer />
               </MusicProvider>
+              </LanguageProvider>
             </AuthProvider>
           </TooltipProvider>
         </LoadingProvider>

@@ -33,6 +33,70 @@ import {
 import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
+
+// Component to fetch real follower/following counts - only counts users with existing profiles
+const ProfileStats = ({ userId, postsCount, onClickFollowers, onClickFollowing }: { userId: string; postsCount: number; onClickFollowers: () => void; onClickFollowing: () => void }) => {
+  const { data: actualCounts } = useQuery({
+    queryKey: ['actual-follow-counts', userId],
+    queryFn: async () => {
+      // Get follower IDs
+      const { data: followerRows } = await supabase
+        .from('followers')
+        .select('follower_id')
+        .eq('following_id', userId);
+      
+      // Get following IDs
+      const { data: followingRows } = await supabase
+        .from('followers')
+        .select('following_id')
+        .eq('follower_id', userId);
+
+      const followerIds = (followerRows || []).map(r => r.follower_id);
+      const followingIds = (followingRows || []).map(r => r.following_id);
+
+      // Verify which IDs have existing profiles
+      let followersWithProfiles = 0;
+      let followingWithProfiles = 0;
+
+      if (followerIds.length > 0) {
+        const { data: fp } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .in('user_id', followerIds);
+        followersWithProfiles = fp?.length || 0;
+      }
+
+      if (followingIds.length > 0) {
+        const { data: fp } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .in('user_id', followingIds);
+        followingWithProfiles = fp?.length || 0;
+      }
+
+      return { followers: followersWithProfiles, following: followingWithProfiles };
+    },
+    enabled: !!userId,
+  });
+
+  return (
+    <div className="flex items-center space-x-6 pt-2">
+      <div className="text-center">
+        <p className="font-bold text-lg">{postsCount.toLocaleString()}</p>
+        <p className="text-sm text-muted-foreground">Posts</p>
+      </div>
+      <div className="text-center cursor-pointer hover:text-primary transition-colors" onClick={onClickFollowers}>
+        <p className="font-bold text-lg">{(actualCounts?.followers ?? 0).toLocaleString()}</p>
+        <p className="text-sm text-muted-foreground">Followers</p>
+      </div>
+      <div className="text-center cursor-pointer hover:text-primary transition-colors" onClick={onClickFollowing}>
+        <p className="font-bold text-lg">{(actualCounts?.following ?? 0).toLocaleString()}</p>
+        <p className="text-sm text-muted-foreground">Following</p>
+      </div>
+    </div>
+  );
+};
 
 const ProfilePageContent = ({ profile, isLoading, error }) => {
   const { user: authUser } = useAuth();
@@ -101,7 +165,7 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
     <div className="min-h-screen bg-background">
       <Navigation />
 
-      <main className="md:ml-72 min-h-screen pb-20 md:pb-8">
+      <main className="md:ml-64 min-h-screen pb-24 sm:pb-20 md:pb-8">
         <div className="max-w-4xl mx-auto px-4 py-8">
           {/* Profile Header */}
           <Card className="mb-6 overflow-hidden animate-fade-in">
@@ -383,33 +447,8 @@ const ProfilePageContent = ({ profile, isLoading, error }) => {
                   );
                 })()}
 
-                {/* Stats */}
-                <div className="flex items-center space-x-6 pt-2">
-                  <div className="text-center">
-                    <p className="font-bold text-lg">
-                      {profile.posts_count.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Posts</p>
-                  </div>
-                  <div
-                    className="text-center cursor-pointer hover:text-primary transition-colors"
-                    onClick={() => setFollowListType('followers')}
-                  >
-                    <p className="font-bold text-lg">
-                      {profile.followers_count.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Followers</p>
-                  </div>
-                  <div
-                    className="text-center cursor-pointer hover:text-primary transition-colors"
-                    onClick={() => setFollowListType('following')}
-                  >
-                    <p className="font-bold text-lg">
-                      {profile.following_count.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Following</p>
-                  </div>
-                </div>
+                {/* Stats - use actual counts from followers table */}
+                <ProfileStats userId={profile.user_id} postsCount={posts?.length || 0} onClickFollowers={() => setFollowListType('followers')} onClickFollowing={() => setFollowListType('following')} />
               </div>
             </div>
           </Card>
