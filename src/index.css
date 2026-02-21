@@ -298,6 +298,7 @@
     pointer-events: none;
     font-size: 2.25rem;
     transform-origin: center;
+    z-index: 40;
   }
 
   .small-paw.top-left {
@@ -330,6 +331,7 @@
     opacity: 0.95;
     pointer-events: none;
     box-shadow: var(--shadow-soft);
+    z-index: 50;
   }
 
   /* Cat eye decoration */
