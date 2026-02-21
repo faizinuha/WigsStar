@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">StarMar</string>
-    <string name="title_activity_main">StarMar</string>
-    <string name="package_name">com.StarMar</string>
-    <string name="custom_url_scheme">com.StarMar</string>
+    <string name="app_name">NekoPaw</string>
+    <string name="title_activity_main">NekoPaw</string>
+    <string name="package_name">com.nekopaw</string>
+    <string name="custom_url_scheme">com.nekopaw</string>
 </resources>

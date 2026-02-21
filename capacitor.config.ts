@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-    appId: 'com.StarMar',
-  appName: 'StarMar',
+    appId: 'com.nekopaw',
+  appName: 'NekoPaw',
   webDir: 'dist'
 };
 

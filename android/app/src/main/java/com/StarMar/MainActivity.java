@@ -1,4 +1,4 @@
-package com.StarMar;
+package com.nekopaw;
 
 import com.getcapacitor.BridgeActivity;
 
