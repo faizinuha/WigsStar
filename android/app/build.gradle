@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
 
 android {
     namespace "com.nekopaw"
@@ -16,6 +17,23 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+     signingConfigs {
+        release {
+            storeFile file("WigStar-release.keystore")
+            storePassword "NekoPaw"
+            keyAlias "WigStar"
+            keyPassword "NekoPaw"
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
@@ -51,4 +69,15 @@ try {
     }
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
+tasks.register('dependenciesReport') {
+    doLast {
+        configurations.each { configuration ->
+            println "Configuration: ${configuration.name}"
+            configuration.allDependencies.each { dependency ->
+                println "   -> ${dependency.group}:${dependency.name}:${dependency.version}"
+            }
+            println "--------------------------------------------------"
+        }
+    }
 }
