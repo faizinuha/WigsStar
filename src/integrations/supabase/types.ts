@@ -542,6 +542,53 @@ export type Database = {
           },
         ]
       }
+      live_streams: {
+        Row: {
+          created_at: string
+          description: string | null
+          ended_at: string | null
+          genre: string | null
+          id: string
+          is_active: boolean
+          started_at: string
+          title: string
+          user_id: string
+          viewer_count: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          ended_at?: string | null
+          genre?: string | null
+          id?: string
+          is_active?: boolean
+          started_at?: string
+          title?: string
+          user_id: string
+          viewer_count?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          ended_at?: string | null
+          genre?: string | null
+          id?: string
+          is_active?: boolean
+          started_at?: string
+          title?: string
+          user_id?: string
+          viewer_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_streams_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       maintenance_mode: {
         Row: {
           created_at: string | null
@@ -885,6 +932,38 @@ export type Database = {
           },
         ]
       }
+      post_views: {
+        Row: {
+          created_at: string | null
+          id: string
+          post_id: string
+          session_id: string | null
+          viewer_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          post_id: string
+          session_id?: string | null
+          viewer_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          post_id?: string
+          session_id?: string | null
+          viewer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_views_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           caption: string | null
@@ -902,6 +981,7 @@ export type Database = {
           reposted_by: string | null
           updated_at: string
           user_id: string
+          views_count: number
         }
         Insert: {
           caption?: string | null
@@ -919,6 +999,7 @@ export type Database = {
           reposted_by?: string | null
           updated_at?: string
           user_id: string
+          views_count?: number
         }
         Update: {
           caption?: string | null
@@ -936,6 +1017,7 @@ export type Database = {
           reposted_by?: string | null
           updated_at?: string
           user_id?: string
+          views_count?: number
         }
         Relationships: [
           {
@@ -1364,6 +1446,42 @@ export type Database = {
           },
         ]
       }
+      verification_requests: {
+        Row: {
+          admin_response: string | null
+          created_at: string
+          id: string
+          reason: string
+          responded_at: string | null
+          responded_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_response?: string | null
+          created_at?: string
+          id?: string
+          reason: string
+          responded_at?: string | null
+          responded_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_response?: string | null
+          created_at?: string
+          id?: string
+          reason?: string
+          responded_at?: string | null
+          responded_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1508,6 +1626,11 @@ export type Database = {
         Returns: undefined
       }
       increment_likes_count: { Args: { post_id: string }; Returns: undefined }
+      increment_view: {
+        Args: { p_post_id: string; p_session_id?: string; p_viewer_id?: string }
+        Returns: undefined
+      }
+      increment_views_count: { Args: { post_id: string }; Returns: undefined }
       is_conversation_member: {
         Args: { p_conversation_id: string; p_user_id: string }
         Returns: boolean

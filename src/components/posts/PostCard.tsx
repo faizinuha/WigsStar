@@ -105,12 +105,9 @@ export const PostCard = ({ post }: PostCardProps) => {
   const { toast } = useToast();
   const deletePostMutation = useDeletePost();
 
-  const { data: commentsForPost = [] } =
-    useComments(post.id);
+  const { data: commentsForPost = [] } = useComments(post.id);
 
-  const latestComment = commentsForPost.length
-    ? commentsForPost[commentsForPost.length - 1]
-    : null;
+  const latestComment = commentsForPost.length ? commentsForPost[commentsForPost.length - 1] : null;
   const commentPreviewId = latestComment?.id as string | undefined;
   useLikes('comment', commentPreviewId);
 
@@ -122,6 +119,11 @@ export const PostCard = ({ post }: PostCardProps) => {
   } = useLikes('post', post.id, post.user_id);
 
   const { views, trackView } = useViews(post.id);
+  const formatViewCount = (count: number): string => {
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
+    return count.toString();
+  };
 
   const {
     bookmarks,
@@ -140,8 +142,8 @@ export const PostCard = ({ post }: PostCardProps) => {
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showRepostModal, setShowRepostModal] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
-  // Query repost count for this post
   const { data: repostCount = 0 } = useQuery({
     queryKey: ['repostCount', post.id],
     queryFn: async () => {
@@ -155,25 +157,33 @@ export const PostCard = ({ post }: PostCardProps) => {
     },
   });
 
-  // Determine effective media to show (Original Post's if repost, else Post's)
   const displayMedia = post.is_repost && post.original_post ? post.original_post.media : post.media;
   const displayImageUrl = post.is_repost && post.original_post ? post.original_post.image_url : post.image_url;
   const displayMediaType = post.is_repost && post.original_post ? post.original_post.media_type : post.media_type;
 
   const hasMedia = displayImageUrl || (displayMedia && displayMedia.length > 0);
 
+  // Track view when POST (not just video) becomes visible - works for all post types
   useEffect(() => {
+    const target = cardRef.current;
+    if (!target) return;
+    
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting) {
-          videoRef.current?.pause();
+        if (entry.isIntersecting) {
+          trackView();
+        }
+        // Pause video when out of view
+        if (!entry.isIntersecting && videoRef.current) {
+          videoRef.current.pause();
           setIsVideoPlaying(false);
         }
-      }, { threshold: 0.5 }
+      },
+      { threshold: 0.3 }
     );
-    if (videoRef.current) observer.observe(videoRef.current);
-    return () => { if (videoRef.current) observer.unobserve(videoRef.current); };
-  }, [displayMedia]); // Re-run if media changes
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [trackView]);
 
   const handleLike = () => {
     if (!currentUser) return toast({ title: 'Login required', description: 'You need to be logged in.', variant: 'destructive' });
@@ -209,7 +219,7 @@ export const PostCard = ({ post }: PostCardProps) => {
 
   return (
     <>
-      <Card className="post-card bg-card border-b-2">
+      <Card ref={cardRef} className="post-card bg-card border-b-2">
         {/* Header */}
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-3">
@@ -258,7 +268,7 @@ export const PostCard = ({ post }: PostCardProps) => {
           </DropdownMenu>
         </div>
 
-        {/* Reposter's Caption (Content) */}
+        {/* Content */}
         {post.content && (
           <div className="px-4 pb-3">
             <PostCaption content={displayContent} />
@@ -268,7 +278,7 @@ export const PostCard = ({ post }: PostCardProps) => {
           </div>
         )}
 
-        {/* Media Area (Original Post's media if repost) */}
+        {/* Media Area */}
         {hasMedia ? (
           <div className="aspect-square overflow-hidden bg-black flex items-center justify-center relative group">
             {displayMedia && displayMedia.length > 0 ? (
@@ -278,8 +288,7 @@ export const PostCard = ({ post }: PostCardProps) => {
                     <video
                       ref={videoRef}
                       src={displayMedia[currentMediaIndex]?.media_url}
-                      loop
-                      playsInline
+                      loop playsInline
                       className="w-full h-full object-contain cursor-pointer"
                       onClick={() => {
                         if (videoRef.current?.paused) { videoRef.current?.play(); setIsVideoPlaying(true); }
@@ -307,8 +316,7 @@ export const PostCard = ({ post }: PostCardProps) => {
                 <video
                   ref={videoRef}
                   src={displayImageUrl}
-                  loop
-                  playsInline
+                  loop playsInline
                   className="w-full h-full object-contain cursor-pointer"
                   onClick={() => {
                     if (videoRef.current?.paused) { videoRef.current?.play(); setIsVideoPlaying(true); }
@@ -321,7 +329,6 @@ export const PostCard = ({ post }: PostCardProps) => {
               <img src={displayImageUrl} alt="Post content" className="w-full h-full object-contain" loading="lazy" />
             )}
 
-            {/* Attribution overlay for Reposts */}
             {post.is_repost && post.original_post && (
               <div className="absolute bottom-4 left-4 bg-black/60 text-white px-3 py-1 rounded-full text-xs backdrop-blur-sm flex items-center gap-2">
                 <Avatar className="h-4 w-4">
@@ -333,7 +340,6 @@ export const PostCard = ({ post }: PostCardProps) => {
             )}
           </div>
         ) : post.is_repost && post.original_post && post.original_post.content ? (
-          // If repost has no media but original post has CONTENT, show it in a cleaner way
           <div className="px-4 py-3 bg-secondary/20 border-l-4 border-primary/50 mx-4 mb-2">
             <div className="flex items-center gap-2 mb-1 text-sm text-muted-foreground">
               <Avatar className="h-4 w-4">
@@ -351,9 +357,10 @@ export const PostCard = ({ post }: PostCardProps) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button onClick={handleLike} disabled={likesLoading} className={`flex items-center gap-2 text-sm transition-colors ${isLikedPost ? 'text-red-500' : 'text-muted-foreground hover:text-red-500'}`}><Heart className={`h-6 w-6 ${isLikedPost ? 'fill-red-500' : ''}`} /><span className="font-semibold">{likesCountPost.toLocaleString()}</span></button>
-              <button onClick={() => setShowComments(true)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-blue-500 transition-colors"><MessageCircle className="h-6 w-6" /><span className="font-semibold">{commentsForPost.length.toLocaleString()}</span></button>
+              <button onClick={() => setShowComments(true)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"><MessageCircle className="h-6 w-6" /><span className="font-semibold">{commentsForPost.length.toLocaleString()}</span></button>
               <button onClick={handleRepost} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-green-500 transition-colors"><Repeat className="h-6 w-6" />{repostCount > 0 && <span className="font-semibold">{repostCount}</span>}</button>
-              <Button variant="ghost" size="icon" className="h-10 w-10" onClick={handleShare}><Share className="h-6 w-6 hover:text-green-500 transition-colors" /></Button>
+              <span className="flex items-center gap-1 text-sm text-muted-foreground"><Eye className="h-5 w-5" /><span className="font-semibold">{formatViewCount(views)}</span></span>
+              <Button variant="ghost" size="icon" className="h-10 w-10" onClick={handleShare}><Share className="h-6 w-6 hover:text-primary transition-colors" /></Button>
             </div>
             <Button variant="ghost" size="icon" className="h-10 w-10" onClick={handleBookmark} disabled={bookmarksLoading}><Bookmark className={`h-6 w-6 transition-colors ${isBookmarked ? 'fill-orange-500 text-orange-500' : 'hover:text-orange-500'}`} /></Button>
           </div>
@@ -367,8 +374,8 @@ export const PostCard = ({ post }: PostCardProps) => {
 
       {isEditModalOpen && <EditPostModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} post={post} />}
       {showRepostModal && <RepostModal isOpen={showRepostModal} onClose={() => setShowRepostModal(false)} post={post} />}
-      <BookmarkFolderDialog isOpen={showBookmarkDialog} onClose={() => setShowBookmarkDialog(false)} postId={post.id} />
-      <ReportDialog isOpen={showReportDialog} onClose={() => setShowReportDialog(false)} postId={post.id} userId={post.user_id} />
+      {showBookmarkDialog && <BookmarkFolderDialog isOpen={showBookmarkDialog} onClose={() => setShowBookmarkDialog(false)} postId={post.id} />}
+      {showReportDialog && <ReportDialog isOpen={showReportDialog} onClose={() => setShowReportDialog(false)} postId={post.id} />}
     </>
   );
 };
