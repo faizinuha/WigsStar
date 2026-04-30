@@ -22,12 +22,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Camera, Github, Laptop, Loader2, Mail, Moon,
   ShieldAlert, Sun, Palette, Bell, KeyRound, User as UserIcon,
-  Users, Globe, Link2, Unlink2, CheckCircle2, Shield,
+  Users, Globe, Link2, Unlink2, CheckCircle2, Shield, Download, Database, Trash2,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMfa } from './useMfa';
 import { SocialLinksEditor, SocialLink } from '@/components/settings/SocialLinksEditor';
+import { CountrySelect } from '@/components/ui/country-select';
 import { cn } from '@/lib/utils';
 
 interface UserSettings {
@@ -44,6 +45,7 @@ const TABS = {
   SECURITY: 'security',
   NOTIFICATIONS: 'notifications',
   ACCOUNT: 'account',
+  DATA: 'data',
   DANGER: 'danger',
 };
 
@@ -68,6 +70,7 @@ export const Settings = () => {
   const [displayName, setDisplayName] = useState(profile?.display_name || '');
   const [bio, setBio] = useState(profile?.bio || '');
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+  const [country, setCountry] = useState('');
   const [uploading, setUploading] = useState(false);
   const [linkedProviders, setLinkedProviders] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -95,6 +98,7 @@ export const Settings = () => {
     if (profile) {
       setDisplayName(profile.display_name || '');
       setBio(profile.bio || '');
+      setCountry((profile as any).country || '');
       try {
         const links = (profile as any).social_links;
         setSocialLinks(Array.isArray(links) ? links : []);
@@ -102,14 +106,34 @@ export const Settings = () => {
     }
   }, [profile]);
 
+  // Sync linked providers from auth identities + listen for changes after link/unlink
   useEffect(() => {
-    if (user?.identities) {
-      const providers = user.identities.map(id => id.provider).filter(p => p) as string[];
-      if (user.email && !providers.includes('email')) {
+    const syncProviders = (u: typeof user | null | undefined) => {
+      if (!u) {
+        setLinkedProviders([]);
+        return;
+      }
+      const providers = (u.identities || [])
+        .map((id) => id.provider)
+        .filter((p): p is string => !!p);
+      // Email provider isn't always in identities — derive from auth email
+      if (u.email && !providers.includes('email')) {
         providers.push('email');
       }
-      setLinkedProviders(providers);
-    }
+      setLinkedProviders(Array.from(new Set(providers)));
+      setLinkingProvider(null);
+    };
+
+    syncProviders(user);
+
+    // Re-sync whenever auth state changes (e.g. after linkIdentity OAuth callback)
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      // Pull fresh user (identities may have just changed)
+      const { data } = await supabase.auth.getUser();
+      syncProviders(data.user as any);
+    });
+
+    return () => sub.subscription.unsubscribe();
   }, [user]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,7 +160,7 @@ export const Settings = () => {
 
   const handleProfileUpdate = async () => {
     try {
-      await updateProfile.mutateAsync({ display_name: displayName, bio, social_links: socialLinks } as any);
+      await updateProfile.mutateAsync({ display_name: displayName, bio, social_links: socialLinks, country } as any);
       toast({ title: 'Profile updated successfully!' });
     } catch (error: any) {
       toast({ title: 'Error updating profile', description: error.message, variant: 'destructive' });
@@ -252,6 +276,7 @@ export const Settings = () => {
     { id: TABS.SECURITY, label: t('Security'), icon: KeyRound },
     { id: TABS.NOTIFICATIONS, label: t('Notifications'), icon: Bell },
     { id: TABS.ACCOUNT, label: t('Account'), icon: Users },
+    { id: TABS.DATA, label: t('Data & Cache'), icon: Database },
     { id: 'verification', label: t('Verification'), icon: CheckCircle2, path: '/settings/verification' },
     { id: 'mod-apply', label: t('Apply as Moderator'), icon: Shield },
     { id: TABS.DANGER, label: t('Danger Zone'), icon: ShieldAlert, className: 'text-destructive hover:text-destructive hover:bg-destructive/10' },
@@ -281,6 +306,7 @@ export const Settings = () => {
               <div className="space-y-4 pt-4">
                 <div><Label htmlFor="display-name">{t('Display Name')}</Label><Input id="display-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your display name" /></div>
                 <div><Label htmlFor="bio">{t('Bio')}</Label><Textarea id="bio" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell us about yourself" rows={3} /></div>
+                <div><Label>{t('Country')}</Label><CountrySelect value={country} onChange={setCountry} /></div>
                 <Separator />
                 <SocialLinksEditor links={socialLinks} onChange={setSocialLinks} maxLinks={6} />
                 <Button onClick={handleProfileUpdate} disabled={updateProfile.isPending}>{updateProfile.isPending ? t('Saving...') : t('Save Changes')}</Button>
@@ -429,7 +455,19 @@ export const Settings = () => {
             <CardHeader><CardTitle>{t('Account Management')}</CardTitle><CardDescription>{t('Manage how you sign in.')}</CardDescription></CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                You are currently signed in with <span className="font-semibold capitalize text-primary">{user?.app_metadata.provider || 'email'}</span>.
+                {linkedProviders.length > 0 ? (
+                  <>
+                    {t('Connected sign-in methods')}:{' '}
+                    {linkedProviders.map((p, i) => (
+                      <span key={p}>
+                        {i > 0 && ', '}
+                        <span className="font-semibold capitalize text-primary">{p}</span>
+                      </span>
+                    ))}
+                  </>
+                ) : (
+                  <>You are currently signed in with <span className="font-semibold capitalize text-primary">{user?.app_metadata.provider || 'email'}</span>.</>
+                )}
               </p>
               <div className="space-y-2">
                 {[
@@ -482,6 +520,8 @@ export const Settings = () => {
         );
       case 'mod-apply':
         return <ModeratorApplySection userId={user.id} currentRole={profile?.role} />;
+      case TABS.DATA:
+        return <DataAndCacheTab userId={user.id} email={user.email} />;
       case TABS.DANGER:
         return (
           <Card className="border-destructive">
@@ -688,3 +728,92 @@ const ModeratorApplySection = ({ userId, currentRole }: { userId: string; curren
     </Card>
   );
 };
+
+// ============================================================
+// Data & Cache management tab
+// ============================================================
+const DataAndCacheTab = ({ userId, email }: { userId: string; email?: string }) => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [exporting, setExporting] = useState(false);
+  const [clearing, setClearing] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const tables = ['profiles', 'posts', 'memes', 'stories', 'comments', 'likes', 'bookmarks', 'follows'] as const;
+      const exportData: Record<string, any> = {
+        exported_at: new Date().toISOString(),
+        user: { id: userId, email },
+      };
+      for (const table of tables) {
+        try {
+          const { data } = await supabase.from(table as any).select('*').eq('user_id', userId);
+          exportData[table] = data || [];
+        } catch (e) {
+          exportData[table] = { error: (e as Error).message };
+        }
+      }
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `starmar-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: 'Export ready', description: 'Your data has been downloaded as a JSON file.' });
+    } catch (e: any) {
+      toast({ title: 'Export failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleClearCache = () => {
+    setClearing(true);
+    try {
+      queryClient.clear();
+      try {
+        localStorage.removeItem('STARMAR_QUERY_CACHE_V1');
+      } catch {}
+      toast({ title: 'Cache cleared', description: 'All cached data has been removed.' });
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Download className="h-5 w-5" /> Export Data</CardTitle>
+          <CardDescription>
+            Download semua data milikmu (profile, post, meme, story, komentar, like, bookmark, follow) dalam format JSON.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={handleExport} disabled={exporting}>
+            {exporting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Exporting...</> : <><Download className="h-4 w-4 mr-2" /> Export My Data</>}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5" /> Cache</CardTitle>
+          <CardDescription>
+            Aplikasi menyimpan cache lokal supaya halaman tidak perlu memuat ulang setiap kali kamu kembali. Hapus cache jika data terlihat tidak konsisten.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={handleClearCache} disabled={clearing}>
+            <Trash2 className="h-4 w-4 mr-2" /> Clear Cache
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
